@@ -767,7 +767,7 @@ body{
   display:flex;flex-direction:column;
 }
 .yd-login-media{position:absolute;inset:0;z-index:0;}
-.yd-login-media img{width:100%;height:100%;object-fit:cover;object-position:30% 15%;}
+.yd-login-media img{width:100%;height:100%;object-fit:contain;object-position:center;}
 .yd-login-overlay{
   position:absolute;inset:0;z-index:1;pointer-events:none;
   background:
@@ -827,7 +827,7 @@ body{
 .yd-login-btn:hover svg{transform:translateX(3px);}
 
 @media (max-width:1024px){
-  .yd-login-media img{object-position:38% 8%;}
+  .yd-login-media img{object-position:center;}
   .yd-login-overlay{
     background:
       linear-gradient(0deg,rgba(5,5,5,.97) 0%,rgba(5,5,5,.9) 38%,rgba(5,5,5,.45) 62%,rgba(5,5,5,.15) 100%),
