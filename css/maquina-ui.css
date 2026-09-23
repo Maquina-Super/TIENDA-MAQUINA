@@ -766,8 +766,14 @@ body{
   overflow:hidden;background:#050505;
   display:flex;flex-direction:column;
 }
-.yd-login-media{position:absolute;inset:0;z-index:0;}
-.yd-login-media img{width:100%;height:100%;object-fit:cover;object-position:center;}
+.yd-login-media{position:absolute;inset:0;z-index:0;overflow:hidden;background:#050505;}
+.yd-login-media-bg{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;
+  filter:blur(38px) brightness(.4) saturate(1.15);transform:scale(1.15);
+}
+.yd-login-media-fg{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;
+}
 .yd-login-overlay{
   position:absolute;inset:0;z-index:1;pointer-events:none;
   background:
@@ -827,7 +833,7 @@ body{
 .yd-login-btn:hover svg{transform:translateX(3px);}
 
 @media (max-width:1024px){
-  .yd-login-media img{object-position:center;}
+  .yd-login-media-fg{object-fit:cover;object-position:22% center;}
   .yd-login-overlay{
     background:
       linear-gradient(0deg,rgba(5,5,5,.97) 0%,rgba(5,5,5,.9) 38%,rgba(5,5,5,.45) 62%,rgba(5,5,5,.15) 100%),
