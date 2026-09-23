@@ -64,7 +64,7 @@ function renderHeader(paginaActual = "") {
     </div>` : ''}
     <nav class="nav">
       <a href="index.html" class="nav-logo">
-        <span class="logo-mark">⚡</span><span class="logo-text display">YAS<em>DRIP</em></span>
+        <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
       </a>
       <div class="nav-links">
         <a href="index.html" class="${paginaActual === 'inicio' ? 'active' : ''}">Inicio</a>
@@ -99,7 +99,7 @@ function renderHeader(paginaActual = "") {
     <div class="mobile-nav" id="mobileNav">
       <div class="mobile-nav-top">
         <a href="index.html" class="nav-logo">
-          <span class="logo-mark">⚡</span><span class="logo-text display">YAS<em>DRIP</em></span>
+          <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
         </a>
         <button class="search-close" id="mobileNavClose" aria-label="Cerrar menú">✕</button>
       </div>
@@ -269,10 +269,10 @@ function renderFooter() {
 
       <div class="footer-inner">
         <div class="footer-brand">
-          <a href="index.html" class="foot-logo display"><span class="logo-mark">⚡</span>YAS<em>DRIP</em></a>
+          <a href="index.html" class="foot-logo display"><span class="logo-mark">⚡</span>MA<em>QUINA</em></a>
           <p class="footer-slogan">Drip para gente que ya trae su propia energía.</p>
           <div class="footer-socials">
-            <a href="https://www.instagram.com/yas__drip/" target="_blank" rel="noopener" class="social-pill ig">📸 @yas__drip</a>
+            <a href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener" class="social-pill ig">📸 @maquina.oficial</a>
             <a href="https://tiktok.com/@maquina" target="_blank" rel="noopener" class="social-pill tk">🎵 TikTok</a>
             <a href="https://facebook.com/maquina" target="_blank" rel="noopener" class="social-pill fb">📘 Facebook</a>
           </div>
@@ -291,7 +291,7 @@ function renderFooter() {
         <div class="footer-col">
           <h4>REDES SOCIALES</h4>
           <ul class="redes">
-            <li><a href="https://www.instagram.com/yas__drip/" target="_blank" rel="noopener">📸 Instagram: @yas__drip</a></li>
+            <li><a href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener">📸 Instagram: @maquina.oficial</a></li>
             <li><a href="https://tiktok.com/@maquina" target="_blank" rel="noopener">🎵 TikTok: @maquina</a></li>
             <li><a href="https://facebook.com/maquina" target="_blank" rel="noopener">📘 Facebook: MAQUINA</a></li>
           </ul>

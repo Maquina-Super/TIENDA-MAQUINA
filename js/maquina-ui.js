@@ -26,17 +26,17 @@ const YD_HERO_SLIDES = [
   {
     imagen: "img/banner-hoodie-1.jpg",
     eyebrow: "Nueva colección",
-    titulo: 'YAS<span>DRIP</span>',
+    titulo: 'MA<span>QUINA</span>',
     texto: "Estilo, actitud y comodidad en una sola prenda.",
     boton: "Ver colección",
     href: "productos.html",
   },
   {
     imagen: "img/banner-hoodie-2.jpg",
-    eyebrow: "Drop 01 · Busos",
-    titulo: "Busos oversize",
-    texto: "Corte ancho, tela pesada y el estampado MAQUINA en la espalda.",
-    boton: "Ver busos",
+    eyebrow: "Gymrat · Streetwear",
+    titulo: 'Si vas a dejar todo en tu entrenamiento <span>hazlo con una marca que hable por ti.</span>',
+    texto: "Ropa que representa tu disciplina, tu mentalidad y todo lo que construyes dentro y fuera del gym.",
+    boton: "Ver productos",
     href: "productos.html?cat=Busos",
   },
   {
