@@ -1,0 +1,107 @@
+============================================================
+ GUÍA: Correo para "olvidé mi código de acceso al panel"
+============================================================
+
+QUÉ ES ESTO
+------------------------------------------------------------
+Cada persona del equipo, además de correo + contraseña, ahora
+necesita un CÓDIGO DE ACCESO (6 números) para entrar al
+panel — se lo asignas tú desde la pestaña "Usuarios" al crear
+su perfil (o le cambias uno nuevo con "Editar permisos").
+
+Si a alguien se le olvida, en la pantalla de login hay un link
+"¿Olvidaste tu código de acceso?" que le pide su correo. Si ese
+correo tiene un código asignado, la tienda le manda un aviso a
+tu MISMO Google Apps Script (el que ya usas para avisar pedidos
+nuevos y el correo de confirmación al cliente) para que le
+llegue el código a su correo. Sin este paso, el link solo va a
+mostrar el mensaje pero NO va a llegar ningún correo de verdad
+— hay que agregar esta parte en tu Apps Script, igual que se
+hizo con el correo de confirmación de pedido
+(GUIA_CORREO_CONFIRMACION.txt).
+
+Además, si alguien escribe el código mal 5 veces seguidas (con
+la contraseña ya bien puesta), esa cuenta queda bloqueada 15
+minutos antes de poder volver a intentar — así, aunque alguien
+se robe una contraseña, no puede sentarse a probar códigos uno
+por uno.
+
+------------------------------------------------------------
+QUÉ AGREGAR A TU APPS SCRIPT
+------------------------------------------------------------
+1. Entra a https://script.google.com y abre el proyecto que ya
+   tienes conectado a APPS_SCRIPT_URL.
+
+2. Dentro de doPost(e), donde ya revisas datos.tipo (junto al
+   "if (datos.tipo === 'pedido_nuevo') { ... }"), agrega este
+   bloque nuevo:
+
+     if (datos.tipo === 'codigo_panel_recuperacion') {
+       enviarCorreoCodigoPanel(datos.correo, datos.codigo);
+     }
+
+3. Agrega esta función nueva en cualquier parte del archivo
+   (fuera de doPost, al mismo nivel que las demás funciones):
+
+     /** Manda por correo el código de acceso al panel a quien lo
+         pidió desde "¿Olvidaste tu código?" en admin.html. */
+     function enviarCorreoCodigoPanel(correo, codigo) {
+       if (!correo || !codigo) return;
+       MailApp.sendEmail({
+         to: correo,
+         subject: 'MAQUINA — Tu código de acceso al panel',
+         body:
+           'Hola,\n\n' +
+           'Pediste recuperar tu código de acceso al panel de MAQUINA.\n\n' +
+           'Tu código es: ' + codigo + '\n\n' +
+           'Si tú no pediste esto, ignora este correo (nadie puede\n' +
+           'entrar al panel solo con este código: también hace falta\n' +
+           'tu contraseña de siempre).\n\n' +
+           '— MAQUINA',
+         name: 'MAQUINA',
+       });
+     }
+
+4. Guarda y vuelve a publicar el script: "Implementar" ->
+   "Administrar implementaciones" -> ícono de lápiz sobre la
+   implementación activa -> en "Versión" elige "Nueva versión"
+   -> "Implementar". (Si solo guardas sin publicar una nueva
+   versión, el cambio NO queda activo — se te suele olvidar este
+   paso.)
+
+------------------------------------------------------------
+CÓMO PROBARLO
+------------------------------------------------------------
+En admin.html, en la pantalla de login, haz clic en "¿Olvidaste
+tu código de acceso?" y escribe el correo de un usuario del
+panel al que ya le hayas asignado un código. Revisa esa bandeja
+de entrada (y Spam) en un par de minutos.
+
+------------------------------------------------------------
+POR QUÉ NO SE MANDA POR SMS
+------------------------------------------------------------
+Se decidió que la recuperación fuera SOLO por correo. Firebase,
+en su plan gratis, únicamente puede mandar SUS PROPIOS códigos
+de verificación por SMS (para comprobar que un número es tuyo),
+pero no puede mandar un mensaje de texto con contenido libre
+como "tu código es 1234" — eso necesitaría un servicio de SMS de
+pago (como Twilio) y un servidor aparte para guardar esa
+conexión en secreto. Si más adelante quieres agregar esa opción,
+avísame y lo armamos como una tarea aparte.
+
+------------------------------------------------------------
+LÍMITES A TENER EN CUENTA
+------------------------------------------------------------
+- Mismo límite que el correo de confirmación de pedido:
+  MailApp.sendEmail usa tu cuota diaria de Gmail (100 correos al
+  día en una cuenta gratis). De sobra para el equipo de una
+  tienda.
+- El código se guarda en Firestore en la colección
+  "panel_codigos" (documento = el correo de la persona). Puede
+  leerse UN documento puntual si ya se sabe el correo exacto
+  (necesario para que este link funcione sin backend propio),
+  pero NO se puede listar la colección completa — nadie puede
+  sacar de un solo golpe la lista de correos+códigos del equipo.
+  Riesgo bajo y aceptable para una tienda pequeña, mismo criterio
+  que ya se usa en la colección "telefonos" para la recuperación
+  de contraseña de los clientes.

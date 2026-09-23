@@ -1,0 +1,206 @@
+/* ============================================================
+   SCRIPT COMPLETO - MAQUINA
+   Reemplaza TODO el contenido de tu archivo .gs por esto.
+   Hace 3 cosas cuando la tienda le manda un aviso:
+     1) pedido_nuevo               -> escribe la fila en Sheets
+                                       + manda correo de confirmación al cliente
+     2) codigo_panel_recuperacion  -> manda el código del panel por correo
+     3) pedido_eliminado           -> borra la fila de ese pedido en Sheets
+   ============================================================ */
+
+/* ---------- CONFIGURA ESTO ---------- */
+// Pega aquí el ID de tu hoja "maquina-pedidos".
+// Lo sacas de la URL: https://docs.google.com/spreadsheets/d/ESTE_ES_EL_ID/edit
+const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
+const SHEET_TAB = "Pedidos"; // el nombre exacto de la pestaña donde están las columnas
+
+/* ============================================================
+   1) FUNCIÓN PRINCIPAL - recibe todos los avisos de la tienda
+   ============================================================ */
+function doPost(e) {
+  try {
+    const datos = JSON.parse(e.postData.contents);
+
+    if (datos.tipo === 'pedido_nuevo') {
+      guardarPedidoEnSheet(datos.pedido);
+      enviarCorreoConfirmacion(datos.pedido);
+    }
+
+    if (datos.tipo === 'codigo_panel_recuperacion') {
+      enviarCorreoCodigoPanel(datos.correo, datos.codigo);
+    }
+
+    if (datos.tipo === 'pedido_eliminado') {
+      eliminarPedidoDeSheet(datos.codigo_pedido || datos.id);
+    }
+
+    return ContentService.createTextOutput('ok');
+  } catch (err) {
+    // Si algo falla, igual respondemos "ok" para no romper la tienda,
+    // pero queda registrado el error en "Ejecuciones" para revisarlo.
+    console.error(err);
+    return ContentService.createTextOutput('error: ' + err.message);
+  }
+}
+
+/* ============================================================
+   2) ESCRIBE LA FILA EN TU HOJA DE CÁLCULO
+   OJO: revisa el orden de columnas de tu hoja y ajústalo abajo
+   si no coincide (mira el arreglo "fila").
+   ============================================================ */
+function guardarPedidoEnSheet(pedido) {
+  if (!pedido) return;
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+
+  const detalle = pedido.detalle ||
+    (pedido.items || []).map(function (it) { return it.nombre + ' (' + it.talla + ')'; }).join(' | ');
+
+  // Dirección: todo menos el municipio, que va en su propia columna
+  const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_referencia]
+    .filter(Boolean).join(', ');
+
+  const fila = [
+    pedido.codigo_pedido || pedido.id || '',                        // A - N° Pedido
+    new Date(pedido.fecha || Date.now()),                            // B - Fecha
+    pedido.nombre_cliente || '',                                     // C - Cliente
+    pedido.email_cliente || '',                                      // D - Correo
+    pedido.telefono_cliente || '',                                   // E - Teléfono
+    detalle,                                                         // F - Productos
+    pedido.envio_municipio || '',                                    // G - Municipio
+    direccion,                                                       // H - Dirección
+    pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega',  // I - Método de pago
+    pedido.subtotal || 0,                                            // J - Subtotal
+    pedido.costo_envio || 0,                                         // K - Envío
+    pedido.total || 0,                                               // L - Total
+  ];
+
+  hoja.appendRow(fila);
+}
+
+/* ============================================================
+   3) CORREO DE CONFIRMACIÓN DE PEDIDO AL CLIENTE
+   ============================================================ */
+function enviarCorreoConfirmacion(pedido) {
+  if (!pedido || !pedido.email_cliente) return;
+
+  const codigo = pedido.codigo_pedido || pedido.id;
+  const items = pedido.items || [];
+  const esContraentrega = pedido.metodo_pago === 'contraentrega';
+
+  // Textos que cambian según si ya se pagó (tarjeta/Nequi) o es contraentrega
+  const etiquetaEstado = esContraentrega ? '📦 Pedido confirmado' : '✅ Pago confirmado';
+  const asuntoCorreo = esContraentrega
+    ? 'MAQUINA — 📦 Pedido confirmado #' + codigo
+    : 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo;
+  const fraseEstadoTexto = esContraentrega
+    ? '📦 Ya recibimos tu pedido #' + codigo + ' en MAQUINA y lo estamos organizando para el envío. Pagas contraentrega cuando te llegue.'
+    : '✅ Tu pago se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.';
+  const fraseEstadoHtml = esContraentrega
+    ? 'Ya recibimos tu pedido <strong>#' + codigo + '</strong> en MAQUINA y lo estamos <strong>organizando para el envío</strong>. Pagas contraentrega cuando te llegue. Esto fue lo que compraste:'
+    : 'Tu pago se realizó <strong>correctamente</strong> y ya recibimos tu pedido <strong>#' + codigo + '</strong> en MAQUINA. Esto fue lo que compraste:';
+
+  const filasItemsTexto = items.map(function (it) {
+    return it.nombre + ' — talla ' + it.talla +
+      ' — $' + Number(it.precio).toLocaleString('es-CO');
+  }).join('\n');
+
+  const filasItemsHtml = items.map(function (it) {
+    const foto = it.foto
+      ? '<img src="' + it.foto + '" width="64" height="64" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;" alt="' + it.nombre + '">'
+      : '';
+    return '<tr>' +
+      '<td style="padding:8px 0;">' + foto + '</td>' +
+      '<td style="padding:8px 0 8px 12px;font-family:Arial,sans-serif;font-size:14px;color:#151512;">' +
+        '<strong>' + it.nombre + '</strong><br>' +
+        '<span style="color:#666;">Talla ' + it.talla + ' — $' + Number(it.precio).toLocaleString('es-CO') + '</span>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_municipio]
+    .filter(Boolean).join(', ');
+
+  const cuerpoTexto =
+    '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
+    fraseEstadoTexto + '\n\n' +
+    filasItemsTexto + '\n\n' +
+    'Subtotal: $' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '\n' +
+    'Envío: $' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '\n' +
+    'Total: $' + Number(pedido.total || 0).toLocaleString('es-CO') + '\n\n' +
+    'Dirección de entrega: ' + direccion + '\n' +
+    'Método de pago: ' + (pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega') + '\n\n' +
+    '¿Dudas sobre tu pedido? Escríbenos por WhatsApp: https://wa.me/573239523623\n\n' +
+    'Gracias por tu compra ⚡\n— MAQUINA';
+
+  const cuerpoHtml =
+    '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
+      '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
+        '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">' + etiquetaEstado + '</div>' +
+      '</div>' +
+      '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
+        '<p style="font-size:15px;color:#151512;">¡Hola <strong>' + (pedido.nombre_cliente || '') + '</strong>! ⚡</p>' +
+        '<p style="font-size:14px;color:#333;">' + fraseEstadoHtml + '</p>' +
+        '<table style="width:100%;border-collapse:collapse;margin:14px 0;">' + filasItemsHtml + '</table>' +
+        '<table style="width:100%;font-size:14px;color:#151512;border-top:1px solid #eee;padding-top:10px;">' +
+          '<tr><td>Subtotal</td><td style="text-align:right;">$' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '</td></tr>' +
+          '<tr><td>Envío</td><td style="text-align:right;">$' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '</td></tr>' +
+          '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + Number(pedido.total || 0).toLocaleString('es-CO') + '</td></tr>' +
+        '</table>' +
+        '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + direccion + '<br>' +
+        '💳 Método de pago: ' + (pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega') + '</p>' +
+        '<p style="font-size:13px;color:#666;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp: ' +
+        '<a href="https://wa.me/573239523623">https://wa.me/573239523623</a></p>' +
+        '<p style="font-size:14px;color:#151512;margin-top:16px;">Gracias por tu compra ⚡<br>— MAQUINA</p>' +
+      '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: pedido.email_cliente,
+    subject: asuntoCorreo,
+    body: cuerpoTexto,
+    htmlBody: cuerpoHtml,
+    name: 'MAQUINA',
+  });
+}
+
+/* ============================================================
+   4) CORREO DE "OLVIDÉ MI CÓDIGO DE ACCESO AL PANEL"
+   ============================================================ */
+function enviarCorreoCodigoPanel(correo, codigo) {
+  if (!correo || !codigo) return;
+  MailApp.sendEmail({
+    to: correo,
+    subject: 'MAQUINA — Tu código de acceso al panel',
+    body:
+      'Hola,\n\n' +
+      'Pediste recuperar tu código de acceso al panel de MAQUINA.\n\n' +
+      'Tu código es: ' + codigo + '\n\n' +
+      'Si tú no pediste esto, ignora este correo (nadie puede\n' +
+      'entrar al panel solo con este código: también hace falta\n' +
+      'tu contraseña de siempre).\n\n' +
+      '— MAQUINA',
+    name: 'MAQUINA',
+  });
+}
+
+/* ============================================================
+   5) BORRA LA FILA DE UN PEDIDO ELIMINADO DESDE EL PANEL
+   La columna A guarda el N° de pedido = últimos 6 caracteres del
+   id de Firestore, en mayúsculas. Se busca de abajo hacia arriba
+   y nunca se toca el encabezado (fila 1).
+   ============================================================ */
+function eliminarPedidoDeSheet(idPedido) {
+  if (!idPedido) return;
+  const id = String(idPedido);
+  const codigo = id.slice(-6).toUpperCase();
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) return;
+  const valores = hoja.getRange(1, 1, ultima, 1).getValues();
+  for (let i = valores.length - 1; i >= 1; i--) {
+    const celda = String(valores[i][0]).trim();
+    if (celda === codigo || celda === id) hoja.deleteRow(i + 1);
+  }
+}

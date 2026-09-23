@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Categorías — MAQUINA</title>
+<meta name="description" content="Explora la colección MAQUINA por categoría: busos, camisetas, chaquetas, gorras, pantalones, shorts y camisas.">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Categorías — MAQUINA">
+<meta property="og:description" content="Explora la colección MAQUINA por categoría.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/categorias.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<!-- ========== ENCABEZADO ========== -->
+<section class="yd-catpage-head">
+  <span class="yd-catpage-eyebrow">MAQUINA · Colección</span>
+  <h1>CATEGORÍAS</h1>
+  <p>Explora nuestra colección MAQUINA</p>
+  <div class="yd-catpage-generos" id="ydGenerosFila"></div>
+</section>
+
+<!-- ========== TARJETAS DE CATEGORÍA ========== -->
+<section class="yd-catpage-grid" id="ydCatGrid">
+  <!-- se rellena con JS -->
+</section>
+
+<div class="yd-info" id="ydInfo"></div>
+<div id="site-footer"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/catalog-render.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
+<script src="js/maquina-ui.js?v=4"></script>
+<script>
+renderHeader('categorias');
+renderFooter();
+ydRenderBeneficios('ydInfo');
+
+(async function () {
+const grid = document.getElementById('ydCatGrid');
+grid.innerHTML = `<div class="yd-empty" style="grid-column:1/-1;">Cargando categorías…</div>`;
+
+await cargarCatalogo();
+const activos = productosActivos();
+
+/* ---------- fila de géneros (Hombre / Mujer / Niño / Niña) ---------- */
+const generosFila = document.getElementById('ydGenerosFila');
+if (typeof GENEROS_MENU !== 'undefined') {
+  generosFila.innerHTML = GENEROS_MENU.map(g =>
+    `<a href="productos.html?genero=${g.id}">${g.etiqueta}</a>`
+  ).join('<span>·</span>');
+}
+
+/* ---------- tarjetas de categoría ---------- */
+const iconoPorCategoria = { Busos:'hoodie', Camisetas:'tee', Gorras:'cap', Pantalones:'pants', Chaquetas:'jacket', Shorts:'shorts', Camisas:'tee' };
+const categorias = Array.from(new Set(activos.map(p => p.categoria))).sort();
+
+if (!categorias.length) {
+  grid.innerHTML = `<div class="yd-empty" style="grid-column:1/-1;"><b>Todavía no hay categorías</b>Vuelve pronto.</div>`;
+  return;
+}
+
+grid.innerHTML = categorias.map(cat => {
+  const deEsta = activos.filter(p => p.categoria === cat);
+  const conFoto = deEsta.find(p => p.foto || (p.fotos && Object.keys(p.fotos).length));
+  const foto = conFoto ? (conFoto.foto || conFoto.fotos[Object.keys(conFoto.fotos)[0]]) : null;
+  const arte = foto
+    ? `<img src="${foto}" alt="${cat}" loading="lazy">`
+    : iconoProducto(iconoPorCategoria[cat] || 'tee', '#8af04e');
+  return `
+    <a class="yd-catpage-card" href="productos.html?cat=${encodeURIComponent(cat)}">
+      <div class="yd-catpage-art">${arte}</div>
+      <div class="yd-catpage-info">
+        <b>${cat}</b>
+        <span>${deEsta.length} ${deEsta.length === 1 ? 'ITEM' : 'ITEMS'}</span>
+      </div>
+      <span class="yd-catpage-btn">Ver categoría ${YD_ICONOS.der}</span>
+    </a>`;
+}).join('');
+
+})();
+</script>
+
+</body>
+</html>

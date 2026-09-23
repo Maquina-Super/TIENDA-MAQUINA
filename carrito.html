@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Tu carrito — MAQUINA</title>
+<meta name="description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Tu carrito — MAQUINA">
+<meta property="og:description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/carrito.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/carrito.css">
+</head>
+<body class="carrito-page">
+
+<div id="site-header"></div>
+
+<main class="cart-page">
+  <header class="cart-hero">
+    <span class="cart-eyebrow">Paso final</span>
+    <h1>Tu carrito</h1>
+    <p>Revisa tus productos y completa tu pedido.</p>
+  </header>
+
+  <div class="carrito-wrap" id="carritoWrap">
+    <!-- se rellena con JS -->
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastText">Aviso</span></div>
+
+<div id="pago-overlay">
+  <canvas id="pago-canvas"></canvas>
+  <div class="pago-card">
+    <div class="estado-verificando" id="estado-verificando">
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 96 96">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#0D0D0D"/>
+              <stop offset="100%" stop-color="#FFD600"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-track"    cx="48" cy="48" r="44"/>
+          <circle class="ring-progress" cx="48" cy="48" r="44"/>
+        </svg>
+        <div class="ring-icon">💳</div>
+      </div>
+      <div>
+        <div class="pago-status" id="pago-status-txt">Comprobando pago</div>
+        <div class="dots" style="margin-top:10px"><span></span><span></span><span></span></div>
+      </div>
+      <div class="barra-wrap" style="width:260px"><div class="barra-fill"></div></div>
+    </div>
+
+    <div class="estado-exito" id="estado-exito">
+      <div class="check-circle">✅</div>
+      <div class="exito-titulo">¡Pago exitoso! ⚡</div>
+      <div class="exito-sub">Tu pago se realizó correctamente — ya casi vuela para tu casa 🚀</div>
+      <div class="gracias-nombre" id="gracias-nombre"></div>
+      <div class="exito-pedido" id="exito-pedido"></div>
+      <div class="exito-items" id="exito-items"></div>
+      <div class="exito-totales" id="exito-totales"></div>
+      <div class="exito-correo" id="exito-correo"></div>
+      <a href="productos.html" class="btn-exito-volver">Seguir comprando</a>
+    </div>
+
+    <div class="estado-error" id="estado-error">
+      <div class="error-circle">❌</div>
+      <div class="error-titulo">Error en el pago</div>
+      <div class="error-msg" id="error-msg-txt"></div>
+      <button class="btn-error-volver" onclick="cerrarOverlay()">↩ Volver e intentar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/products.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+renderHeader('carrito');
+renderFooter();
+
+/* =====================================================   AJUSTES DEL CARRITO
+   ENVIO_GRATIS_DESDE: subtotal (en pesos) desde el cual el envío
+   es gratis. 0 = desactivado (se cobra siempre el envío de la
+   zona). Ejemplo: 250000 -> envío gratis desde $250.000.
+   ============================================================ */
+const ENVIO_GRATIS_DESDE = 0;
+
+/* El catálogo se carga en segundo plano: lo necesita el botón "+"
+   (para revisar stock) y el menú del encabezado. */
+const catalogoListo = cargarCatalogo().then(() => renderHeader('carrito')).catch(e => console.error('Catálogo:', e));
+
+/* ---------- helpers ---------- */
+function fmtDinero(n) {
+  return '$' + Number(n || 0).toLocaleString('es-CO');
+}
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function animarClase(el, clase) {
+  if (!el) return;
+  el.classList.remove(clase);
+  void el.offsetWidth;            // reinicia la animación
+  el.classList.add(clase);
+}
+const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Muestra un valor en pesos y, si cambió, lo "cuenta" hasta el nuevo número. */
+function setDinero(el, valor) {
+  if (!el) return;
+  const desde = typeof el._valor === 'number' ? el._valor : valor;
+  el._valor = valor;
+  cancelAnimationFrame(el._raf);
+  if (desde === valor || reducirMovimiento) { el.textContent = fmtDinero(valor); return; }
+  const t0 = performance.now(), dur = 380;
+  (function paso(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const suave = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmtDinero(Math.round(desde + (valor - desde) * suave));
+    if (p < 1) el._raf = requestAnimationFrame(paso);
+  })(t0);
+  animarClase(el, 'tick');
+}
+
+/** Nombre aproximado del color a partir de su HEX (el catálogo solo guarda el código). */
+const PALETA_COLORES = [
+  ['Negro', '#151512'], ['Gris oscuro', '#3a3a36'], ['Gris', '#83807a'], ['Blanco', '#faf9f5'],
+  ['Hueso', '#eceae3'], ['Crema', '#f5ecd6'], ['Beige', '#d8c3a5'], ['Café', '#6b4423'],
+  ['Verde menta', '#dfe8da'], ['Verde', '#2f6b4a'], ['Verde oscuro', '#1b4332'], ['Lila', '#e7d9ee'],
+  ['Morado', '#6a3d9a'], ['Rosado', '#f3e0da'], ['Fucsia', '#d63384'], ['Rojo', '#c0392b'],
+  ['Naranja', '#e67e22'], ['Amarillo', '#ffd600'], ['Azul claro', '#9ec5e8'], ['Azul', '#2d4a8a'],
+];
+function nombreColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return '';
+  const rgb = h => [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [r, g, b] = rgb(m[1]);
+  let mejor = '', dMin = Infinity;
+  PALETA_COLORES.forEach(([nombre, h]) => {
+    const [r2, g2, b2] = rgb(h.slice(1));
+    const d = (r - r2) ** 2 + (g - g2) ** 2 + (b - b2) ** 2;
+    if (d < dMin) { dMin = d; mejor = nombre; }
+  });
+  return mejor;
+}
+
+/* iconos minimalistas (trazo, heredan el color del texto) */
+function svgCandado() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
+}
+function svgCamion() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.5h11v9h-11z"/><path d="M13.5 9.5h4l3 3.2v2.8h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>';
+}
+function svgBolsa() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>';
+}
+/* iconos de los métodos de pago (mismo trazo que los de arriba, para que
+   los tres se vean consistentes y sin emojis) */
+function svgIconoTarjeta() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.3" y="5.3" width="19.4" height="13.4" rx="2.6"/><path d="M2.3 9.6h19.4"/><path d="M6 14.4h4.2"/></svg>';
+}
+function svgIconoNequi() {
+  /* Sin el logo oficial de Nequi disponible en el proyecto, usamos un
+     icono genérico de celular con "pago confirmado" — mismo estilo que
+     los otros dos, para no mezclar iconografías. */
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.6" y="2.3" width="10.8" height="19.4" rx="2.4"/><path d="M10 19h4"/><path d="M9.2 12.1l1.9 1.9 3.7-4"/></svg>';
+}
+
+/* Agrupa items idénticos (mismo id + color + talla) en uno solo con cantidad */
+function agruparCarrito(carrito) {
+  const grupos = [];
+  carrito.forEach(item => {
+    const existente = grupos.find(g => g.id == item.id && g.color === item.color && g.talla === item.talla);
+    if (existente) { existente.cantidad++; existente.subtotal += Number(item.precio); }
+    else grupos.push({ ...item, cantidad: 1, subtotal: Number(item.precio) });
+  });
+  return grupos;
+}
+
+function pintarCarrito() {
+  const carrito = getCarrito();
+  const wrap = document.getElementById('carritoWrap');
+
+  if (carrito.length === 0) {
+    wrap.innerHTML = `
+      <div class="cart-empty">
+        <div class="cart-empty-icon">${svgBolsa()}</div>
+        <h2>Tu carrito está vacío</h2>
+        <p>Hora de armar el fit.</p>
+        <a href="productos.html" class="btn-finalizar btn-inline">Ver el drop <span aria-hidden="true">→</span></a>
+      </div>`;
+    return;
+  }
+
+  const grupos = agruparCarrito(carrito);
+  const totalUnidades = carrito.length;
+
+  let itemsHtml = '';
+  grupos.forEach(g => {
+    const colorTxt = nombreColor(g.color);
+    itemsHtml += `
+      <article class="cart-item" data-id="${esc(g.id)}" data-color="${esc(g.color)}" data-talla="${esc(g.talla)}">
+        <div class="cart-item-media">${g.foto ? `<img src="${esc(g.foto)}" alt="${esc(g.nombre)}" loading="lazy">` : iconoProducto(g.icono, g.color || '#dfe8da')}</div>
+        <div class="cart-item-info">
+          <div class="cart-item-top">
+            <div class="cart-item-heading">
+              <h3 class="cart-item-name">${esc(g.nombre)}</h3>
+              <p class="cart-item-meta">
+                <span class="cart-swatch" style="background:${esc(g.color || '#dfe8da')}"></span>
+                ${colorTxt ? `<span>${colorTxt}</span><span class="sep">|</span>` : ''}
+                <span>Talla ${esc(g.talla || '—')}</span>
+              </p>
+            </div>
+            <button type="button" class="btn-eliminar" aria-label="Quitar ${esc(g.nombre)}">${svgEquisBoton()}</button>
+          </div>
+          <div class="cart-item-bottom">
+            <div class="qty-stepper" role="group" aria-label="Cantidad">
+              <button type="button" class="qty-btn qty-minus" aria-label="Quitar una unidad">−</button>
+              <span class="qty-value" aria-live="polite">${g.cantidad}</span>
+              <button type="button" class="qty-btn qty-plus" aria-label="Agregar una unidad">+</button>
+            </div>
+            <div class="cart-item-prices">
+              <span class="cart-item-line">${fmtDinero(g.subtotal)}</span>
+              <span class="cart-item-unit"${g.cantidad > 1 ? '' : ' hidden'}>c/u ${fmtDinero(g.precio)}</span>
+            </div>
+          </div>
+        </div>
+      </article>`;
+  });
+
+  const subtotalInicial = totalCarritoValor();
+  const html = `
+    <div class="checkout-stepper" id="checkoutStepper">
+      <div class="stepper-step is-active" data-stepper="1">
+        <div class="stepper-circle">1</div>
+        <div class="stepper-label">Tus datos</div>
+      </div>
+      <div class="stepper-line" data-line="1"></div>
+      <div class="stepper-step" data-stepper="2">
+        <div class="stepper-circle">2</div>
+        <div class="stepper-label">Dirección</div>
+      </div>
+      <div class="stepper-line" data-line="2"></div>
+      <div class="stepper-step" data-stepper="3">
+        <div class="stepper-circle">3</div>
+        <div class="stepper-label">Pago</div>
+      </div>
+    </div>
+    <div class="carrito-layout">
+      <section class="carrito-items" aria-label="Productos de tu carrito">
+        <div class="cart-list-head">
+          <span class="cart-list-count"><b id="cartListCount">${totalUnidades}</b> <span id="cartListWord">${totalUnidades === 1 ? 'producto' : 'productos'}</span></span>
+          <a href="#" class="btn-limpiar" id="btnLimpiar">Vaciar carrito</a>
+        </div>
+        <div class="cart-list" id="cartList">
+          ${itemsHtml}
+        </div>
+      </section>
+
+        <div class="pagar-box pagar-box-abajo">
+          <div class="pagar-box-header">
+            <span class="pagar-box-eyebrow">¡Ya casi! ⚡</span>
+            <h2>Cierra tu pedido</h2>
+          </div>
+          <form id="form-pago" novalidate>
+
+            <div class="aviso-offline" id="avisoOffline">📡 Sin conexión a internet — reconéctate para poder continuar.</div>
+
+            <div class="checkout-step open" data-step="1">
+              <div class="step-header">
+                <div class="step-header-left">
+                  <span class="step-num">1</span>
+                  <span class="step-title">Tus datos</span>
+                </div>
+                <span class="step-summary"></span>
+              </div>
+              <div class="step-body">
+                <input type="text"  name="nombre_cliente" id="nombreCliente" placeholder="Nombre completo"    required>
+                <div class="campo-error-msg" id="errNombreCliente"></div>
+                <input type="email" name="email_cliente"  id="emailCliente"  placeholder="Correo electrónico" required>
+                <div class="campo-error-msg" id="errEmailCliente"></div>
+                <input type="tel"   name="telefono_cliente" id="telefonoCliente" placeholder="Teléfono / WhatsApp" required>
+                <div class="campo-error-msg" id="errTelefonoCliente"></div>
+                <button type="button" class="btn-continuar" data-next="2">Siguiente</button>
+              </div>
+            </div>
+
+            <div class="checkout-step" data-step="2">
+              <div class="step-header">
+                <div class="step-header-left">
+                  <span class="step-num">2</span>
+                  <span class="step-title">¿A dónde lo enviamos?</span>
+                </div>
+                <span class="step-summary"></span>
+              </div>
+              <div class="step-body">
+                <div class="municipio-autocomplete" id="municipioAutocomplete">
+                  <input type="text" id="municipioInput" class="municipio-input" placeholder="Escribe tu ciudad o municipio..." autocomplete="off">
+                  <div class="municipio-sugerencias" id="municipioSugerencias"></div>
+                </div>
+                <select id="municipioEnvio" required style="display:none;">
+                  <option value="" disabled selected>Selecciona municipio / zona</option>
+                  ${zonasEnvio().map(z => `<option value="${z.id}" data-costo="${z.costo}">${z.nombre} — $${z.costo.toLocaleString('es-CO')}</option>`).join('')}
+                </select>
+                <div class="campo-error-msg" id="errMunicipioEnvio"></div>
+                <div class="campo-fila">
+                  <input type="text" id="barrioCliente" placeholder="Barrio">
+                  <input type="text" id="veredaCliente" placeholder="Vereda (opcional)">
+                </div>
+                <input type="text" id="direccionCliente" placeholder="Calle / Carrera / Número" required>
+                <div class="campo-error-msg" id="errDireccionCliente"></div>
+                <input type="text" id="edificioCliente" placeholder="Edificio, apto, casa, torre (opcional)">
+                <textarea id="referenciaCliente" placeholder="Indicaciones adicionales (opcional): color de la casa, cerca de..." rows="2"></textarea>
+
+                <button type="button" class="btn-mapa-toggle" id="btnMostrarMapa">📍 ¿No sabes bien tu dirección? Ubícala en el mapa</button>
+                <div class="mapa-wrap" id="mapaWrap">
+                  <div class="mapa-caja">
+                    <div id="mapaEnvio" class="mapa-envio"></div>
+                    <button type="button" class="btn-mi-ubicacion" id="btnMiUbicacion">🎯 Usar mi ubicación actual</button>
+                  </div>
+                  <p class="mapa-hint" id="mapaHint">Toca el mapa justo donde vives — llenamos la dirección sola para que el pedido te llegue bien.</p>
+                </div>
+
+                <button type="button" class="btn-continuar" data-next="3">Siguiente</button>
+              </div>
+            </div>
+
+            <div class="checkout-step" data-step="3">
+              <div class="step-header">
+                <div class="step-header-left">
+                  <span class="step-num">3</span>
+                  <span class="step-title">¿Cómo quieres pagar?</span>
+                </div>
+                <span class="step-summary"></span>
+              </div>
+              <div class="step-body">
+                <div class="metodo-pago-grid">
+                  <button type="button" class="metodo-card" data-metodo="tarjeta">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgIconoTarjeta()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">Tarjeta</span>
+                    <span class="metodo-card-sub">Visa · Mastercard · Débito</span>
+                  </button>
+                  <button type="button" class="metodo-card" data-metodo="contraentrega">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgCamion()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">Pago contraentrega</span>
+                    <span class="metodo-card-sub">Paga cuando recibas tu pedido</span>
+                  </button>
+                  <button type="button" class="metodo-card" data-metodo="nequi">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgIconoNequi()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">Nequi</span>
+                    <span class="metodo-card-sub">Pago rápido y seguro</span>
+                  </button>
+                </div>
+
+                <div class="campos-tarjeta" id="camposTarjeta">
+                  <div class="tarjeta-visual" id="tarjetaVisual">
+                    <div class="tarjeta-cara tarjeta-frente">
+                      <div class="tarjeta-top">
+                        <span class="tarjeta-chip">▮▮</span>
+                        <span class="tarjeta-marca" id="tarjetaMarca">⚡ MAQUINA PAY</span>
+                      </div>
+                      <div class="tarjeta-numero" id="tarjetaNumeroVista">•••• •••• •••• ••••</div>
+                      <div class="tarjeta-bottom">
+                        <div>
+                          <div class="tarjeta-mini-label">TITULAR</div>
+                          <div class="tarjeta-titular" id="tarjetaTitularVista">TU NOMBRE AQUÍ</div>
+                        </div>
+                        <div>
+                          <div class="tarjeta-mini-label">VENCE</div>
+                          <div class="tarjeta-venc" id="tarjetaVencVista">MM/AA</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tarjeta-cara tarjeta-reverso">
+                      <div class="tarjeta-banda"></div>
+                      <div class="tarjeta-cvv-box">
+                        <span id="tarjetaCvvVista">•••</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <input type="text" id="tarjetaNumero" placeholder="Número de la tarjeta" inputmode="numeric" maxlength="19">
+                  <input type="text" id="tarjetaTitular" placeholder="Nombre igual que en la tarjeta">
+                  <div class="campo-fila">
+                    <input type="text" id="tarjetaVencimiento" placeholder="MM/AA" inputmode="numeric" maxlength="5">
+                    <input type="text" id="tarjetaCvv" placeholder="CVV" inputmode="numeric" maxlength="4">
+                  </div>
+                  <p class="tarjeta-nota">🔒 Tu info va segura, cero drama. (Pago simulado — demo sin pasarela ni banco real todavía.)</p>
+                </div>
+
+                <div class="campos-tarjeta campos-nequi" id="camposNequi">
+                  <div class="nequi-datos-box">
+                    <div class="nequi-datos-header">📲 Transfiere a este Nequi</div>
+                    <div class="nequi-dato-fila">
+                      <span class="nequi-dato-label">Número</span>
+                      <span class="nequi-dato-valor" id="nequiNumeroTxt">300 000 0000</span>
+                      <button type="button" class="nequi-copiar" data-copiar="nequiNumeroTxt">Copiar</button>
+                    </div>
+                    <div class="nequi-dato-fila">
+                      <span class="nequi-dato-label">A nombre de</span>
+                      <span class="nequi-dato-valor" id="nequiTitularTxt">MAQUINA</span>
+                    </div>
+                    <div class="nequi-dato-fila nequi-dato-total">
+                      <span class="nequi-dato-label">Valor exacto a enviar</span>
+                      <span class="nequi-dato-valor" id="nequiValorTxt">$0</span>
+                      <button type="button" class="nequi-copiar" data-copiar="nequiValorTxt">Copiar</button>
+                    </div>
+                  </div>
+                  <label class="nequi-check-fila">
+                    <input type="checkbox" id="nequiConfirmado">
+                    <span>Ya hice la transferencia por este valor exacto</span>
+                  </label>
+                  <p class="tarjeta-nota">Cuando confirmes el pedido, revisamos la transferencia y lo alistamos para enviar. (Pago simulado — demo sin pasarela ni banco real todavía.)</p>
+                </div>
+
+                <!-- Único botón de acción del paso 3: vive en el resumen de la
+                     derecha ("Finalizar compra"). Este queda oculto visualmente
+                     pero sigue siendo el submit del formulario, para que
+                     Enter dentro de los campos de tarjeta también confirme. -->
+                <button type="submit" class="btn-pagar btn-pagar-oculto" tabindex="-1" aria-hidden="true">Confirmar pedido</button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+
+      <aside class="carrito-summary-col" aria-label="Resumen del pedido">
+        <div class="carrito-summary-card">
+          <h2 class="summary-eyebrow">Resumen del pedido</h2>
+          <div class="summary-row"><span>Subtotal</span><span id="subtotalValor">${fmtDinero(subtotalInicial)}</span></div>
+          <div class="summary-row" id="envioFila"><span>Envío</span><span id="envioValor">Elige tu municipio</span></div>
+          ${ENVIO_GRATIS_DESDE > 0 ? `
+          <div class="ship-banner" id="shipBanner">
+            <div class="ship-line">${svgCamion()}<span id="shipBannerTxt"></span></div>
+            <div class="ship-progress"><i id="shipBar"></i></div>
+          </div>` : ''}
+          <div class="carrito-total">
+            <span>Total</span>
+            <span class="total-valor" id="totalValor">${fmtDinero(subtotalInicial)}</span>
+          </div>
+          <div class="resumen-acciones" id="resumenAcciones">
+            <button type="button" class="btn-finalizar" id="btnFinalizar">${svgCandado()}<span>Finalizar compra</span></button>
+            <p class="finalizar-hint" id="finalizarHint"></p>
+            <button type="button" class="btn-paypal" id="btnPaypal"><span class="pp-mark" aria-hidden="true">P</span><span>Pagar con PayPal</span><span class="pp-soon">Pronto</span></button>
+            <p class="summary-seguro">${svgCandado()}<span>Pago 100% seguro</span></p>
+          </div>
+        </div>
+      </aside>
+    </div>`;
+
+  wrap.innerHTML = html;
+
+  /* ---------- resumen: subtotal / envío / total (se actualiza solo) ---------- */
+  const listEl = document.getElementById('cartList');
+  const selectMunicipio = document.getElementById('municipioEnvio');
+  const envioValorEl = document.getElementById('envioValor');
+  const totalValorEl = document.getElementById('totalValor');
+  let envioZona = 0;     // costo del envío según el municipio elegido
+  let envioActual = 0;   // costo que de verdad se cobra (0 si aplica envío gratis)
+
+  function recalcularResumen() {
+    const subtotal = totalCarritoValor();
+    const gratis = ENVIO_GRATIS_DESDE > 0 && subtotal >= ENVIO_GRATIS_DESDE;
+    envioActual = gratis ? 0 : envioZona;
+
+    setDinero(document.getElementById('subtotalValor'), subtotal);
+    const filaEnvio = document.getElementById('envioFila');
+    if (filaEnvio) filaEnvio.classList.toggle('is-free', gratis);
+    if (gratis) envioValorEl.textContent = '¡Gratis!';
+    else envioValorEl.textContent = envioZona ? fmtDinero(envioZona) : 'Elige tu municipio';
+    setDinero(totalValorEl, subtotal + envioActual);
+
+    const banner = document.getElementById('shipBanner');
+    if (banner) {
+      const falta = Math.max(0, ENVIO_GRATIS_DESDE - subtotal);
+      banner.classList.toggle('is-done', gratis);
+      document.getElementById('shipBannerTxt').textContent = gratis
+        ? '¡Envío gratis!'
+        : `Te faltan ${fmtDinero(falta)} para el envío gratis`;
+      document.getElementById('shipBar').style.width = Math.min(100, Math.round(subtotal / ENVIO_GRATIS_DESDE * 100)) + '%';
+    }
+
+    // si ya eligió Nequi, el valor a transferir tiene que seguir al total
+    const chipActivo = wrap.querySelector('.metodo-card.active');
+    const nequiValor = document.getElementById('nequiValorTxt');
+    if (chipActivo && chipActivo.dataset.metodo === 'nequi' && nequiValor) nequiValor.textContent = totalValorEl.textContent;
+  }
+
+  function actualizarContadores() {
+    const n = totalCarritoCount();
+    const hdr = document.getElementById('cartCount');
+    if (hdr) { hdr.textContent = n; animarClase(hdr, 'bump'); }
+    const c = document.getElementById('cartListCount');
+    const w = document.getElementById('cartListWord');
+    if (c) c.textContent = n;
+    if (w) w.textContent = n === 1 ? 'producto' : 'productos';
+  }
+
+  /* ---------- filas del carrito: cambiar cantidad / quitar (sin repintar todo,
+     así no se pierde lo que el cliente ya escribió en el formulario) ---------- */
+  function itemsDelGrupo(id, color, talla) {
+    return getCarrito().filter(it => it.id == id && it.color === color && it.talla === talla);
+  }
+
+  function quitarFilaAnimada(fila) {
+    if (fila.dataset.saliendo) return;
+    fila.dataset.saliendo = '1';
+    fila.style.maxHeight = fila.offsetHeight + 'px';
+    void fila.offsetWidth;
+    fila.classList.add('is-leaving');
+    setTimeout(() => {
+      fila.remove();
+      if (!listEl.querySelector('.cart-item')) pintarCarrito();   // ya no queda nada: estado vacío
+    }, reducirMovimiento ? 0 : 340);
+  }
+
+  function refrescarFila(fila) {
+    const { id, color, talla } = fila.dataset;
+    const items = itemsDelGrupo(id, color, talla);
+    if (items.length === 0) { quitarFilaAnimada(fila); return; }
+    const suma = items.reduce((s, it) => s + Number(it.precio), 0);
+    const qty = fila.querySelector('.qty-value');
+    qty.textContent = items.length;
+    animarClase(qty, 'bump');
+    setDinero(fila.querySelector('.cart-item-line'), suma);
+    const unit = fila.querySelector('.cart-item-unit');
+    unit.textContent = 'c/u ' + fmtDinero(items[0].precio);
+    unit.hidden = items.length < 2;
+    animarClase(fila, 'flash');
+  }
+
+  function despuesDeCambio(fila) {
+    refrescarFila(fila);
+    recalcularResumen();
+    actualizarContadores();
+  }
+
+  listEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.qty-plus, .qty-minus, .btn-eliminar');
+    if (!btn) return;
+    e.preventDefault();
+    const fila = btn.closest('.cart-item');
+    if (!fila || fila.dataset.saliendo) return;
+    const { id, color, talla } = fila.dataset;
+
+    if (btn.classList.contains('qty-plus')) {
+      await catalogoListo;                       // necesitamos el catálogo para revisar el stock
+      const producto = buscarProducto(id);
+      if (!producto) { showToastCarrito('No pudimos revisar el stock de este producto ahora mismo. Intenta de nuevo.'); return; }
+      const enGrupo = itemsDelGrupo(id, color, talla).length;
+      const stockDisponible = stockColor(producto, color);
+      if (enGrupo >= stockDisponible) {
+        showToastCarrito(`Ya tienes las ${stockDisponible} unidades disponibles de ${producto.nombre} en ese color.`);
+        return;
+      }
+      agregarAlCarrito(producto, color, talla);
+    } else if (btn.classList.contains('qty-minus')) {
+      quitarUnidad(id, color, talla);
+    } else {
+      eliminarGrupo(id, color, talla);
+    }
+    despuesDeCambio(fila);
+  });
+
+  const btnLimpiar = document.getElementById('btnLimpiar');
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener('click', (e) => {
+      e.preventDefault();
+      limpiarCarrito();
+      listEl.querySelectorAll('.cart-item').forEach((fila, i) => setTimeout(() => quitarFilaAnimada(fila), reducirMovimiento ? 0 : i * 70));
+      recalcularResumen();
+      actualizarContadores();
+    });
+  }
+
+  /* ---- envío dinámico según municipio elegido ---- */
+  if (selectMunicipio) {
+    selectMunicipio.addEventListener('change', () => {
+      const opt = selectMunicipio.selectedOptions[0];
+      envioZona = opt ? Number(opt.dataset.costo || 0) : 0;
+      recalcularResumen();
+    });
+  }
+  recalcularResumen();
+
+  /* ---- buscador de municipio (autocompletar sobre el <select> real) ----
+     Busca entre los 125 municipios de Antioquia (sin importar tildes ni
+     mayúsculas) y, al elegir uno, selecciona solo la zona de envío que le
+     corresponde. Al final siempre quedan "Vereda / zona rural" y "Otra
+     ciudad de Colombia" para quien no vive en un casco urbano de Antioquia. */
+  const municipioInput = document.getElementById('municipioInput');
+  const municipioSugerencias = document.getElementById('municipioSugerencias');
+  let municipioElegidoNombre = '';   // nombre tal cual lo eligió el cliente (ej. "Barbosa")
+  if (municipioInput && selectMunicipio) {
+    const quitarTildes = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const fmtCosto = (n) => '$' + Number(n).toLocaleString('es-CO');
+    const municipios = municipiosAntioquia().map(m => ({ ...m, detalle: 'Antioquia', clave: quitarTildes(m.nombre) }));
+    const zonasGenericas = zonasEnvio()
+      .filter(z => z.id === 'vereda' || z.id === 'otra_ciudad')
+      .map(z => ({ nombre: z.nombre, zona: z.id, costo: z.costo, detalle: '', clave: quitarTildes(z.nombre) }));
+
+    function fila(m, i) {
+      return `<button type="button" class="municipio-sug" data-i="${i}"><span>${esc(m.nombre)}${m.detalle ? ` <small style="opacity:.6">· ${m.detalle}</small>` : ''}</span><span class="municipio-sug-costo">${fmtCosto(m.costo)}</span></button>`;
+    }
+
+    let visibles = [];
+    let coincidencias = [];
+    function pintarSugerencias(filtro) {
+      const q = quitarTildes(filtro || '');
+      let lista = q ? municipios.filter(m => m.clave.includes(q)) : municipios.slice();
+      // primero los que EMPIEZAN con lo escrito ("bar" -> Barbosa antes que "Abriaquí")
+      if (q) lista.sort((a, b) => (b.clave.startsWith(q) - a.clave.startsWith(q)) || a.nombre.localeCompare(b.nombre, 'es'));
+      coincidencias = lista;
+      visibles = lista.concat(zonasGenericas);
+      let html = '';
+      if (!lista.length) html += `<div class="municipio-sug-vacio">No encontramos "${esc(filtro)}" en Antioquia. Si vives en otra ciudad o en el campo, elige una opción de abajo 👇</div>`;
+      html += visibles.map(fila).join('');
+      municipioSugerencias.innerHTML = html;
+      municipioSugerencias.querySelectorAll('.municipio-sug').forEach(btn => {
+        btn.addEventListener('click', () => elegir(visibles[Number(btn.dataset.i)]));
+      });
+    }
+
+    function elegir(m) {
+      if (!m) return;
+      municipioElegidoNombre = m.nombre;
+      municipioInput.value = m.nombre;
+      selectMunicipio.value = m.zona;
+      selectMunicipio.dispatchEvent(new Event('change'));
+      municipioSugerencias.classList.remove('open');
+    }
+
+    municipioInput.addEventListener('focus', () => { pintarSugerencias(municipioInput.value === municipioElegidoNombre ? '' : municipioInput.value); municipioSugerencias.classList.add('open'); });
+    municipioInput.addEventListener('input', () => {
+      // si el cliente cambia el texto, la elección anterior ya no vale
+      if (municipioInput.value !== municipioElegidoNombre) {
+        municipioElegidoNombre = '';
+        selectMunicipio.value = '';
+        selectMunicipio.dispatchEvent(new Event('change'));
+      }
+      pintarSugerencias(municipioInput.value);
+      municipioSugerencias.classList.add('open');
+    });
+    // Enter con la lista abierta = elegir la primera coincidencia (en vez de "Siguiente")
+    municipioInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || !municipioSugerencias.classList.contains('open') || !municipioInput.value.trim()) return;
+      const q = quitarTildes(municipioInput.value);
+      const exacto = municipios.find(m => m.clave === q);
+      const primero = exacto || coincidencias[0];
+      if (primero) { e.preventDefault(); e.stopImmediatePropagation(); elegir(primero); }
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#municipioAutocomplete')) municipioSugerencias.classList.remove('open');
+    });
+  }
+
+  /* ---- mapa para ubicar la dirección (Leaflet + OpenStreetMap, sin API key) ---- */
+  const btnMostrarMapa = document.getElementById('btnMostrarMapa');
+  const mapaWrap = document.getElementById('mapaWrap');
+  const btnMiUbicacion = document.getElementById('btnMiUbicacion');
+  const mapaHint = document.getElementById('mapaHint');
+  let mapaLeaflet = null, marcadorLeaflet = null;
+
+  function inicializarMapa(lat, lng) {
+    if (mapaLeaflet) { mapaLeaflet.invalidateSize(); return; }
+    mapaLeaflet = L.map('mapaEnvio').setView([lat, lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+      maxZoom: 19
+    }).addTo(mapaLeaflet);
+    marcadorLeaflet = L.marker([lat, lng], { draggable: true }).addTo(mapaLeaflet);
+
+    async function ubicarDesdePunto(latlng) {
+      marcadorLeaflet.setLatLng(latlng);
+      mapaHint.textContent = 'Buscando la dirección de ese punto...';
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`);
+        const data = await res.json();
+        const direccionTexto = data && data.display_name ? data.display_name.split(',').slice(0, 3).join(',') : '';
+        if (direccionTexto) {
+          document.getElementById('direccionCliente').value = direccionTexto;
+          mapaHint.textContent = '📍 Dirección ubicada: ' + direccionTexto;
+        } else {
+          mapaHint.textContent = 'Ubicamos el punto en el mapa, pero escribe la dirección manualmente por si acaso.';
+        }
+      } catch (err) {
+        mapaHint.textContent = 'No pudimos leer la dirección automáticamente, pero el punto quedó marcado en el mapa.';
+      }
+    }
+
+    mapaLeaflet.on('click', (e) => ubicarDesdePunto(e.latlng));
+    marcadorLeaflet.on('dragend', () => ubicarDesdePunto(marcadorLeaflet.getLatLng()));
+  }
+
+  if (btnMostrarMapa) {
+    btnMostrarMapa.addEventListener('click', () => {
+      const yaAbierto = mapaWrap.classList.toggle('open');
+      btnMostrarMapa.textContent = yaAbierto ? '📍 Ocultar el mapa' : '📍 ¿No sabes bien tu dirección? Ubícala en el mapa';
+      if (yaAbierto) setTimeout(() => inicializarMapa(6.2442, -75.5812), 150); // centro por defecto: Medellín
+    });
+  }
+
+  if (btnMiUbicacion) {
+    btnMiUbicacion.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showToastCarrito('Tu navegador no permite compartir ubicación.');
+        return;
+      }
+      mapaHint.textContent = 'Buscando tu ubicación...';
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (!mapaLeaflet) inicializarMapa(latitude, longitude);
+        mapaLeaflet.setView([latitude, longitude], 16);
+        marcadorLeaflet.setLatLng([latitude, longitude]);
+        marcadorLeaflet.fire('dragend');
+      }, () => {
+        showToastCarrito('No pudimos acceder a tu ubicación. Actívala en el navegador o marca el punto en el mapa.');
+      });
+    });
+  }
+
+  /* ---- acordeón de pasos del checkout ---- */
+  const steps = wrap.querySelectorAll('.checkout-step');
+
+  function refrescarNum(step) {
+    const numEl = step.querySelector('.step-num');
+    numEl.textContent = step.classList.contains('done') ? '✓' : step.dataset.step;
+  }
+
+  function activarPaso(n) {
+    steps.forEach(s => {
+      s.classList.toggle('open', Number(s.dataset.step) === n);
+      refrescarNum(s);
+    });
+    activarStepper(n);
+    // El CTA "Finalizar compra" solo se muestra al llegar al paso de pago;
+    // en los pasos 1 y 2 el resumen solo enseña subtotal / envío / total.
+    const acciones = document.getElementById('resumenAcciones');
+    if (acciones) acciones.classList.toggle('visible', n === 3);
+  }
+
+  /* ---- stepper de arriba (Carrito → Tus datos → Envío → Pago) ---- */
+  const stepperSteps = wrap.querySelectorAll('.stepper-step');
+  const stepperLines = wrap.querySelectorAll('.stepper-line');
+  function activarStepper(n) {
+    stepperSteps.forEach(s => {
+      const num = Number(s.dataset.stepper);
+      const circle = s.querySelector('.stepper-circle');
+      s.classList.remove('is-active', 'is-done');
+      if (num < n) { s.classList.add('is-done'); circle.textContent = '✓'; }
+      else { circle.textContent = num; if (num === n) s.classList.add('is-active'); }
+    });
+    stepperLines.forEach(l => l.classList.toggle('is-done', Number(l.dataset.line) < n));
+  }
+
+  steps.forEach(step => {
+    step.querySelector('.step-header').addEventListener('click', () => {
+      activarPaso(Number(step.dataset.step));
+    });
+  });
+
+  const btnContinuar1 = wrap.querySelector('.checkout-step[data-step="1"] .btn-continuar');
+  if (btnContinuar1) {
+    btnContinuar1.addEventListener('click', () => {
+      const step = btnContinuar1.closest('.checkout-step');
+      if (!validarPaso1()) return;
+      const nombre = document.getElementById('nombreCliente').value.trim();
+      step.classList.add('done');
+      step.querySelector('.step-summary').textContent = nombre;
+      activarPaso(2);
+    });
+  }
+
+  const btnContinuar2 = wrap.querySelector('.checkout-step[data-step="2"] .btn-continuar');
+  if (btnContinuar2) {
+    btnContinuar2.addEventListener('click', () => {
+      const step = btnContinuar2.closest('.checkout-step');
+      if (!validarPaso2()) return;
+      const sel = document.getElementById('municipioEnvio');
+      step.classList.add('done');
+      step.querySelector('.step-summary').textContent = (typeof municipioElegidoNombre !== 'undefined' && municipioElegidoNombre) || sel.selectedOptions[0].textContent.split(' — ')[0];
+      activarPaso(3);
+    });
+  }
+
+  wrap.querySelectorAll('.checkout-step[data-step="1"] input, .checkout-step[data-step="2"] input').forEach(inp => {
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.target.closest('.checkout-step').querySelector('.btn-continuar').click(); }
+    });
+    // Quita el borde rojo apenas el cliente empieza a corregir el campo.
+    inp.addEventListener('input', () => inp.classList.remove('campo-error'));
+  });
+  const selMunicipioErr = document.getElementById('municipioEnvio');
+  if (selMunicipioErr) selMunicipioErr.addEventListener('change', () => selMunicipioErr.classList.remove('campo-error'));
+
+  /* ---- selector de método de pago ---- */
+  let metodoPago = null;
+  const chips = wrap.querySelectorAll('.metodo-card');
+  const camposTarjeta = document.getElementById('camposTarjeta');
+  const camposNequi = document.getElementById('camposNequi');
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      metodoPago = chip.dataset.metodo;
+      camposTarjeta.classList.toggle('open', metodoPago === 'tarjeta');
+      camposNequi.classList.toggle('open', metodoPago === 'nequi');
+      if (metodoPago === 'nequi') {
+        // Total a transferir: lo mismo que ya se muestra en el resumen del pedido.
+        const totalTxt = document.getElementById('totalValor');
+        document.getElementById('nequiValorTxt').textContent = totalTxt ? totalTxt.textContent : '$0';
+      }
+      actualizarEstadoFinalizar();
+    });
+  });
+
+  /* ---- "Finalizar compra": habilitado solo cuando los 3 pasos están
+    completos (datos + dirección + método de pago). Si falta algo, se ve
+    apagado y el texto de abajo dice qué falta — pero se puede seguir
+     tocando: lleva directo al paso que falta, igual que antes. ---- */
+  function actualizarEstadoFinalizar() {
+    const btn = document.getElementById('btnFinalizar');
+    const hint = document.getElementById('finalizarHint');
+    if (!btn) return;
+    const faltan = [];
+    if (!paso1Completo()) faltan.push('tus datos');
+    if (!paso2Completo()) faltan.push('tu dirección');
+    if (!metodoPago) faltan.push('el método de pago');
+    const listo = faltan.length === 0;
+    btn.classList.toggle('is-incompleto', !listo);
+    btn.setAttribute('aria-disabled', String(!listo));
+    if (hint) hint.textContent = listo ? '' : 'Falta: ' + faltan.join(', ') + '.';
+  }
+  wrap.addEventListener('input', actualizarEstadoFinalizar);
+  wrap.addEventListener('change', actualizarEstadoFinalizar);
+  actualizarEstadoFinalizar(); // estado inicial del botón, ya con "metodoPago" declarado
+
+  /* ---- botón "Copiar" de los datos de Nequi ---- */
+  wrap.querySelectorAll('.nequi-copiar').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const texto = document.getElementById(btn.dataset.copiar).textContent.trim();
+      navigator.clipboard?.writeText(texto);
+      showToastCarrito('Copiado: ' + texto);
+    });
+  });
+
+  /* ---- tarjeta animada: formateo en vivo + flip al CVV ---- */
+  const inNumero = document.getElementById('tarjetaNumero');
+  const inTitular = document.getElementById('tarjetaTitular');
+  const inVenc = document.getElementById('tarjetaVencimiento');
+  const inCvv = document.getElementById('tarjetaCvv');
+  const tarjetaVisual = document.getElementById('tarjetaVisual');
+
+  if (inNumero) {
+    inNumero.addEventListener('input', () => {
+      let v = inNumero.value.replace(/\D/g, '').slice(0, 16);
+      inNumero.value = v.replace(/(.{4})/g, '$1 ').trim();
+      document.getElementById('tarjetaNumeroVista').textContent = v
+        ? v.padEnd(16, '•').replace(/(.{4})/g, '$1 ').trim()
+        : '•••• •••• •••• ••••';
+    });
+  }
+  if (inTitular) {
+    inTitular.addEventListener('input', () => {
+      document.getElementById('tarjetaTitularVista').textContent = inTitular.value.trim().toUpperCase() || 'TU NOMBRE AQUÍ';
+    });
+  }
+  if (inVenc) {
+    inVenc.addEventListener('input', () => {
+      let v = inVenc.value.replace(/\D/g, '').slice(0, 4);
+      if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+      inVenc.value = v;
+      document.getElementById('tarjetaVencVista').textContent = v || 'MM/AA';
+    });
+  }
+  if (inCvv) {
+    inCvv.addEventListener('input', () => {
+      inCvv.value = inCvv.value.replace(/\D/g, '').slice(0, 4);
+      document.getElementById('tarjetaCvvVista').textContent = inCvv.value.padEnd(3, '•');
+    });
+    inCvv.addEventListener('focus', () => tarjetaVisual.classList.add('flip'));
+    inCvv.addEventListener('blur', () => tarjetaVisual.classList.remove('flip'));
+  }
+
+  const formPago = document.getElementById('form-pago');
+  let enviandoPedido = false; // evita que un doble clic / doble Enter mande el pedido dos veces
+  if (formPago) {
+    const btnPagar = formPago.querySelector('.btn-pagar');
+    formPago.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (enviandoPedido) return; // ya se está procesando un envío, ignora clics extra
+
+      const nombre = document.getElementById('nombreCliente').value.trim();
+      const email  = document.getElementById('emailCliente').value.trim();
+      const telefono = document.getElementById('telefonoCliente').value.trim();
+      const municipioOpt = selectMunicipio ? selectMunicipio.selectedOptions[0] : null;
+      const municipio = selectMunicipio ? selectMunicipio.value : '';
+      const barrio = document.getElementById('barrioCliente').value.trim();
+      const vereda = document.getElementById('veredaCliente').value.trim();
+      const direccion = document.getElementById('direccionCliente').value.trim();
+      const edificio = document.getElementById('edificioCliente').value.trim();
+      const referencia = document.getElementById('referenciaCliente').value.trim();
+
+      // Revalida los pasos 1 y 2 por si el cliente saltó ahí con el mapa
+      // de pasos de arriba sin pasar por los botones "Siguiente".
+      if (!validarPaso1()) { activarPaso(1); return; }
+      if (!validarPaso2()) { activarPaso(2); return; }
+
+      if (!metodoPago) {
+        showToastCarrito('Elige un método de pago.');
+        return;
+      }
+      let tarjetaFinal = null;
+      if (metodoPago === 'tarjeta') {
+        const numLimpio = inNumero.value.replace(/\D/g, '');
+        if (numLimpio.length < 16 || !inTitular.value.trim() || inVenc.value.length < 5 || inCvv.value.length < 3) {
+          showToastCarrito('Revisa los datos de tu tarjeta.');
+          return;
+        }
+        tarjetaFinal = numLimpio.slice(-4);
+      }
+      if (metodoPago === 'nequi') {
+        const chk = document.getElementById('nequiConfirmado');
+        if (!chk || !chk.checked) {
+          showToastCarrito('Confirma que ya hiciste la transferencia por Nequi.');
+          return;
+        }
+      }
+
+      // Antes de intentar cobrar, confirma que hay internet — si no,
+      // avisamos de una vez en vez de dejar al cliente mirando el
+      // overlay de "comprobando pago" sin que nada pase.
+      if (!navigator.onLine) {
+        actualizarAvisoOffline();
+        showToastCarrito('No tienes conexión a internet. Conéctate e intenta de nuevo.');
+        return;
+      }
+
+      const envio = {
+        municipio: municipioElegidoNombre || (municipioOpt ? municipioOpt.textContent.split(' — ')[0] : municipio),
+        costo: envioActual,
+        barrio, vereda, direccion, edificio, referencia,
+      };
+
+      enviandoPedido = true;
+      if (btnPagar) { btnPagar.disabled = true; btnPagar.textContent = 'Procesando...'; }
+      const btnFinalizarProc = document.getElementById('btnFinalizar');
+      if (btnFinalizarProc) btnFinalizarProc.disabled = true;
+      mostrarOverlay(metodoPago);
+
+      setTimeout(async () => {
+        try {
+          const pedido = await crearPedido({ nombre, email, telefono, metodoPago, tarjetaFinal, envio });
+          mostrarExito(nombre, pedido.codigo_pedido, pedido.items, metodoPago, {
+            subtotal: pedido.subtotal, envio: pedido.costo_envio, total: pedido.total,
+          });
+          document.getElementById('cartCount').textContent = 0;
+          // No reactivamos el botón: el pedido ya quedó hecho y el
+          // carrito se va a vaciar / redibujar.
+        } catch (err) {
+          console.error('Error al confirmar el pedido:', err);
+          enviandoPedido = false;
+          if (btnPagar) { btnPagar.disabled = false; btnPagar.textContent = 'Confirmar pedido'; }
+          if (btnFinalizarProc) btnFinalizarProc.disabled = false;
+
+          if (!navigator.onLine) {
+            mostrarError('Se perdió la conexión a internet justo al pagar. No te preocupes, no se cobró nada — conéctate e intenta de nuevo.');
+          } else if (err && err.code === 'SIN_STOCK') {
+            mostrarError(err.message || 'Uno de los productos de tu carrito ya se agotó. Vuelve al carrito y ajusta la cantidad.');
+          } else if (err && err.code === 'SIN_PRODUCTO') {
+            mostrarError('Uno de los productos de tu carrito ya no está disponible. Vuelve al carrito y quítalo.');
+          } else {
+            mostrarError('No se pudo procesar tu pedido por un problema de conexión con el servidor. Intenta de nuevo en un momento.');
+          }
+        }
+      }, 1600);
+    });
+  }
+
+  /* ---- "Finalizar compra" (resumen): lleva al paso que falta o confirma el pedido ---- */
+  const btnFinalizar = document.getElementById('btnFinalizar');
+  if (btnFinalizar && formPago) {
+    btnFinalizar.addEventListener('click', () => {
+      const caja = wrap.querySelector('.pagar-box');
+      const irAlFormulario = () => { if (caja) caja.scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'start' }); };
+      const valor = id => (document.getElementById(id).value || '').trim();
+
+      // formulario todavía vacío: solo lo abrimos, sin llenarlo de errores rojos
+      if (!valor('nombreCliente') && !valor('emailCliente') && !valor('telefonoCliente')) {
+        activarPaso(1);
+        irAlFormulario();
+        setTimeout(() => document.getElementById('nombreCliente').focus({ preventScroll: true }), 450);
+        return;
+      }
+      if (!validarPaso1()) { activarPaso(1); irAlFormulario(); return; }
+      if (!validarPaso2()) { activarPaso(2); irAlFormulario(); return; }
+      if (!metodoPago) { activarPaso(3); irAlFormulario(); showToastCarrito('Elige un método de pago.'); return; }
+      if (formPago.requestSubmit) formPago.requestSubmit();
+      else formPago.querySelector('.btn-pagar').click();
+    });
+  }
+
+  /* ---- PayPal: todavía no hay pasarela conectada, así que avisamos con honestidad ---- */
+  const btnPaypal = document.getElementById('btnPaypal');
+  if (btnPaypal) {
+    btnPaypal.addEventListener('click', () => {
+      showToastCarrito('PayPal llega muy pronto ⚡ Por ahora paga con tarjeta, Nequi o contraentrega.');
+    });
+  }
+}
+
+/* ---------- validación real de campos del checkout ---------- */
+
+/** Correo con forma válida: algo@algo.algo (sin espacios). */
+function emailValido(valor) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor);
+}
+/** Teléfono colombiano razonable: 7 a 10 dígitos, dejando de lado
+    espacios, guiones y el +57 si lo escriben. */
+function telefonoValido(valor) {
+  const soloDigitos = valor.replace(/\D/g, '').replace(/^57/, '');
+  return soloDigitos.length >= 7 && soloDigitos.length <= 10;
+}
+
+/** Igual que validarPaso1/2, pero sin pintar nada en rojo — solo dicen si el
+    paso ya quedó completo. Las usa el botón "Finalizar compra" del resumen. */
+function paso1Completo() {
+  const nombre = (document.getElementById('nombreCliente')?.value || '').trim();
+  const email = (document.getElementById('emailCliente')?.value || '').trim();
+  const telefono = (document.getElementById('telefonoCliente')?.value || '').trim();
+  return !!nombre && emailValido(email) && telefonoValido(telefono);
+}
+function paso2Completo() {
+  const municipio = document.getElementById('municipioEnvio')?.value || '';
+  const direccion = (document.getElementById('direccionCliente')?.value || '').trim();
+  return !!municipio && direccion.length >= 5;
+}
+
+/** Pinta un input en rojo y muestra su mensaje de error debajo.
+    idInput = id del <input>/<select>, idError = id del div de mensaje. */
+function marcarErrorCampo(idInput, idError, mensaje) {
+  const input = document.getElementById(idInput);
+  const err = document.getElementById(idError);
+  if (input) input.classList.add('campo-error');
+  if (err) { err.textContent = mensaje; err.classList.add('mostrar'); }
+}
+function limpiarErrorCampo(idInput, idError) {
+  const input = document.getElementById(idInput);
+  const err = document.getElementById(idError);
+  if (input) input.classList.remove('campo-error');
+  if (err) { err.textContent = ''; err.classList.remove('mostrar'); }
+}
+function limpiarTodosLosErrores() {
+  ['nombreCliente','emailCliente','telefonoCliente','direccionCliente'].forEach(id => {
+    limpiarErrorCampo(id, 'err' + id.charAt(0).toUpperCase() + id.slice(1));
+  });
+  limpiarErrorCampo('municipioEnvio', 'errMunicipioEnvio');
+}
+
+/** Revisa nombre/correo/teléfono. Devuelve true si todo está bien;
+    si algo falla, marca el campo en rojo y devuelve false. */
+function validarPaso1() {
+  let ok = true;
+  const nombre = document.getElementById('nombreCliente').value.trim();
+  const email = document.getElementById('emailCliente').value.trim();
+  const telefono = document.getElementById('telefonoCliente').value.trim();
+
+  if (!nombre) { marcarErrorCampo('nombreCliente','errNombreCliente','Escribe tu nombre completo.'); ok = false; }
+  else limpiarErrorCampo('nombreCliente','errNombreCliente');
+
+  if (!email) { marcarErrorCampo('emailCliente','errEmailCliente','Escribe tu correo electrónico.'); ok = false; }
+  else if (!emailValido(email)) { marcarErrorCampo('emailCliente','errEmailCliente','Ese correo no se ve válido — revisa que tenga "@" y un dominio (ej: nombre@correo.com).'); ok = false; }
+  else limpiarErrorCampo('emailCliente','errEmailCliente');
+
+  if (!telefono) { marcarErrorCampo('telefonoCliente','errTelefonoCliente','Escribe tu teléfono o WhatsApp.'); ok = false; }
+  else if (!telefonoValido(telefono)) { marcarErrorCampo('telefonoCliente','errTelefonoCliente','Ese número no se ve válido — debe tener entre 7 y 10 dígitos.'); ok = false; }
+  else limpiarErrorCampo('telefonoCliente','errTelefonoCliente');
+
+  if (!ok) showToastCarrito('Revisa los datos marcados en rojo.');
+  return ok;
+}
+
+/** Revisa municipio y dirección. Misma idea que validarPaso1. */
+function validarPaso2() {
+  let ok = true;
+  const sel = document.getElementById('municipioEnvio');
+  const direccion = document.getElementById('direccionCliente').value.trim();
+
+  if (!sel.value) { marcarErrorCampo('municipioEnvio','errMunicipioEnvio','Elige el municipio o zona a donde enviamos tu pedido.'); ok = false; }
+  else limpiarErrorCampo('municipioEnvio','errMunicipioEnvio');
+
+  if (!direccion) { marcarErrorCampo('direccionCliente','errDireccionCliente','Escribe la dirección de entrega.'); ok = false; }
+  else if (direccion.length < 5) { marcarErrorCampo('direccionCliente','errDireccionCliente','Esa dirección se ve incompleta — agrega calle/carrera y número.'); ok = false; }
+  else limpiarErrorCampo('direccionCliente','errDireccionCliente');
+
+  if (!ok) showToastCarrito('Revisa los datos marcados en rojo.');
+  return ok;
+}
+
+/* ---------- aviso de sin conexión a internet ---------- */
+function actualizarAvisoOffline() {
+  const aviso = document.getElementById('avisoOffline');
+  if (!aviso) return;
+  aviso.classList.toggle('mostrar', !navigator.onLine);
+}
+window.addEventListener('online', actualizarAvisoOffline);
+window.addEventListener('offline', actualizarAvisoOffline);
+
+function showToastCarrito(texto) {
+  const toast = document.getElementById('toast');
+  if (!toast) { alert(texto); return; }
+  document.getElementById('toastText').textContent = texto;
+  toast.classList.add('error', 'show');
+  clearTimeout(window._toastTimerCarrito);
+  window._toastTimerCarrito = setTimeout(() => toast.classList.remove('show', 'error'), 2600);
+}
+
+pintarCarrito();
+
+/* ---- animación de "pago" (igual que en el proyecto original) ---- */
+function mostrarOverlay(metodoPago) {
+  const overlay = document.getElementById('pago-overlay');
+  overlay.classList.add('activo');
+  iniciarParticulas();
+  const msgs = metodoPago === 'contraentrega'
+    ? ['Organizando tu pedido ⚡','Verificando tus datos','Casi, casi...','Sellando el pedido']
+    : ['Comprobando el pago ⚡','Verificando tus datos','Casi, casi...','Sellando el pedido'];
+  document.getElementById('pago-status-txt').textContent = msgs[0];
+  document.querySelector('.ring-icon').textContent = metodoPago === 'contraentrega' ? '📦' : '💳';
+  let mi = 0;
+  const st = document.getElementById('pago-status-txt');
+  overlay._iv = setInterval(() => { st.textContent = msgs[++mi % msgs.length]; }, 700);
+}
+
+function cerrarOverlay() {
+  const overlay = document.getElementById('pago-overlay');
+  clearInterval(overlay._iv);
+  overlay.classList.remove('activo');
+  document.getElementById('estado-verificando').style.cssText = 'display:flex;opacity:1;';
+  document.getElementById('estado-exito').style.display = 'none';
+  document.getElementById('estado-error').style.display = 'none';
+}
+
+function mostrarExito(nombreCliente, pedidoId, items, metodoPago, resumen) {
+  clearInterval(document.getElementById('pago-overlay')._iv);
+  const ver = document.getElementById('estado-verificando');
+  ver.style.transition = 'opacity 0.4s'; ver.style.opacity = '0';
+  setTimeout(() => {
+    ver.style.display = 'none';
+    const ex = document.getElementById('estado-exito');
+    ex.style.display = 'flex';
+    const esContraentrega = metodoPago === 'contraentrega';
+    document.querySelector('.check-circle').textContent = esContraentrega ? '📦' : '✅';
+    document.querySelector('.exito-titulo').textContent = esContraentrega ? '¡Pedido confirmado! 📦' : '¡Pago exitoso! ⚡';
+    document.querySelector('.exito-sub').textContent = esContraentrega
+      ? 'Ya estamos organizando tu pedido — pagas cuando te llegue 🚀'
+      : 'Tu pago se realizó correctamente — ya casi vuela para tu casa 🚀';
+    document.getElementById('gracias-nombre').textContent = '✨ ¡Muchas gracias, ' + nombreCliente + '! ✨';
+    document.getElementById('exito-pedido').textContent = pedidoId ? `PEDIDO #${pedidoId}` : 'PEDIDO REGISTRADO';
+    document.getElementById('exito-correo').textContent = 'Te mandamos la confirmación con el detalle y las fotos a tu correo ✉️';
+    // Muestra qué se compró (con foto) para que quede clarísimo que
+    // el pago sí se aplicó al pedido correcto.
+    const wrapItems = document.getElementById('exito-items');
+    if (wrapItems) {
+      wrapItems.innerHTML = (items || []).map(it => `
+        <div class="exito-item">
+          ${it.foto ? `<img src="${it.foto}" alt="${it.nombre}" loading="lazy">` : ''}
+          <div class="exito-item-info">
+            <div class="exito-item-nombre">${it.nombre}</div>
+            <div class="exito-item-meta">Talla ${it.talla || '—'} · $${Number(it.precio || 0).toLocaleString('es-CO')}</div>
+          </div>
+        </div>`).join('');
+    }
+    // Subtotal, envío y total del pedido
+    const cajaTotales = document.getElementById('exito-totales');
+    if (cajaTotales) {
+      cajaTotales.innerHTML = resumen ? `
+        <div class="exito-totales-fila"><span>Subtotal</span><span>${fmtDinero(resumen.subtotal)}</span></div>
+        <div class="exito-totales-fila"><span>Envío</span><span>${resumen.envio ? fmtDinero(resumen.envio) : 'Gratis'}</span></div>
+        <div class="exito-totales-total"><span>${esContraentrega ? 'Total a pagar al recibir' : 'Total'}</span><span>${fmtDinero(resumen.total)}</span></div>` : '';
+    }
+    document.querySelectorAll('.stepper-step').forEach(s => { s.classList.add('is-done'); s.classList.remove('is-active'); s.querySelector('.stepper-circle').textContent = '✓'; });
+    document.querySelectorAll('.stepper-line').forEach(l => l.classList.add('is-done'));
+    lanzarConfeti();
+    pintarCarrito();
+  }, 400);
+}
+
+function mostrarError(msg) {
+  clearInterval(document.getElementById('pago-overlay')._iv);
+  const ver = document.getElementById('estado-verificando');
+  ver.style.transition = 'opacity 0.4s'; ver.style.opacity = '0';
+  setTimeout(() => {
+    ver.style.display = 'none';
+    document.getElementById('estado-error').style.display = 'flex';
+    document.getElementById('error-msg-txt').textContent = msg;
+  }, 400);
+}
+
+function iniciarParticulas() {
+  const canvas = document.getElementById('pago-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = innerWidth; canvas.height = innerHeight;
+  const pts = Array.from({length:40}, () => ({
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    r: Math.random()*1.4+0.3, vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5,
+    a: Math.random()*0.4+0.1
+  }));
+  (function frame() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pts.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(255,214,0,${p.a})`; ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      if (p.x<0||p.x>canvas.width) p.vx*=-1;
+      if (p.y<0||p.y>canvas.height) p.vy*=-1;
+    });
+    if (document.getElementById('pago-overlay').classList.contains('activo')) requestAnimationFrame(frame);
+  })();
+}
+
+function lanzarConfeti() {
+  const colores = ['#FFD600','#F4F4F4','#0D0D0D','#ffe95c','#6B7280','#FFD600'];
+  const card = document.querySelector('.pago-card');
+  for (let i=0; i<50; i++) setTimeout(() => {
+    const d = document.createElement('div');
+    d.className = 'confeti-dot';
+    d.style.cssText = `left:${Math.random()*100}%;top:${5+Math.random()*25}%;background:${colores[Math.floor(Math.random()*colores.length)]};animation-delay:${Math.random()*0.6}s;width:${5+Math.random()*9}px;height:${5+Math.random()*9}px;border-radius:${Math.random()>.5?'50%':'2px'};`;
+    card.appendChild(d);
+    setTimeout(() => d.remove(), 2400);
+  }, i*35);
+}
+</script>
+
+</body>
+</html>

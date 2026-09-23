@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /carrito.html
+Disallow: /login.html
+Disallow: /registro.html
+Disallow: /favoritos.html
+Disallow: /seguimiento.html
+
+Sitemap: https://maquina.com/sitemap.xml

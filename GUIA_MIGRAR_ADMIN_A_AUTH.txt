@@ -1,0 +1,152 @@
+=========================================================
+ ✅ HECHO (2026-08-30) — crear usuarios nuevos ya no toca
+ firestore.rules a mano
+=========================================================
+El "paso 3" de más abajo (pegar el UID de cada persona nueva
+directo en isAdmin() de firestore.rules y volver a publicar)
+YA NO ES NECESARIO para gente nueva. Se agregó un documento en
+Firestore (admin_config/admins) que guarda esa lista, y que el
+propio panel actualiza solo cuando creas, desactivas, reactivas
+o eliminas a alguien desde la pestaña "Usuarios".
+
+TE FALTA A TI, una sola vez, para que quede activo:
+1) Copia el contenido actual de firestore.rules (raíz del
+   proyecto) y pégalo en Firestore Database -> pestaña "Reglas"
+   -> Publicar (reemplaza lo que haya ahí).
+Con eso publicado UNA vez, de ahí en adelante nunca más hace
+falta volver a esta pantalla para dar de alta a alguien nuevo:
+basta con crearle su cuenta en Authentication -> Users, y crear
+su perfil desde la pestaña "Usuarios" del panel (UID + correo).
+
+El UID '8CBfiOxDeda0MmtTmSlXYIkfbx82' se queda escrito directo
+en firestore.rules como "admin de respaldo" — siempre tiene
+acceso, incluso si el documento admin_config/admins se borra o
+se daña por accidente.
+=========================================================
+
+=========================================================
+ ✅ HECHO (2026-08-30) — el panel ya usa Firebase Auth real
+=========================================================
+El paso 4 de esta guía (cambiar el login del panel) ya se hizo:
+admin.html y js/store.js ahora piden correo + contraseña de una
+cuenta real de Firebase Authentication, no el usuario/contraseña
+guardado en Firestore de antes. El primer UID admin
+(8CBfiOxDeda0MmtTmSlXYIkfbx82) ya quedó pegado en la función
+isAdmin() de firestore.rules.
+
+TE FALTA A TI, para que quede publicado de verdad:
+1) En la consola de Firebase, Firestore Database -> pestaña
+   "Reglas" -> borra lo que hay -> pega TODO el contenido actual
+   de firestore.rules (el de la raíz del proyecto) -> Publicar.
+2) La próxima vez que entres al panel, hazlo con el correo y
+   contraseña de la cuenta de Firebase Auth cuyo UID es
+   8CBfiOxDeda0MmtTmSlXYIkfbx82. Esa cuenta va a quedar marcada
+   sola como "superAdmin" (acceso total + pestaña Usuarios) la
+   primera vez que entre.
+3) Para dar acceso a alguien más del equipo: créale su cuenta en
+   Authentication -> Users, y luego crea su perfil desde la pestaña
+   "Usuarios" del panel (ahí pides su UID y correo, ya no una
+   contraseña — la contraseña la puso esa persona en su propia
+   cuenta de Firebase). El panel se encarga solo de autorizarla en
+   Firestore, ver el bloque "HECHO" de arriba.
+
+El archivo FIRESTORE_REGLAS.txt de abajo quedó desactualizado (era
+la guía de la versión con reglas abiertas). El archivo que manda
+ahora es firestore.rules, en la raíz del proyecto.
+=========================================================
+
+=========================================================
+ GUÍA — Pasar el panel admin a Firebase Auth real
+=========================================================
+
+QUÉ ARREGLA ESTO
+-----------------------------------------------------------
+Ahora mismo, Firestore no tiene forma de distinguir "alguien
+del equipo logueado en el panel" de "cualquier visitante que
+abre la consola del navegador", porque el login del panel
+(usuario/contraseña en la colección "admin_usuarios") no usa
+Firebase Auth — es un sistema propio. Por eso las reglas de
+Firestore tienen que dejar "productos", "admin_usuarios",
+etc. con lectura/escritura abiertas: es la única forma de que
+tu panel funcione.
+
+Con Firebase Auth, cada persona del equipo entra con una
+cuenta REAL de Firebase (correo + contraseña), y las reglas de
+Firestore SÍ pueden distinguir "esta persona es admin" de
+"un visitante cualquiera" mirando su UID. Esto NO necesita
+Cloud Functions ni plan de pago — funciona en el plan gratis
+(Spark) de Firebase.
+
+Ya te dejé listo el archivo firestore.rules (en la raíz del
+proyecto) con la parte de las reglas hecha. Te falta:
+1) crear las cuentas en Firebase Auth,
+2) pegar sus UID en firestore.rules,
+3) publicar las reglas,
+4) cambiar el login del panel para que use esas cuentas.
+
+Los pasos 1-3 los puedes hacer tú mismo desde la consola de
+Firebase, sin tocar código. El paso 4 si quieres que te lo
+arme yo, dímelo en el chat — ese cambia archivos que ahora
+mismo maneja el login/sesiones de varias personas del equipo a
+la vez, así que prefiero hacerlo como una tarea aparte, con
+calma, para no romper el panel que ya está funcionando.
+
+-----------------------------------------------------------
+PASO 1 — Activa Firebase Authentication
+-----------------------------------------------------------
+1. Ve a https://console.firebase.google.com -> tu proyecto
+   "maquina-tienda".
+2. Menú izquierdo -> "Authentication" -> "Comenzar" (o "Sign-in
+   method" si ya lo activaste antes).
+3. Activa el proveedor "Correo electrónico/contraseña".
+
+-----------------------------------------------------------
+PASO 2 — Crea una cuenta por cada persona del equipo
+-----------------------------------------------------------
+1. Dentro de "Authentication" -> pestaña "Users" -> "Add user".
+2. Correo + contraseña de esa persona (puede ser un correo
+   cualquiera, no tiene que ser el mismo con el que compran).
+3. Repite por cada persona del equipo que deba entrar al panel.
+4. Copia el "User UID" que aparece junto a cada cuenta (es un
+   texto largo tipo "aB3xY...") — lo necesitas en el paso 3.
+
+-----------------------------------------------------------
+PASO 3 — Pega los UID en firestore.rules y publica
+-----------------------------------------------------------
+1. Abre firestore.rules (en la raíz de este proyecto).
+2. Busca la función isAdmin() al principio del archivo.
+3. Reemplaza 'REEMPLAZA_CON_UID_1', 'REEMPLAZA_CON_UID_2' por
+   los UID reales que copiaste (uno por línea, entre comillas,
+   separados por coma). Agrega o quita líneas según cuánta
+   gente tengas.
+4. Ve a Firestore Database -> pestaña "Reglas" en la consola de
+   Firebase, borra lo que hay, pega TODO el contenido de
+   firestore.rules, y dale "Publicar".
+
+⚠️ IMPORTANTE: hasta que hagas también el paso 4 (cambiar el
+login del panel), admin.html va a dejar de poder leer/escribir
+productos, pedidos, usuarios, etc. — porque las reglas nuevas
+piden estar logueado con Firebase Auth, y el panel todavía no
+lo hace. Por eso, avísame cuando quieras que hagamos el paso 4
+junto con este, o al menos pruébalo primero en un proyecto de
+Firebase de prueba (no el de tu tienda real) antes de publicar
+las reglas nuevas en producción.
+
+-----------------------------------------------------------
+PASO 4 — Cambiar el login del panel (te lo hago yo cuando me
+digas "hazlo")
+-----------------------------------------------------------
+Esto cambia loginAdmin() en js/store.js para que en vez de
+buscar el usuario en la colección "admin_usuarios" y comparar
+la contraseña a mano, llame a
+firebase.auth().signInWithEmailAndPassword(correo, contraseña)
+y deje que Firebase Auth confirme la contraseña. Los permisos
+por persona (qué pestañas puede ver, si puede borrar pedidos)
+se siguen guardando igual que ahora en Firestore, pero
+identificando a cada persona por su UID en vez de por su
+usuario de texto.
+
+Es un cambio que toca el login, el candado de "una sesión a la
+vez" y la pantalla de "Usuarios" del panel — por eso prefiero
+hacerlo como su propia tarea, revisando contigo cada parte,
+en vez de metértelo de sorpresa dentro de un cambio grande.

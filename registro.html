@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Crear cuenta — MAQUINA</title>
+<meta name="description" content="Crea tu cuenta en MAQUINA para seguir tus pedidos y guardar tus favoritos.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Crear cuenta — MAQUINA">
+<meta property="og:description" content="Crea tu cuenta en MAQUINA para seguir tus pedidos y guardar tus favoritos.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/registro.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+<style>
+/* ---- personaje estático (sin animación) ---- */
+.auth-figure svg{ overflow:visible; }
+</style>
+</head>
+<body>
+
+<div class="auth-page">
+
+  <div class="auth-visual">
+    <div class="auth-visual-blur"></div>
+    <div class="auth-visual-sharp"></div>
+    <a href="index.html" class="nav-logo">
+      <span class="logo-mark">⚡</span><span class="logo-text display">YAS<em>DRIP</em></span>
+    </a>
+
+    <div class="auth-copy">
+      <div class="auth-eyebrow">Nuevo aquí</div>
+      <h1>Únete a la gente que <em>ya trae su drip</em>.</h1>
+      <p>Crea tu cuenta para guardar tus pedidos, entrar al Voltage Club y no perderte ningún drop.</p>
+    </div>
+
+    <div class="auth-stamp stamp-font">underground<br>drip co.</div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-card" id="authCard">
+
+      <a href="index.html" class="auth-brand">
+        <span class="logo-mark">⚡</span><span class="display">YAS<em>DRIP</em></span>
+      </a>
+
+      <!-- ===================== PASO 1: FORMULARIO ===================== -->
+      <h2>Crear cuenta</h2>
+      <p class="auth-sub">Toma menos de un minuto.</p>
+
+      <div id="authMsg"></div>
+
+      <form id="formRegistro">
+        <div class="auth-field">
+          <input type="text" id="nombreInput" placeholder="Nombre completo" required>
+        </div>
+
+        <label style="color:var(--gray);font-size:.78rem;margin-bottom:6px;display:block;">¿Cómo quieres verificar tu cuenta?</label>
+        <div class="method-toggle" id="methodToggle">
+          <div class="method-option active" data-method="correo"><span class="m-ic">📧</span> Correo</div>
+          <div class="method-option" data-method="telefono"><span class="m-ic">📱</span> Teléfono</div>
+        </div>
+
+        <div class="auth-field">
+          <input type="email" id="correoInput" placeholder="tu@correo.com" required>
+        </div>
+
+        <div class="auth-field phone-field" id="phoneField">
+          <input type="tel" id="telefonoInput" placeholder="+57 300 1234567">
+        </div>
+
+        <div class="auth-field-row">
+          <div class="auth-field">
+            <label style="color:var(--gray);font-size:.78rem;margin-bottom:4px;display:block;">Fecha de nacimiento</label>
+            <input type="date" id="fechaNacimientoInput" required>
+          </div>
+          <div class="auth-field">
+            <label style="color:var(--gray);font-size:.78rem;margin-bottom:4px;display:block;">País</label>
+            <select id="paisInput" required>
+              <option value="" disabled selected>— Selecciona —</option>
+              <option>Colombia</option>
+              <option>México</option>
+              <option>Argentina</option>
+              <option>Chile</option>
+              <option>Perú</option>
+              <option>Ecuador</option>
+              <option>España</option>
+              <option>Estados Unidos</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="auth-field">
+          <input type="password" id="contrasenaInput" placeholder="Contraseña (mín. 6 caracteres)" required>
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="btnEnviarCodigo">Crear cuenta</button>
+      </form>
+
+      <div class="auth-divider">o</div>
+
+      <a href="login.html" class="btn btn-ghost auth-signup">Ya tengo cuenta</a>
+
+      <p class="auth-footnote">Al crear tu cuenta aceptas nuestros <a href="servicios.html">términos de servicio</a>.</p>
+
+      <!-- ===================== PASO 2: CÓDIGO DE VERIFICACIÓN ===================== -->
+      <div class="otp-screen" id="otpScreen">
+        <div class="otp-badge">🔐</div>
+        <div class="otp-title">Verifica tu cuenta</div>
+        <p class="otp-sub" id="otpSub">Te enviamos un código a <strong id="otpDestino"></strong></p>
+
+        <div id="otpMsg"></div>
+
+        <form id="formOtp">
+          <div class="otp-boxes">
+            <input type="text" inputmode="numeric" maxlength="1" class="otp-box" autocomplete="one-time-code">
+            <input type="text" inputmode="numeric" maxlength="1" class="otp-box">
+            <input type="text" inputmode="numeric" maxlength="1" class="otp-box">
+            <input type="text" inputmode="numeric" maxlength="1" class="otp-box">
+            <input type="text" inputmode="numeric" maxlength="1" class="otp-box">
+            <input type="text" inputmode="numeric" maxlength="1" class="otp-box">
+          </div>
+          <button type="submit" class="otp-submit" id="btnVerificarCodigo">Verificar y crear cuenta</button>
+        </form>
+
+        <div class="otp-resend">
+          ¿No te llegó? <button type="button" id="btnReenviar" disabled>Reenviar código (<span class="otp-timer" id="otpTimer">60</span>s)</button>
+        </div>
+
+        <button type="button" class="otp-back" id="btnVolver">‹ Volver y corregir datos</button>
+      </div>
+
+      <div id="recaptcha-container"></div>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+
+<!-- ============================================================
+     EmailJS — para enviar el código de verificación por CORREO
+     sin necesitar servidor propio. Es gratis (200 correos/mes).
+
+     CÓMO CONFIGURARLO (5 minutos):
+     1) Crea una cuenta gratis en https://www.emailjs.com
+     2) "Email Services" -> conecta tu Gmail/Outlook -> copia el
+        SERVICE_ID que te da.
+     3) "Email Templates" -> crea uno nuevo. En el cuerpo del
+        correo escribe algo como:
+          Hola {{to_name}}, tu código de verificación de MAQUINA es: {{code}}
+        Y en el campo "To email" del template pon: {{to_email}}
+        Copia el TEMPLATE_ID que te da.
+     4) "Account" -> "General" -> copia tu PUBLIC KEY.
+     5) Reemplaza los 3 valores de EMAILJS_CONFIG aquí abajo.
+     Mientras no los reemplaces, el registro por correo no podrá
+     enviar el código (se mostrará un error explicándolo).
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+const EMAILJS_CONFIG = {
+  PUBLIC_KEY: "PEGA_AQUI_TU_PUBLIC_KEY",
+  SERVICE_ID: "PEGA_AQUI_TU_SERVICE_ID",
+  TEMPLATE_ID: "PEGA_AQUI_TU_TEMPLATE_ID",
+};
+if (EMAILJS_CONFIG.PUBLIC_KEY !== "PEGA_AQUI_TU_PUBLIC_KEY" && typeof emailjs !== 'undefined') {
+  emailjs.init({ publicKey: EMAILJS_CONFIG.PUBLIC_KEY });
+}
+</script>
+
+<script>
+/* ============================================================
+   FLUJO DE REGISTRO CON VERIFICACIÓN (correo o teléfono)
+   ============================================================ */
+
+// ---------- refs ----------
+const authCard      = document.getElementById('authCard');
+const formRegistro   = document.getElementById('formRegistro');
+const methodToggle   = document.getElementById('methodToggle');
+const phoneField     = document.getElementById('phoneField');
+const correoInput    = document.getElementById('correoInput');
+const telefonoInput  = document.getElementById('telefonoInput');
+const authMsg        = document.getElementById('authMsg');
+const btnEnviarCodigo= document.getElementById('btnEnviarCodigo');
+
+const otpScreen   = document.getElementById('otpScreen');
+const otpDestino  = document.getElementById('otpDestino');
+const otpMsg      = document.getElementById('otpMsg');
+const formOtp     = document.getElementById('formOtp');
+const otpBoxes    = Array.from(document.querySelectorAll('.otp-box'));
+const btnVerificar= document.getElementById('btnVerificarCodigo');
+const btnReenviar = document.getElementById('btnReenviar');
+const otpTimerEl  = document.getElementById('otpTimer');
+const btnVolver   = document.getElementById('btnVolver');
+
+let metodoActual = 'correo';       // 'correo' | 'telefono'
+let datosPendientes = null;        // datos del form, guardados mientras se verifica
+let codigoEmailGenerado = null;    // código de 6 dígitos (solo método correo)
+let codigoExpira = 0;
+let confirmationResult = null;     // resultado de Firebase Phone Auth (solo método teléfono)
+let recaptchaVerifier = null;
+let resendCountdown = null;
+
+// ---------- selector de método (correo / teléfono) ----------
+methodToggle.addEventListener('click', (e) => {
+  const opt = e.target.closest('.method-option');
+  if (!opt) return;
+  metodoActual = opt.dataset.method;
+  methodToggle.querySelectorAll('.method-option').forEach(o => o.classList.toggle('active', o === opt));
+  if (metodoActual === 'telefono') {
+    phoneField.classList.add('show');
+    telefonoInput.setAttribute('required', 'required');
+  } else {
+    phoneField.classList.remove('show');
+    telefonoInput.removeAttribute('required');
+  }
+});
+
+function generarCodigo6() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function formatearTelefono(valor) {
+  // deja solo dígitos y el + inicial
+  let v = valor.trim().replace(/(?!^)\+/g, '').replace(/[^\d+]/g, '');
+  return v;
+}
+
+// ---------- paso 1: enviar formulario -> mandar código ----------
+formRegistro.addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const nombre = document.getElementById('nombreInput').value.trim();
+  const correo = correoInput.value.trim();
+  const fechaNacimiento = document.getElementById('fechaNacimientoInput').value;
+  const pais = document.getElementById('paisInput').value;
+  const contrasena = document.getElementById('contrasenaInput').value;
+  const telefono = formatearTelefono(telefonoInput.value || '');
+
+  const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+  if (!nombre || !correoValido || !fechaNacimiento || !pais || contrasena.length < 6) {
+    authMsg.innerHTML = `<div class="auth-error">Revisa tus datos: nombre, correo válido, fecha de nacimiento, país y contraseña de al menos 6 caracteres.</div>`;
+    return;
+  }
+  if (metodoActual === 'telefono' && !/^\+?\d{8,15}$/.test(telefono)) {
+    authMsg.innerHTML = `<div class="auth-error">Escribe tu número con indicativo del país, ej: +57 300 1234567.</div>`;
+    return;
+  }
+
+  datosPendientes = { nombre, correo, fechaNacimiento, pais, contrasena, telefono };
+
+  authMsg.innerHTML = '';
+  btnEnviarCodigo.disabled = true;
+  btnEnviarCodigo.textContent = 'Enviando código...';
+
+  const res = metodoActual === 'correo'
+    ? await enviarCodigoPorCorreo(correo, nombre)
+    : await enviarCodigoPorTelefono(telefono);
+
+  btnEnviarCodigo.disabled = false;
+  btnEnviarCodigo.textContent = 'Crear cuenta';
+
+  if (!res.ok) {
+    authMsg.innerHTML = `<div class="auth-error">${res.msg}</div>`;
+    return;
+  }
+
+  mostrarPantallaOtp();
+});
+
+// ---------- envío de código por correo (EmailJS) ----------
+async function enviarCodigoPorCorreo(correo, nombre) {
+  if (EMAILJS_CONFIG.PUBLIC_KEY === "PEGA_AQUI_TU_PUBLIC_KEY") {
+    return { ok: false, msg: 'Falta configurar EmailJS en registro.html (ver los comentarios en el código) para poder enviar el código por correo.' };
+  }
+  codigoEmailGenerado = generarCodigo6();
+  codigoExpira = Date.now() + 10 * 60 * 1000; // 10 minutos
+  try {
+    await emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
+      to_email: correo,
+      to_name: nombre,
+      code: codigoEmailGenerado,
+    });
+    return { ok: true };
+  } catch (e) {
+    console.error('Error enviando código por EmailJS:', e);
+    return { ok: false, msg: 'No se pudo enviar el correo. Revisa tu conexión o inténtalo de nuevo.' };
+  }
+}
+
+// ---------- envío de código por SMS (Firebase Phone Auth) ----------
+async function enviarCodigoPorTelefono(telefono) {
+  try {
+    if (!recaptchaVerifier) {
+      recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+    }
+    confirmationResult = await fbAuth.signInWithPhoneNumber(telefono, recaptchaVerifier);
+    return { ok: true };
+  } catch (e) {
+    console.error('Error enviando SMS:', e);
+    if (recaptchaVerifier) { try { recaptchaVerifier.clear(); } catch (_) {} recaptchaVerifier = null; }
+    let msg = 'No se pudo enviar el SMS. Revisa el número e inténtalo de nuevo.';
+    if (e && e.code === 'auth/invalid-phone-number') msg = 'Ese número no parece válido.';
+    if (e && e.code === 'auth/too-many-requests') msg = 'Demasiados intentos, espera un momento.';
+    return { ok: false, msg };
+  }
+}
+
+// ---------- pantalla de código ----------
+function mostrarPantallaOtp() {
+  authCard.classList.add('otp-mode');
+  otpScreen.classList.add('active');
+  otpDestino.textContent = metodoActual === 'correo' ? datosPendientes.correo : datosPendientes.telefono;
+  otpMsg.innerHTML = '';
+  otpBoxes.forEach(b => { b.value = ''; b.classList.remove('filled'); });
+  otpBoxes[0].focus();
+  iniciarCuentaRegresiva();
+}
+
+function volverAlFormulario() {
+  authCard.classList.remove('otp-mode');
+  otpScreen.classList.remove('active');
+  otpMsg.innerHTML = '';
+  clearInterval(resendCountdown);
+}
+btnVolver.addEventListener('click', volverAlFormulario);
+
+// auto-avance entre cajitas + pegar código completo
+otpBoxes.forEach((box, i) => {
+  box.addEventListener('input', () => {
+    box.value = box.value.replace(/\D/g, '').slice(0, 1);
+    box.classList.toggle('filled', !!box.value);
+    if (box.value && otpBoxes[i + 1]) otpBoxes[i + 1].focus();
+  });
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !box.value && otpBoxes[i - 1]) otpBoxes[i - 1].focus();
+  });
+  box.addEventListener('paste', (e) => {
+    const texto = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+    if (!texto) return;
+    e.preventDefault();
+    texto.slice(0, 6).split('').forEach((d, idx) => {
+      if (otpBoxes[idx]) { otpBoxes[idx].value = d; otpBoxes[idx].classList.add('filled'); }
+    });
+    (otpBoxes[Math.min(texto.length, 6) - 1] || otpBoxes[5]).focus();
+  });
+});
+
+function iniciarCuentaRegresiva() {
+  let segundos = 60;
+  btnReenviar.disabled = true;
+  otpTimerEl.textContent = segundos;
+  clearInterval(resendCountdown);
+  resendCountdown = setInterval(() => {
+    segundos--;
+    otpTimerEl.textContent = segundos;
+    if (segundos <= 0) {
+      clearInterval(resendCountdown);
+      btnReenviar.disabled = false;
+      btnReenviar.innerHTML = 'Reenviar código';
+    }
+  }, 1000);
+}
+
+btnReenviar.addEventListener('click', async () => {
+  btnReenviar.disabled = true;
+  btnReenviar.textContent = 'Enviando...';
+  const res = metodoActual === 'correo'
+    ? await enviarCodigoPorCorreo(datosPendientes.correo, datosPendientes.nombre)
+    : await enviarCodigoPorTelefono(datosPendientes.telefono);
+  if (!res.ok) {
+    otpMsg.innerHTML = `<div class="auth-error">${res.msg}</div>`;
+    btnReenviar.disabled = false;
+    btnReenviar.innerHTML = 'Reenviar código';
+    return;
+  }
+  otpMsg.innerHTML = `<div class="auth-ok">Código reenviado.</div>`;
+  otpBoxes.forEach(b => { b.value = ''; b.classList.remove('filled'); });
+  otpBoxes[0].focus();
+  iniciarCuentaRegresiva();
+});
+
+// ---------- paso 2: verificar código -> crear cuenta ----------
+formOtp.addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const codigo = otpBoxes.map(b => b.value).join('');
+  if (codigo.length < 6) {
+    otpMsg.innerHTML = `<div class="auth-error">Completa los 6 dígitos del código.</div>`;
+    return;
+  }
+
+  otpMsg.innerHTML = '';
+  btnVerificar.disabled = true;
+  btnVerificar.textContent = 'Verificando...';
+
+  let verificado = false;
+  let errorMsg = 'Código incorrecto, inténtalo de nuevo.';
+
+  if (metodoActual === 'correo') {
+    if (Date.now() > codigoExpira) {
+      errorMsg = 'El código expiró, pide uno nuevo con "Reenviar código".';
+    } else if (codigo === codigoEmailGenerado) {
+      verificado = true;
+    }
+  } else {
+    try {
+      await confirmationResult.confirm(codigo);
+      verificado = true;
+    } catch (err) {
+      errorMsg = err && err.code === 'auth/code-expired'
+        ? 'El código expiró, pide uno nuevo.'
+        : 'Código incorrecto, inténtalo de nuevo.';
+    }
+  }
+
+  if (!verificado) {
+    otpMsg.innerHTML = `<div class="auth-error">${errorMsg}</div>`;
+    btnVerificar.disabled = false;
+    btnVerificar.textContent = 'Verificar y crear cuenta';
+    return;
+  }
+
+  // Si el método fue teléfono, Firebase ya inició sesión con ese
+  // número (auth por teléfono). Cerramos esa sesión temporal y
+  // creamos la cuenta real por correo/contraseña, guardando el
+  // teléfono ya verificado en el perfil.
+  if (metodoActual === 'telefono' && fbAuth.currentUser) {
+    try { await fbAuth.signOut(); } catch (_) {}
+  }
+
+  const { nombre, correo, contrasena, fechaNacimiento, pais, telefono } = datosPendientes;
+  const res = await registrarUsuario(nombre, correo, contrasena, fechaNacimiento, pais, metodoActual === 'telefono' ? telefono : null);
+
+  if (res.ok) {
+    window.location.href = 'productos.html';
+  } else {
+    otpMsg.innerHTML = `<div class="auth-error">${res.msg}</div>`;
+    btnVerificar.disabled = false;
+    btnVerificar.textContent = 'Verificar y crear cuenta';
+  }
+});
+</script>
+
+</body>
+</html>

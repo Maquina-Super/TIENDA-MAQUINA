@@ -1,0 +1,33 @@
+CÓMO PROBAR LAS REGLAS NUEVAS ANTES DE PUBLICARLAS
+====================================================
+
+Esto revisa que firestore.rules (el de la carpeta de arriba) deje pasar
+pedidos con precio correcto y RECHACE pedidos con precio manipulado,
+usando el emulador de Firestore en tu propio computador (no toca tu
+base de datos real, nadie ve esto salvo tú).
+
+1) Necesitas tener instalado Node.js (https://nodejs.org) y Java
+   (el emulador de Firestore corre sobre Java). Si no tienes Java,
+   instálalo primero (en Windows/Mac, busca "instalar Java JDK").
+
+2) Abre una terminal en esta carpeta (tests-reglas) y corre:
+
+     npm init -y
+     npm install --save-dev firebase-tools @firebase/rules-unit-testing firebase
+
+3) Copia el firestore.rules real (el de la carpeta de arriba, MAQUINA/)
+   a esta carpeta, o simplemente corre desde la carpeta principal del
+   proyecto (ajustando la ruta en firebase.json si hace falta).
+
+4) Corre:
+
+     npx firebase emulators:exec --only firestore "node test.js"
+
+Vas a ver un bloque "RESULTADOS" con ✅ o ❌ para cada caso. Si todo
+sale con ✅, las reglas están listas para publicarse (Firebase Console
+→ Firestore Database → Reglas → pegar el contenido de firestore.rules
+→ Publicar).
+
+Si algo te sale con ❌, mándame el mensaje completo y lo ajustamos
+antes de publicar — mejor encontrarlo aquí que con clientes reales
+comprando.

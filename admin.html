@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Panel del vendedor — MAQUINA</title>
+<meta name="description" content="Panel interno de MAQUINA.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- ======================= LOGIN DEL ADMIN ======================= -->
+<div class="admin-login" id="adminLoginView">
+  <div class="admin-login-bg"></div>
+  <div class="admin-login-glow"></div>
+
+  <!-- Escenario circular: el aro de barras (lo dibuja js/login-orbit.js) queda detrás y el formulario en el centro -->
+  <div class="al-stage" id="alStage">
+  <div class="al-orbit" id="alOrbit" aria-hidden="true"></div>
+
+  <div class="admin-login-wrap">
+    <a href="index.html" class="admin-login-brand">
+      <span class="logo-mark">⚡</span><span class="display">YAS<em>DRIP</em></span>
+    </a>
+
+    <div class="admin-login-card">
+      <div class="admin-login-eyebrow">Solo para el equipo</div>
+      <h1>Entrar al <em>panel</em></h1>
+      <p class="admin-login-sub">Correo, contraseña y tu código de acceso.</p>
+
+      <div id="adminAuthMsg"></div>
+
+      <form id="formAdminLogin" class="admin-login-form">
+        <div class="nf-field">
+          <input type="email" id="adminUsuario" placeholder=" " autocomplete="email" required>
+          <label for="adminUsuario">Correo</label>
+        </div>
+        <div class="nf-field nf-field-pass">
+          <input type="password" id="adminClave" placeholder=" " autocomplete="current-password" required data-ojito-listo="1">
+          <label for="adminClave">Contraseña</label>
+          <button type="button" class="nf-eye" data-target="adminClave" aria-label="Mostrar contraseña">👁️</button>
+        </div>
+        <div class="nf-field nf-field-pass">
+          <input type="password" id="adminCodigoPanel" placeholder=" " inputmode="numeric" maxlength="6" autocomplete="off" data-ojito-listo="1">
+          <label for="adminCodigoPanel">Código de acceso (6 números)</label>
+          <button type="button" class="nf-eye" data-target="adminCodigoPanel" aria-label="Mostrar código">👁️</button>
+        </div>
+
+        <button type="submit" class="admin-login-submit">Entrar <span class="auth-submit-arrow">→</span></button>
+      </form>
+
+      <div class="admin-login-links">
+        <a href="#" id="linkOlvideCodigoPanel">¿Olvidaste tu código de acceso?</a>
+        <a href="#" id="linkOlvideClavePanel">¿Olvidaste tu contraseña?</a>
+      </div>
+      <a href="index.html" class="admin-login-back">← Volver a la tienda</a>
+    </div>
+
+    <div class="admin-login-stamp stamp-font">underground drip co.</div>
+  </div>
+  </div><!-- /al-stage -->
+</div>
+
+<!-- ======================= MODAL RECUPERAR CÓDIGO DE ACCESO ======================= -->
+<div class="admin-modal-overlay" id="modalRecuperarCodigoPanel">
+  <div class="admin-modal">
+    <h3>Recuperar código de acceso</h3>
+    <p class="admin-foto-hint" style="margin-bottom:12px;">Escribe el correo de tu cuenta del panel. Si tiene un código asignado, te llega por correo.</p>
+    <input type="email" id="correoRecuperarCodigoPanel" placeholder="Tu correo" autocomplete="email">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnEnviarRecuperarCodigoPanel">Enviar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalRecuperarCodigoPanel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL RECUPERAR CONTRASEÑA ======================= -->
+<div class="admin-modal-overlay" id="modalRecuperarClavePanel">
+  <div class="admin-modal">
+    <h3>Recuperar contraseña</h3>
+    <p class="admin-foto-hint" style="margin-bottom:12px;">Escribe el correo de tu cuenta del panel. Si existe, Firebase te manda un enlace para poner una contraseña nueva (esto no tiene nada que ver con tu código de acceso).</p>
+    <input type="email" id="correoRecuperarClavePanel" placeholder="Tu correo" autocomplete="email">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnEnviarRecuperarClavePanel">Enviar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalRecuperarClavePanel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL AVISAR DROP NUEVO (Voltage Club) ======================= -->
+<div class="admin-modal-overlay" id="modalAvisarDrop">
+  <div class="admin-modal">
+    <h3>📢 Avisar drop nuevo</h3>
+    <p class="admin-foto-hint" id="avisarDropContador" style="margin-bottom:12px;"></p>
+    <input type="text" id="avisarDropAsunto" class="admin-input" placeholder="Asunto (ej: 🔥 Nuevo drop ya disponible)" style="margin-bottom:10px;width:100%;">
+    <textarea id="avisarDropMensaje" class="admin-input" rows="6" placeholder="Mensaje del correo: qué llegó, cuándo, link a la tienda…" style="width:100%;resize:vertical;margin-bottom:10px;"></textarea>
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnEnviarAvisoDrop">Enviar a todos</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalAvisarDrop">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL EDITAR PRODUCTO ======================= -->
+<div class="admin-modal-overlay pe-overlay" id="modalEditarProducto">
+  <div class="pe-modal" role="dialog" aria-modal="true" aria-labelledby="peTitulo">
+    <div class="pe-head">
+      <div class="pe-head-txt">
+        <div class="pe-eyebrow">// Editar pieza</div>
+        <h3 id="peTitulo">Producto</h3>
+      </div>
+      <button type="button" class="pe-x" id="peCerrar" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div class="pe-body">
+      <div class="pe-field">
+        <span class="pe-label">Imagen</span>
+        <div class="pe-imagen">
+          <div class="pe-imagen-prev" id="peImagenPrev"></div>
+          <div class="pe-imagen-side">
+            <label class="admin-btn admin-btn-ghost pe-subir">📷 Subir foto<input type="file" id="peFotoGeneral" accept="image/*" hidden></label>
+            <p class="admin-foto-hint" id="peImagenHint"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pe-field">
+        <label class="pe-label" for="peNombre">Nombre</label>
+        <input type="text" id="peNombre" class="pe-input" autocomplete="off">
+      </div>
+
+      <div class="pe-field">
+        <label class="pe-label" for="peDescripcion">Descripción</label>
+        <textarea id="peDescripcion" class="pe-input" rows="3" placeholder="Descripción del producto (opcional)"></textarea>
+      </div>
+
+      <div class="pe-grid2">
+        <div class="pe-field">
+          <label class="pe-label" for="pePrecio">Precio ($)</label>
+          <input type="number" id="pePrecio" class="pe-input" min="0" step="100" inputmode="numeric">
+        </div>
+        <div class="pe-field">
+          <label class="pe-label" for="peDescuento">Descuento (%)</label>
+          <input type="number" id="peDescuento" class="pe-input" min="0" max="90" step="1" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="pe-grid2">
+        <div class="pe-field">
+          <label class="pe-label" for="peCategoria">Categoría</label>
+          <input type="text" id="peCategoria" class="pe-input" list="peCategoriasLista" autocomplete="off">
+          <datalist id="peCategoriasLista"></datalist>
+        </div>
+        <div class="pe-field">
+          <label class="pe-label" for="peStock">Stock</label>
+          <input type="number" id="peStock" class="pe-input" min="0" step="1" inputmode="numeric">
+          <span class="pe-hint" id="peStockHint"></span>
+        </div>
+      </div>
+
+      <details class="pe-det" id="peDetTallasPrecio">
+        <summary>Precio por talla</summary>
+        <p class="pe-hint">Déjalo vacío para que la talla use el precio base.</p>
+        <div class="pe-mini-grid" id="peTallasPrecio"></div>
+      </details>
+
+      <details class="pe-det" id="peDetStockColor">
+        <summary>Stock por color</summary>
+        <p class="pe-hint">Opcional: cuántas unidades hay de cada color.</p>
+        <div class="pe-mini-grid" id="peStockColor"></div>
+      </details>
+
+      <details class="pe-det" id="peDetStockTalla">
+        <summary>Stock por talla</summary>
+        <p class="pe-hint">Opcional: cuántas unidades hay de cada talla.</p>
+        <div class="pe-mini-grid" id="peStockTalla"></div>
+      </details>
+
+      <details class="pe-det" id="peDetFotos">
+        <summary>Fotos por color</summary>
+        <p class="pe-hint">Frente: la foto principal de ese color. Espalda: se ve al pasar el mouse (o tocar en celular) sobre la foto en la tienda.</p>
+        <div id="peFotosColor"></div>
+      </details>
+
+      <label class="pe-check"><input type="checkbox" id="peNewDrop"><span>Marcar como <b>New Drop</b></span></label>
+      <label class="pe-check"><input type="checkbox" id="peVisible"><span>Visible en la tienda</span></label>
+
+      <div class="pe-final">
+        <span class="pe-label">Precio final calculado</span>
+        <div class="pe-final-row"><s id="peFinalAntes" hidden></s><b id="peFinalValor">$0</b></div>
+      </div>
+    </div>
+
+    <div class="pe-foot">
+      <button type="button" class="admin-btn admin-btn-ghost" id="peCancelar">Cancelar</button>
+      <button type="button" class="admin-btn admin-btn-primary" id="peGuardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL CONFIRMAR ELIMINAR PRODUCTO ======================= -->
+<div class="admin-modal-overlay" id="modalEliminarProducto">
+  <div class="pe-confirm" role="alertdialog" aria-modal="true" aria-labelledby="peElimTitulo">
+    <div class="pe-confirm-icono">🗑</div>
+    <h3 id="peElimTitulo">¿Seguro que quieres eliminar este producto?</h3>
+    <p class="pe-confirm-nombre" id="peElimNombre"></p>
+    <p class="admin-foto-hint">Esta acción no se puede deshacer.</p>
+    <div class="pe-confirm-btns">
+      <button type="button" class="admin-btn admin-btn-ghost" id="peElimCancelar">Cancelar</button>
+      <button type="button" class="admin-btn admin-btn-dark" id="peElimConfirmar">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= DASHBOARD ======================= -->
+<div class="admin-page" id="adminDashView" style="display:none;">
+  <header class="admin-topbar">
+    <a href="index.html" class="nav-logo">
+      <span class="logo-mark">⚡</span><span class="logo-text display">YAS<em>DRIP</em></span>
+    </a>
+    <div class="admin-topbar-right">
+      <span class="admin-foto-hint" id="adminUsuarioActual" style="margin-right:2px;"></span>
+      <a href="productos.html" class="admin-btn admin-btn-ghost">Ver tienda</a>
+      <button class="admin-btn admin-btn-ghost" id="btnClave">Cambiar contraseña</button>
+      <button class="admin-btn admin-btn-dark" id="btnSalirAdmin">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-title-row">
+      <div>
+        <div class="section-eyebrow">Panel del vendedor</div>
+        <h2 class="display" id="adminTituloTab">Inventario y precios</h2>
+      </div>
+      <button class="admin-btn admin-btn-primary" id="btnMostrarNuevo">+ Agregar producto</button>
+    </div>
+
+    <div class="admin-tabs">
+      <button type="button" class="admin-tab-btn active" id="tabBtnResumen">📊 Resumen</button>
+      <button type="button" class="admin-tab-btn" id="tabBtnInventario">📦 Inventario</button>
+      <button type="button" class="admin-tab-btn" id="tabBtnPedidos">🧾 Pedidos <span id="pedidosBadge"></span></button>
+      <button type="button" class="admin-tab-btn" id="tabBtnDrop">⚡ Drop</button>
+      <button type="button" class="admin-tab-btn" id="tabBtnUsuarios">👥 Usuarios</button>
+    </div>
+
+    <div id="tabResumen">
+      <div class="admin-stats admin-stats-color" id="resumenStats"></div>
+      <div class="admin-resumen-grid">
+        <div class="admin-card">
+          <h3>Ventas de los últimos 7 días</h3>
+          <div class="admin-chart-bars" id="resumenChart"></div>
+        </div>
+        <div class="admin-card">
+          <h3>Productos más vendidos</h3>
+          <div class="admin-top-productos" id="resumenTopProductos"></div>
+        </div>
+      </div>
+      <div class="admin-card">
+        <h3>Últimos pedidos</h3>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>
+            <tbody id="resumenUltimosPedidos"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="admin-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <h3 style="margin-bottom:0;">⚡ Voltage Club <span id="voltageClubTotal" style="color:var(--adm-text-dim);font-weight:400;font-size:13px;"></span></h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="admin-btn admin-btn-primary" id="btnAvisarDropVoltageClub">📢 Avisar drop nuevo</button>
+            <button class="admin-btn admin-btn-ghost" id="btnCopiarVoltageClub">Copiar correos</button>
+            <button class="admin-btn admin-btn-ghost" id="btnDescargarVoltageClub">Descargar CSV</button>
+          </div>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Correo</th><th>Se registró</th></tr></thead>
+            <tbody id="voltageClubTablaBody">
+              <tr><td colspan="2" style="text-align:center;padding:20px;color:var(--adm-text-dim);">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabInventario" style="display:none;">
+      <div class="admin-stats" id="adminStats"></div>
+
+      <div class="admin-card admin-add-card" id="cardNuevoProducto" style="display:none;">
+        <h3>Agregar producto nuevo</h3>
+        <div class="admin-add-grid">
+          <input type="text" id="nProdNombre" placeholder="Nombre (ej: Buso Flash)">
+          <input type="text" id="nProdCategoria" placeholder="Categoría (ej: Busos)">
+          <select id="nProdIcono">
+            <option value="hoodie">Buso / Hoodie</option>
+            <option value="tee">Camiseta</option>
+            <option value="cap">Gorra</option>
+            <option value="pants">Pantalón</option>
+            <option value="jacket">Chaqueta</option>
+            <option value="shorts">Shorts</option>
+          </select>
+          <input type="number" id="nProdPrecio" placeholder="Precio (ej: 89900)" min="0">
+          <input type="number" id="nProdStock" placeholder="Stock inicial (ej: 10, igual para cada color)" min="0">
+          <input type="text" id="nProdColores" placeholder="Colores en hex separados por coma (#151512,#faf9f5)">
+          <input type="text" id="nProdTallas" placeholder="Tallas separadas por coma (S,M,L,XL)">
+        </div>
+        <div id="nProdStockColorWrap" class="admin-stock-colores admin-stock-colores-nuevo"></div>
+        <div id="nProdStockTallaWrap" class="admin-stock-colores admin-stock-colores-nuevo"></div>
+        <div class="admin-foto-row">
+          <label class="admin-foto-picker" id="nProdFotoLabel">
+            <img id="nProdFotoPreview" style="display:none;">
+            <span id="nProdFotoTexto">📷 Subir foto del producto (opcional)</span>
+            <input type="file" id="nProdFoto" accept="image/*" hidden>
+          </label>
+          <span class="admin-foto-hint">Si no subes foto, se usa un dibujo genérico según la categoría.</span>
+        </div>
+        <div class="admin-add-actions">
+          <button class="admin-btn admin-btn-primary" id="btnGuardarNuevo">Guardar producto</button>
+          <button class="admin-btn admin-btn-ghost" id="btnCancelarNuevo">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <p class="admin-foto-hint admin-inv-hint">💡 Toca <b>✏ Editar</b> en un producto para cambiar su foto, precio (también por talla), descuento, stock (total, por color y por talla), New Drop y si se ve en la tienda. Todo se guarda solo cuando presionas <b>Guardar</b>.</p>
+        <input type="search" id="buscarProductoAdmin" class="admin-input admin-buscar" placeholder="🔍 Buscar por nombre o categoría…" autocomplete="off">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="tablaProductos">
+            <thead>
+              <tr>
+                <th class="th-ordenable" data-campo="nombre">Producto</th>
+                <th>Fotos</th>
+                <th class="th-ordenable" data-campo="categoria">Categoría</th>
+                <th class="th-ordenable" data-campo="precio">Precio base</th>
+                <th>Precio por talla</th>
+                <th class="th-ordenable" data-campo="descuento">Descuento</th>
+                <th class="th-ordenable" data-campo="precioFinal">Precio final</th>
+                <th class="th-ordenable" data-campo="stock">Stock</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaProductosBody"></tbody>
+          </table>
+        </div>
+        <div class="admin-pagination" id="paginacionProductos"></div>
+      </div>
+    </div>
+
+    <div id="tabPedidos" style="display:none;">
+      <div class="admin-stats admin-stats-color" id="pedidosStats"></div>
+      <div class="admin-card">
+        <p class="admin-foto-hint" style="margin-bottom:12px;">💡 Estos pedidos quedan guardados en la nube (Firebase), no en este computador — los ves igual desde cualquier navegador donde entres con el usuario del panel.</p>
+        <div class="admin-filtros-pedidos">
+          <input type="text" id="buscarPedidoAdmin" class="admin-input" placeholder="🔍 Buscar por cliente, contacto o producto…">
+          <select id="filtroEstadoPedido" class="admin-input">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">🕓 Pendiente</option>
+            <option value="confirmado">✅ Confirmado</option>
+            <option value="enviado">🚚 Enviado</option>
+            <option value="entregado">📦 Entregado</option>
+            <option value="cancelado">✕ Cancelado</option>
+          </select>
+          <label class="admin-filtro-fecha">Desde<input type="date" id="filtroFechaDesde" class="admin-input"></label>
+          <label class="admin-filtro-fecha">Hasta<input type="date" id="filtroFechaHasta" class="admin-input"></label>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btnLimpiarFiltrosPedidos">Limpiar filtros</button>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btnExportarPedidosCSV">⬇️ Exportar CSV</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="tablaPedidos">
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th class="th-ordenable" data-campo="fecha">Fecha</th>
+                <th class="th-ordenable" data-campo="cliente">Cliente</th>
+                <th>Contacto</th>
+                <th>Productos</th>
+                <th>Envío</th>
+                <th>Pago</th>
+                <th class="th-ordenable" data-campo="total">Total</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tablaPedidosBody">
+              <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--gray);">Cargando pedidos…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="admin-pagination" id="paginacionPedidos"></div>
+      </div>
+    </div>
+
+    <div id="tabDrop" style="display:none;">
+      <div class="admin-stats admin-stats-color" id="dropCountdownStats"></div>
+      <div class="admin-card">
+        <p class="admin-foto-hint" style="margin-bottom:14px;">💡 Aquí configuras la cuenta regresiva de "Próximo drop" que se ve en la página de inicio. Pon la fecha y hora en que se lanza, y elige qué productos se muestran ahí mismo (con foto de frente y de espaldas) apenas el tiempo llegue a cero — sin tocar código, y se ve igual para todos los que entren a la tienda.</p>
+        <div class="admin-drop-form">
+          <label class="admin-drop-label">Fecha y hora del lanzamiento
+            <input type="datetime-local" id="dropFecha" class="admin-input" style="width:100%;">
+          </label>
+          <label class="admin-drop-label">Título cuando ya esté disponible (opcional)
+            <input type="text" id="dropTitulo" class="admin-input" placeholder="¡Ya está aquí! ⚡" style="width:100%;">
+          </label>
+        </div>
+        <p class="admin-foto-hint" style="margin:18px 0 10px;"><b>Productos a mostrar cuando se acabe el tiempo</b> — marca los que quieres destacar: <span id="dropProductosContador" class="admin-permiso-pill"></span></p>
+        <div class="admin-drop-productos" id="dropProductosLista"></div>
+        <div class="admin-add-actions" style="margin-top:18px;">
+          <button class="admin-btn admin-btn-primary" id="btnGuardarDrop">Guardar configuración del drop</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabUsuarios" style="display:none;">
+      <div class="admin-card admin-add-card">
+        <h3>Dar acceso al panel a alguien nuevo</h3>
+        <p class="admin-foto-hint" style="margin-bottom:12px;">💡 Primero créale su cuenta en <b>Firebase Authentication → Users → Add user</b> (correo + contraseña). Después pega aquí ese mismo UID y correo, y ponle un código de acceso al panel (se lo dices tú por fuera, y se lo va a pedir cada vez que entre): el panel le da acceso real a Firestore automáticamente, sin que tengas que tocar <code>firestore.rules</code>. Solo se puede estar conectado con esa cuenta <b>en un dispositivo a la vez</b>.</p>
+        <div class="admin-add-grid" style="grid-template-columns:1fr 1fr;">
+          <input type="text" id="nuevoUsuarioNombre" class="admin-input" placeholder="UID de Firebase Auth" autocomplete="off">
+          <input type="email" id="nuevoUsuarioClave" class="admin-input" placeholder="Correo de esa cuenta" autocomplete="off">
+        </div>
+        <div class="admin-add-grid" style="grid-template-columns:1fr;margin-top:10px;">
+          <input type="text" id="nuevoUsuarioCodigoPanel" class="admin-input" placeholder="Código de acceso al panel (6 números)" inputmode="numeric" maxlength="6" autocomplete="off">
+        </div>
+
+        <p class="admin-foto-hint" style="margin:16px 0 8px;"><b>¿Qué puede hacer esta persona en el panel?</b> — marca lo que le vas a dejar tocar:</p>
+        <div class="admin-permisos-grid" id="nuevoUsuarioPermisos">
+          <label class="admin-permiso-item">
+            <input type="checkbox" class="chk-permiso-nuevo" value="inventario" checked>
+            <span class="permiso-icono">📦</span>
+            <span class="permiso-texto"><b>Inventario</b><small>Ver y editar productos, precios y stock</small></span>
+          </label>
+          <label class="admin-permiso-item">
+            <input type="checkbox" class="chk-permiso-nuevo" value="pedidos" checked>
+            <span class="permiso-icono">🧾</span>
+            <span class="permiso-texto"><b>Pedidos</b><small>Ver los pedidos de clientes</small></span>
+          </label>
+          <label class="admin-permiso-item">
+            <input type="checkbox" class="chk-permiso-nuevo" value="eliminarPedidos">
+            <span class="permiso-icono">🗑️</span>
+            <span class="permiso-texto"><b>Eliminar pedidos</b><small>Además de verlos, puede borrarlos</small></span>
+          </label>
+          <label class="admin-permiso-item">
+            <input type="checkbox" class="chk-permiso-nuevo" value="drop">
+            <span class="permiso-icono">⚡</span>
+            <span class="permiso-texto"><b>Drop</b><small>Ver y editar el próximo lanzamiento</small></span>
+          </label>
+          <label class="admin-permiso-item">
+            <input type="checkbox" class="chk-permiso-nuevo" value="usuarios">
+            <span class="permiso-icono">👥</span>
+            <span class="permiso-texto"><b>Usuarios</b><small>Ver y gestionar otros usuarios del panel</small></span>
+          </label>
+        </div>
+
+        <div class="admin-add-grid" style="grid-template-columns:1fr;margin-top:14px;">
+          <input type="password" id="codigoDesarrolladorUsuario" class="admin-input" placeholder="Código de desarrollador" autocomplete="new-password">
+        </div>
+        <p class="admin-foto-hint" style="margin:8px 0 0;">🔒 Crear, editar permisos, activar/desactivar o eliminar usuarios pide el código de desarrollador, para que solo alguien del equipo con ese código pueda tocar esta pestaña.</p>
+        <div class="admin-add-actions">
+          <button class="admin-btn admin-btn-primary" id="btnCrearUsuarioPanel">Crear usuario</button>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-stats admin-stats-color" id="usuariosStats"></div>
+        <p class="admin-foto-hint" style="margin-bottom:8px;">🟢 = está conectado ahora mismo en algún dispositivo. Si desactivas a alguien, no puede volver a entrar (pero no se pierde nada de lo que ya hizo); si lo eliminas, deja de existir del todo.</p>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="tablaUsuariosPanel">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Estado</th>
+                <th>Permisos</th>
+                <th>Conectado</th>
+                <th>Creado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tablaUsuariosPanelBody">
+              <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Cargando usuarios…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastText">Guardado</span></div>
+
+<!-- ======================= MODAL EDITAR PERMISOS ======================= -->
+<div class="admin-modal-overlay" id="modalPermisos">
+  <div class="admin-modal admin-modal-wide">
+    <h3 id="modalPermisosTitulo">Permisos</h3>
+    <div class="admin-permisos-grid" style="margin-bottom:14px;">
+      <label class="admin-permiso-item">
+        <input type="checkbox" class="chk-permiso-editar" value="inventario">
+        <span class="permiso-icono">📦</span>
+        <span class="permiso-texto"><b>Inventario</b><small>Ver y editar productos, precios y stock</small></span>
+      </label>
+      <label class="admin-permiso-item">
+        <input type="checkbox" class="chk-permiso-editar" value="pedidos">
+        <span class="permiso-icono">🧾</span>
+        <span class="permiso-texto"><b>Pedidos</b><small>Ver los pedidos de clientes</small></span>
+      </label>
+      <label class="admin-permiso-item">
+        <input type="checkbox" class="chk-permiso-editar" value="eliminarPedidos">
+        <span class="permiso-icono">🗑️</span>
+        <span class="permiso-texto"><b>Eliminar pedidos</b><small>Además de verlos, puede borrarlos</small></span>
+      </label>
+      <label class="admin-permiso-item">
+        <input type="checkbox" class="chk-permiso-editar" value="drop">
+        <span class="permiso-icono">⚡</span>
+        <span class="permiso-texto"><b>Drop</b><small>Ver y editar el próximo lanzamiento</small></span>
+      </label>
+      <label class="admin-permiso-item">
+        <input type="checkbox" class="chk-permiso-editar" value="usuarios">
+        <span class="permiso-icono">👥</span>
+        <span class="permiso-texto"><b>Usuarios</b><small>Ver y gestionar otros usuarios del panel</small></span>
+      </label>
+    </div>
+    <input type="text" id="nuevoCodigoPanelPermisos" placeholder="Nuevo código de acceso (6 números, déjalo vacío para no cambiarlo)" inputmode="numeric" maxlength="6" autocomplete="off" style="margin-bottom:10px;">
+    <input type="password" id="codigoDesarrolladorPermisos" placeholder="Código de desarrollador" autocomplete="new-password">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnGuardarPermisos">Guardar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalPermisos">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL ACCESO A USUARIOS ======================= -->
+<div class="admin-modal-overlay" id="modalAccesoUsuarios">
+  <div class="admin-modal">
+    <h3>Acceso a Usuarios</h3>
+    <p class="admin-foto-hint" style="margin-bottom:12px;">Escribe la contraseña de acceso a esta pestaña (solo el usuario "admin" puede entrar aquí).</p>
+    <input type="password" id="claveAccesoUsuarios" placeholder="Contraseña de acceso" autocomplete="off">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnConfirmarAccesoUsuarios">Entrar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalAccesoUsuarios">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL CÓDIGO DE DESARROLLADOR (activar/desactivar/eliminar) ======================= -->
+<div class="admin-modal-overlay" id="modalCodigoDev">
+  <div class="admin-modal">
+    <h3 id="modalCodigoDevTitulo">Código de desarrollador</h3>
+    <p class="admin-foto-hint" id="modalCodigoDevTexto" style="margin-bottom:12px;"></p>
+    <input type="password" id="inputCodigoDev" placeholder="Código de desarrollador" autocomplete="new-password">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnConfirmarCodigoDev">Aceptar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCancelarCodigoDev">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL HISTORIAL DE PEDIDO ======================= -->
+<div class="admin-modal-overlay" id="modalHistorialPedido">
+  <div class="admin-modal admin-modal-wide">
+    <h3>Historial del pedido</h3>
+    <div id="historialPedidoLista" style="margin-bottom:16px;max-height:340px;overflow-y:auto;"></div>
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalHistorialPedido">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL BORRAR PEDIDO ======================= -->
+<div class="admin-modal-overlay" id="modalVerFoto">
+  <div class="admin-modal">
+    <h3>Foto del producto</h3>
+    <div class="ver-foto-img-wrap"><img id="verFotoImg" src="" alt="Foto del producto"></div>
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnVerFotoCambiar">📷 Cambiar esta foto</button>
+      <button class="admin-btn admin-btn-ghost" id="btnVerFotoCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="admin-modal-overlay" id="modalBorrarPedido">
+  <div class="admin-modal">
+    <h3>Eliminar pedido</h3>
+    <p class="admin-foto-hint" style="margin-bottom:12px;">Escribe el código de desarrollador para confirmar. Esta acción no se puede deshacer.</p>
+    <input type="password" id="claveBorrarPedido" placeholder="Código de desarrollador" autocomplete="new-password">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnConfirmarBorrarPedido">Eliminar pedido</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalBorrarPedido">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL CAMBIAR CLAVE ======================= -->
+<div class="admin-modal-overlay" id="modalClave">
+  <div class="admin-modal">
+    <h3>Cambiar contraseña del panel</h3>
+    <input type="password" id="claveActual" placeholder="Contraseña actual">
+    <input type="password" id="claveNueva" placeholder="Nueva contraseña">
+    <input type="password" id="codigoDesarrolladorClave" placeholder="Código de desarrollador" autocomplete="new-password">
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnGuardarClave">Guardar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnCerrarModalClave">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/products.js"></script>
+<script src="js/store.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/login-orbit.js"></script>
+
+</body>
+</html>

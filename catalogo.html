@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Catálogo — MAQUINA</title>
+<meta name="description" content="Descubre la colección completa de MAQUINA por categoría: busos, camisetas, chaquetas, gorras, pantalones y shorts.">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Catálogo — MAQUINA">
+<meta property="og:description" content="Descubre la colección completa de MAQUINA por categoría.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/catalogo.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="yd-shop">
+  <!-- ========== FILTROS ========== -->
+  <aside class="yd-side" id="ydSide" aria-label="Filtros del catálogo">
+    <button class="yd-side-close" id="ydSideClose" aria-label="Cerrar filtros">✕</button>
+    <div class="yd-side-head">Filtros</div>
+
+    <div class="yd-side-group">
+      <h4>Categoría</h4>
+      <div class="yd-cat-tiles" id="fCategorias"></div>
+    </div>
+
+    <div class="yd-side-group">
+      <h4>Precio</h4>
+      <input type="range" class="yd-range" id="fPrecio" min="0" max="500000" step="5000">
+      <div class="yd-range-vals"><span id="fPrecioMin">$0</span><span id="fPrecioMax">$0</span></div>
+    </div>
+
+    <div class="yd-side-group">
+      <h4>Talla</h4>
+      <div class="yd-opts" id="fTallas"></div>
+    </div>
+
+    <div class="yd-side-group">
+      <h4>Color</h4>
+      <div class="yd-color-tiles" id="fColores"></div>
+    </div>
+
+    <div class="yd-side-actions">
+      <button class="yd-btn-main" id="fAplicar">Aplicar filtros</button>
+      <button class="yd-clear" id="fLimpiar">Limpiar todo</button>
+    </div>
+  </aside>
+  <div class="yd-side-backdrop" id="ydSideBack"></div>
+
+  <!-- ========== RESULTADOS ========== -->
+  <section>
+    <div class="yd-crumbs"><a href="index.html">Inicio</a> › <span>Catálogo</span></div>
+    <h1 class="yd-shop-title">Catálogo</h1>
+    <p class="yd-shop-subtitle">Descubre nuestra colección de ropa urbana.</p>
+
+    <div class="yd-shop-bar" style="margin-top:18px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button class="yd-filter-toggle" id="ydFiltrosBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          Filtros
+        </button>
+        <span class="yd-count" id="ydCount"></span>
+      </div>
+      <div class="sort-wrap">
+        <label for="sortSelect">Ordenar por</label>
+        <select id="sortSelect" class="sort-select">
+          <option value="relevancia">Más recientes</option>
+          <option value="precio_asc">Precio: menor a mayor</option>
+          <option value="precio_desc">Precio: mayor a menor</option>
+          <option value="nuevo">Novedades</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid" id="productGrid"></div>
+  </section>
+</main>
+
+<div class="yd-info" id="ydInfo" style="margin-top:20px;"></div>
+
+<div id="site-footer"></div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastText">¡Sumado a tu pedido!</span></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/catalog-render.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
+<script src="js/maquina-ui.js?v=4"></script>
+<script>
+renderHeader('catalogo');
+renderFooter();
+ydRenderBeneficios('ydInfo');
+
+(async function () {
+const gridEl = document.getElementById('productGrid');
+gridEl.innerHTML = construirSkeletonHtml(6);
+
+await cargarCatalogo();
+
+const params = new URLSearchParams(window.location.search);
+const productos = productosActivos();
+
+/* ============================================================
+   ESTADO DE LOS FILTROS
+   ============================================================ */
+const catInicial = params.get('cat');
+const estado = {
+  categoria: (catInicial && productos.some(p => p.categoria === catInicial)) ? catInicial : null,
+  tallas: [],
+  colores: [],
+  precioMax: null,
+  orden: 'relevancia',
+};
+
+const precios = productos.map(p => rangoPrecioTallas(p).min);
+const precioMin = productos.length ? Math.min(...precios) : 0;
+const precioTope = productos.length ? Math.max(...precios) : 0;
+estado.precioMax = precioTope;
+
+const tallas = Array.from(new Set(productos.flatMap(p => p.tallas || [])));
+const colores = Array.from(new Set(productos.flatMap(p => p.colores || [])));
+
+function ydNombreColor(hex) {
+  const h = String(hex).replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const luz = (max + min) / 2;
+  if (max - min < 24) {
+    if (luz > 215) return 'Blanco';
+    if (luz > 120) return 'Gris claro';
+    if (luz > 60)  return 'Gris';
+    return 'Negro';
+  }
+  if (r > g && r > b) return b > g ? 'Rosado' : 'Rojizo';
+  if (g > r && g > b) return 'Verde';
+  if (b > r && b > g) return 'Azul';
+  if (r > 200 && g > 190) return 'Beige';
+  return 'Otro';
+}
+
+/* ---------- categoría en miniaturas visuales (arriba, como en la referencia) ---------- */
+const iconoPorCategoria = { Busos:'hoodie', Camisetas:'tee', Gorras:'cap', Pantalones:'pants', Chaquetas:'jacket', Shorts:'shorts', Camisas:'tee' };
+const categorias = Array.from(new Set(productos.map(p => p.categoria))).sort();
+
+function pintarTilesCategoria() {
+  document.getElementById('fCategorias').innerHTML = categorias.map(cat => {
+    const deEsta = productos.filter(p => p.categoria === cat);
+    const conFoto = deEsta.find(p => p.foto || (p.fotos && Object.keys(p.fotos).length));
+    const foto = conFoto ? (conFoto.foto || conFoto.fotos[Object.keys(conFoto.fotos)[0]]) : null;
+    const arte = foto
+      ? `<img src="${foto}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain;">`
+      : iconoProducto(iconoPorCategoria[cat] || 'tee', '#8af04e');
+    const activa = estado.categoria === cat;
+    return `
+      <button type="button" class="yd-cat-tile ${activa ? 'is-active' : ''}" data-cat-tile="${cat}">
+        <span class="yd-cat-tile-check">${YD_ICONOS.check || '✓'}</span>
+        <span class="yd-cat-tile-art">${arte}</span>
+        <b>${cat}</b>
+        <span>${deEsta.length} ${deEsta.length === 1 ? 'ITEM' : 'ITEMS'}</span>
+      </button>`;
+  }).join('');
+}
+pintarTilesCategoria();
+
+document.getElementById('fCategorias').addEventListener('click', (e) => {
+  const tile = e.target.closest('[data-cat-tile]');
+  if (!tile) return;
+  const val = tile.dataset.catTile;
+  estado.categoria = estado.categoria === val ? null : val;
+  pintarTilesCategoria();
+  pintarGrid();
+});
+
+document.getElementById('fTallas').innerHTML = tallas.map(t =>
+  `<button class="yd-size" data-talla="${t}">${t}</button>`).join('');
+
+document.getElementById('fColores').innerHTML = colores.map(c => `
+  <button type="button" class="yd-color-tile" data-color-tile="${c}" style="background:${c};" aria-label="${ydNombreColor(c)}" title="${ydNombreColor(c)}"></button>`).join('');
+
+const rangoEl = document.getElementById('fPrecio');
+rangoEl.min = precioMin;
+rangoEl.max = precioTope;
+rangoEl.value = precioTope;
+document.getElementById('fPrecioMin').textContent = '$' + precioMin.toLocaleString('es-CO');
+document.getElementById('fPrecioMax').textContent = '$' + precioTope.toLocaleString('es-CO');
+
+/* ============================================================
+   FILTRAR Y PINTAR
+   ============================================================ */
+function filtrar() {
+  return productos.filter(p => {
+    if (estado.categoria && p.categoria !== estado.categoria) return false;
+    if (estado.tallas.length && !(p.tallas || []).some(t => estado.tallas.includes(t))) return false;
+    if (estado.colores.length && !(p.colores || []).some(c => estado.colores.includes(c))) return false;
+    if (estado.precioMax != null && rangoPrecioTallas(p).min > estado.precioMax) return false;
+    return true;
+  });
+}
+
+function pintarGrid() {
+  let lista = ordenarProductos(filtrar(), estado.orden);
+  document.getElementById('ydCount').textContent =
+    lista.length === 1 ? '1 producto' : lista.length + ' productos';
+
+  gridEl.innerHTML = lista.length
+    ? construirTarjetasHtml(lista)
+    : '<div class="yd-empty"><b>Nada coincide con estos filtros</b>Prueba quitando alguno o mira todo el catálogo.</div>';
+
+  initScrollReveal();
+  activarInteraccionGrid(gridEl);
+}
+pintarGrid();
+
+/* ---------- eventos de los filtros ---------- */
+document.getElementById('ydSide').addEventListener('click', (e) => {
+  const colorBtn = e.target.closest('[data-color-tile]');
+  if (colorBtn) {
+    const val = colorBtn.dataset.colorTile;
+    const i = estado.colores.indexOf(val);
+    if (i === -1) estado.colores.push(val); else estado.colores.splice(i, 1);
+    colorBtn.classList.toggle('is-active');
+    pintarGrid();
+  }
+});
+
+document.getElementById('fTallas').addEventListener('click', (e) => {
+  const btn = e.target.closest('.yd-size');
+  if (!btn) return;
+  btn.classList.toggle('is-active');
+  const i = estado.tallas.indexOf(btn.dataset.talla);
+  if (btn.classList.contains('is-active') && i === -1) estado.tallas.push(btn.dataset.talla);
+  if (!btn.classList.contains('is-active') && i > -1) estado.tallas.splice(i, 1);
+  pintarGrid();
+});
+
+rangoEl.addEventListener('input', () => {
+  estado.precioMax = Number(rangoEl.value);
+  document.getElementById('fPrecioMax').textContent = '$' + estado.precioMax.toLocaleString('es-CO');
+  pintarGrid();
+});
+
+document.getElementById('sortSelect').addEventListener('change', (e) => {
+  estado.orden = e.target.value;
+  pintarGrid();
+});
+
+document.getElementById('fLimpiar').addEventListener('click', () => {
+  estado.categoria = null; estado.tallas = []; estado.colores = [];
+  estado.precioMax = precioTope;
+  pintarTilesCategoria();
+  document.querySelectorAll('#fColores .yd-color-tile').forEach(b => b.classList.remove('is-active'));
+  document.querySelectorAll('#fTallas .yd-size').forEach(b => b.classList.remove('is-active'));
+  rangoEl.value = precioTope;
+  document.getElementById('fPrecioMax').textContent = '$' + precioTope.toLocaleString('es-CO');
+  pintarGrid();
+});
+
+/* ---------- filtros en celular (panel lateral) ---------- */
+const side = document.getElementById('ydSide');
+const back = document.getElementById('ydSideBack');
+const abrirFiltros = () => { side.classList.add('open'); back.classList.add('open'); document.body.style.overflow = 'hidden'; };
+const cerrarFiltros = () => { side.classList.remove('open'); back.classList.remove('open'); document.body.style.overflow = ''; };
+document.getElementById('ydFiltrosBtn').addEventListener('click', abrirFiltros);
+document.getElementById('ydSideClose').addEventListener('click', cerrarFiltros);
+back.addEventListener('click', cerrarFiltros);
+document.getElementById('fAplicar').addEventListener('click', cerrarFiltros);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarFiltros(); });
+
+function showToast(text, esError = false) { mostrarToast(text, esError); }
+
+})();
+</script>
+
+</body>
+</html>

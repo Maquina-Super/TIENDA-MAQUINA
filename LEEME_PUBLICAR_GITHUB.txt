@@ -1,0 +1,55 @@
+=========================================================
+ MAQUINA (versión estática) - Cómo publicarlo en GitHub
+=========================================================
+
+Esta es una nueva versión de la tienda, convertida de PHP+MySQL
+a HTML + CSS + JavaScript puro -- igual de "simple" que el
+proyecto de la barbería. Funciona 100% en GitHub Pages, SIN
+necesitar XAMPP ni base de datos.
+
+QUÉ CAMBIÓ respecto a la versión anterior (PHP)
+-----------------------------------------------
+- Los productos ya no viven en MySQL: están en js/products.js
+- El carrito, los pedidos, las solicitudes de servicio y los
+  usuarios registrados ya no se guardan en una base de datos:
+  se guardan en el navegador del visitante (localStorage),
+  igual que hace el proyecto de la barbería con las citas.
+- El login/registro funciona, pero es "de demostración": como
+  todo corre en el navegador, no hay una contraseña realmente
+  protegida en un servidor. Sirve para probar el flujo completo
+  de la tienda, no para manejar datos sensibles reales.
+
+IMPORTANTE: cada visitante ve SU PROPIO carrito y SUS PROPIOS
+pedidos. Si un cliente compra desde su celular, tú no lo vas a
+ver en ningún panel, porque no hay un panel de administración
+central (no hay servidor). Si más adelante quieres un panel
+donde veas todos los pedidos de todos los clientes, eso sí
+requiere una base de datos real en la nube (por ejemplo,
+Firebase o Google Sheets, como en el proyecto de la barbería).
+
+PASO 1 - Sube estos archivos a tu repositorio de GitHub
+-----------------------------------------------------------
+Sube TODO el contenido de esta carpeta a tu repositorio
+(arrastrando los archivos igual que antes, o con GitHub
+Desktop).
+
+PASO 2 - Activa GitHub Pages
+--------------------------------
+Settings -> Pages -> Branch: main -> / (root) -> Save
+
+PASO 3 - Abre el link
+-------------------------
+Te va a quedar algo como:
+   https://tuusuario.github.io/turepo/
+
+Ahí vas a ver la tienda completa funcionando: catálogo con
+filtros, carrito, checkout con la animación de pago y confeti,
+login/registro y servicio al cliente (cambios, garantías,
+quejas) -- todo sin necesitar PHP ni MySQL.
+
+-----------------------------------------------------------
+Cómo editar el catálogo de productos:
+Abre js/products.js y edita el arreglo PRODUCTS. Cada producto
+tiene: nombre, categoria, precio, colores, tallas, icono
+(hoodie/tee/cap/pants/jacket/shorts) y badge (nuevo/pocas/null).
+-----------------------------------------------------------
