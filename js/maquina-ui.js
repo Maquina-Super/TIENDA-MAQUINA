@@ -25,10 +25,10 @@
 const YD_HERO_SLIDES = [
   {
     imagen: "img/banner-hoodie-1.jpg",
-    eyebrow: "Nueva colección",
-    titulo: 'MA<span>QUINA</span>',
-    texto: "Estilo, actitud y comodidad en una sola prenda.",
-    boton: "Ver colección",
+    eyebrow: "Máquina · Streetwear",
+    titulo: 'Fuerza disciplina <span>en cada rep.</span>',
+    texto: "No es solo una camiseta, es un recordatorio de lo que eres y de lo que estás construyendo.",
+    boton: "Ver productos",
     href: "productos.html",
   },
   {
@@ -209,16 +209,25 @@ function ydRenderHero(contenedorId = "ydHero") {
   const cont = document.getElementById(contenedorId);
   if (!cont) return;
 
-  cont.innerHTML = YD_HERO_SLIDES.map((s, i) => `
+  cont.innerHTML = YD_HERO_SLIDES.map((s, i) => {
+    // El título grande (Anton) se lee muy grande con textos cortos tipo
+    // "MAQUINA", pero con frases largas se desborda del banner. Según
+    // cuántas letras tenga, se le baja el tamaño para que siempre quepa.
+    const textoPlano = String(s.titulo).replace(/<[^>]*>/g, "").trim();
+    let tamano = "";
+    if (textoPlano.length > 55) tamano = "yd-hero-title--sm";
+    else if (textoPlano.length > 24) tamano = "yd-hero-title--md";
+    return `
     <div class="yd-slide ${i === 0 ? "is-active" : ""}" data-slide="${i}" aria-hidden="${i === 0 ? "false" : "true"}">
       <div class="yd-slide-media">${s.imagen ? `<img src="${s.imagen}" alt="${s.eyebrow}">` : ydArteHoodie({})}</div>
-      <div class="yd-hero-copy">
+      <div class="yd-hero-copy ${tamano ? "yd-hero-copy--wide" : ""}">
         <div class="yd-hero-eyebrow">${s.eyebrow}</div>
-        <h1 class="yd-hero-title">${s.titulo}</h1>
+        <h1 class="yd-hero-title ${tamano}">${s.titulo}</h1>
         <p class="yd-hero-sub">${s.texto}</p>
         <a class="yd-hero-btn" href="${s.href}">${s.boton} ${YD_ICONOS.der}</a>
       </div>
-    </div>`).join("")
+    </div>`;
+  }).join("")
     + `
     <button class="yd-hero-arrow yd-hero-prev" aria-label="Imagen anterior">${YD_ICONOS.izq}</button>
     <button class="yd-hero-arrow yd-hero-next" aria-label="Imagen siguiente">${YD_ICONOS.der}</button>

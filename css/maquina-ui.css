@@ -86,7 +86,10 @@ body{
 .yd-hero-copy{
   position:absolute;z-index:3;left:clamp(20px,6vw,86px);top:50%;transform:translateY(-50%);
   max-width:min(560px,74vw);
+  max-height:86%;overflow:hidden;
 }
+/* títulos largos (frases en vez de una sola palabra): más espacio horizontal */
+.yd-hero-copy--wide{max-width:min(640px,84vw);}
 .yd-hero-eyebrow{
   font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:#cfcfcf;margin-bottom:14px;
   text-shadow:0 1px 4px rgba(0,0,0,.8);
@@ -95,6 +98,14 @@ body{
   font-family:'Anton',sans-serif;font-weight:400;line-height:.88;
   font-size:clamp(54px,9.5vw,128px);text-transform:uppercase;color:#fff;letter-spacing:-.005em;
   text-shadow:0 2px 6px rgba(0,0,0,.7);
+}
+/* título mediano: frases cortas de 2-3 palabras (ej. "Cuando se acaba, no vuelve") */
+.yd-hero-title.yd-hero-title--md{
+  font-size:clamp(36px,6.2vw,76px);line-height:.98;
+}
+/* título largo: frases completas (ej. "Si vas a dejar todo en tu entrenamiento...") */
+.yd-hero-title.yd-hero-title--sm{
+  font-size:clamp(26px,4.2vw,50px);line-height:1.08;letter-spacing:0;
 }
 .yd-hero-title span{color:var(--acento);font-style:italic;text-shadow:0 2px 6px rgba(0,0,0,.7);}
 .yd-hero-sub{margin-top:18px;font-size:clamp(14px,1.5vw,17px);color:#d4d4d4;max-width:42ch;line-height:1.5;text-shadow:0 1px 4px rgba(0,0,0,.8);}
