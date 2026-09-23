@@ -35,6 +35,8 @@ body{
 .subbar a{color:var(--acento);}
 .nav{border-bottom:1px solid var(--line);padding-top:16px;padding-bottom:16px;}
 .nav-logo .logo-mark{display:none;}
+.logo-crown{height:26px;width:auto;display:inline-block;object-fit:contain;filter:drop-shadow(0 0 6px rgba(138,240,78,.35));}
+.foot-logo .logo-crown{height:22px;}
 .logo-text{font-size:25px;letter-spacing:.02em;}
 .logo-text em{font-style:normal;color:var(--acento);}
 .logo-text em::after{display:none;}

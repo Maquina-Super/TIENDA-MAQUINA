@@ -64,7 +64,7 @@ function renderHeader(paginaActual = "") {
     </div>` : ''}
     <nav class="nav">
       <a href="index.html" class="nav-logo">
-        <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
+        <img src="img/logo-crown.png" class="logo-crown" alt=""><span class="logo-text display">MA<em>QUINA</em></span>
       </a>
       <div class="nav-links">
         <a href="index.html" class="${paginaActual === 'inicio' ? 'active' : ''}">Inicio</a>
@@ -99,7 +99,7 @@ function renderHeader(paginaActual = "") {
     <div class="mobile-nav" id="mobileNav">
       <div class="mobile-nav-top">
         <a href="index.html" class="nav-logo">
-          <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
+          <img src="img/logo-crown.png" class="logo-crown" alt=""><span class="logo-text display">MA<em>QUINA</em></span>
         </a>
         <button class="search-close" id="mobileNavClose" aria-label="Cerrar menú">✕</button>
       </div>
@@ -269,7 +269,7 @@ function renderFooter() {
 
       <div class="footer-inner">
         <div class="footer-brand">
-          <a href="index.html" class="foot-logo display"><span class="logo-mark">⚡</span>MA<em>QUINA</em></a>
+          <a href="index.html" class="foot-logo display"><img src="img/logo-crown.png" class="logo-crown" alt="">MA<em>QUINA</em></a>
           <p class="footer-slogan">Drip para gente que ya trae su propia energía.</p>
           <div class="footer-socials">
             <a href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener" class="social-pill ig">📸 @maquina.oficial</a>
