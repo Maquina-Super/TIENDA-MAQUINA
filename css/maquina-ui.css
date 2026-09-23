@@ -833,7 +833,7 @@ body{
 .yd-login-btn:hover svg{transform:translateX(3px);}
 
 @media (max-width:1024px){
-  .yd-login-media-fg{object-fit:cover;object-position:22% center;}
+  .yd-login-media-fg{object-fit:cover;object-position:42% center;}
   .yd-login-overlay{
     background:
       linear-gradient(0deg,rgba(5,5,5,.97) 0%,rgba(5,5,5,.9) 38%,rgba(5,5,5,.45) 62%,rgba(5,5,5,.15) 100%),
