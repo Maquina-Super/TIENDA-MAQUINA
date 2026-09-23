@@ -19,8 +19,9 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null && (
         request.auth.uid in [
-          '8CBfiOxDeda0MmtTmSlXYIkfbx82'
-          // Este es tu admin de respaldo. No lo borres. No hace
+          '8CBfiOxDeda0MmtTmSlXYIkfbx82',
+          '9JYFhLkos8PpWdiLcowvmaw9xoo2'
+          // Estos son tus admins de respaldo. No los borres. No hace
           // falta agregar a nadie más aquí: el panel se encarga.
         ]
         ||

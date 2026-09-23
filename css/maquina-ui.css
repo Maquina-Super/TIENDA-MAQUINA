@@ -89,15 +89,15 @@ body{
 }
 .yd-hero-eyebrow{
   font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:#cfcfcf;margin-bottom:14px;
-  text-shadow:0 2px 10px rgba(0,0,0,.7);
+  text-shadow:0 1px 4px rgba(0,0,0,.8);
 }
 .yd-hero-title{
   font-family:'Anton',sans-serif;font-weight:400;line-height:.88;
   font-size:clamp(54px,9.5vw,128px);text-transform:uppercase;color:#fff;letter-spacing:-.005em;
-  text-shadow:0 4px 22px rgba(0,0,0,.55);
+  text-shadow:0 2px 6px rgba(0,0,0,.7);
 }
-.yd-hero-title span{color:var(--acento);font-style:italic;text-shadow:0 0 26px rgba(138,240,78,.45),0 4px 22px rgba(0,0,0,.55);}
-.yd-hero-sub{margin-top:18px;font-size:clamp(14px,1.5vw,17px);color:#d4d4d4;max-width:42ch;line-height:1.5;text-shadow:0 2px 10px rgba(0,0,0,.6);}
+.yd-hero-title span{color:var(--acento);font-style:italic;text-shadow:0 2px 6px rgba(0,0,0,.7);}
+.yd-hero-sub{margin-top:18px;font-size:clamp(14px,1.5vw,17px);color:#d4d4d4;max-width:42ch;line-height:1.5;text-shadow:0 1px 4px rgba(0,0,0,.8);}
 .yd-hero-btn{
   display:inline-flex;align-items:center;gap:10px;margin-top:26px;
   padding:15px 30px;border-radius:999px;background:var(--acento);color:var(--acento-ink);
