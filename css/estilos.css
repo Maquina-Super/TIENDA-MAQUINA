@@ -1898,6 +1898,24 @@ footer.footer-contacto{border-top:1px solid var(--line);margin-top:auto;backgrou
   top:0;transform:translateY(-50%) scale(0.82);
   color:var(--adm-lime);background:#14141f;
 }
+/* Autocompletado del navegador (Chrome/Edge): sin esto, el campo se pone
+   blanco con letra negra y la etiqueta se queda encima del texto */
+.nf-field input:-webkit-autofill,
+.nf-field input:-webkit-autofill:hover,
+.nf-field input:-webkit-autofill:focus,
+.nf-field input:-webkit-autofill:active{
+  -webkit-text-fill-color:var(--adm-text);
+  caret-color:var(--adm-text);
+  -webkit-box-shadow:0 0 0 1000px rgba(20,20,31,0.95) inset;
+  box-shadow:0 0 0 1000px rgba(20,20,31,0.95) inset;
+  transition:background-color 9999s ease-in-out 0s, color 9999s ease-in-out 0s;
+  border-color:var(--adm-lime);
+}
+.nf-field input:-webkit-autofill + label,
+.nf-field input:autofill + label{
+  top:0;transform:translateY(-50%) scale(0.82);
+  color:var(--adm-lime);background:#14141f;
+}
 .nf-eye{
   position:absolute;right:5px;top:50%;transform:translateY(-50%);
   background:none;border:none;cursor:pointer;font-size:16px;line-height:1;

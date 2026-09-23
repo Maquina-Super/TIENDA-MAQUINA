@@ -36,4 +36,36 @@
   }
   ajustarEscala();
   window.addEventListener('resize', ajustarEscala);
+
+  // Respaldo para los campos "Correo / Contraseña / Código": si el
+  // navegador los autocompleta, a veces no avisa a tiempo con
+  // :placeholder-shown y la etiqueta se queda encimada con el texto.
+  // Esto la sube a mano en cuanto detecta que el campo tiene valor.
+  function subirEtiquetasLlenas() {
+    document.querySelectorAll('.nf-field input').forEach(function (inp) {
+      var label = inp.nextElementSibling;
+      if (!label || label.tagName !== 'LABEL') return;
+      if (inp.value && inp.value.length > 0) {
+        label.style.top = '0';
+        label.style.transform = 'translateY(-50%) scale(0.82)';
+        label.style.color = 'var(--adm-lime)';
+        label.style.background = '#14141f';
+      } else if (document.activeElement !== inp) {
+        label.style.top = '';
+        label.style.transform = '';
+        label.style.color = '';
+        label.style.background = '';
+      }
+    });
+  }
+  document.querySelectorAll('.nf-field input').forEach(function (inp) {
+    inp.addEventListener('input', subirEtiquetasLlenas);
+    inp.addEventListener('change', subirEtiquetasLlenas);
+    inp.addEventListener('blur', subirEtiquetasLlenas);
+  });
+  // El autocompletado del navegador rellena los campos después de pintar
+  // la página, así que se revisa varias veces al inicio.
+  [0, 200, 500, 1000, 1800].forEach(function (ms) {
+    setTimeout(subirEtiquetasLlenas, ms);
+  });
 })();
