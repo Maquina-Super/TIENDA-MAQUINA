@@ -816,7 +816,7 @@ body{
 .yd-login-content{
   position:relative;z-index:3;flex:1 1 auto;min-height:0;
   display:flex;flex-direction:column;justify-content:center;
-  padding:40px clamp(20px,4.4vw,56px) clamp(60px,8vw,90px);
+  padding:40px clamp(20px,4.4vw,56px) 24px;
   max-width:640px;
 }
 .yd-login-eyebrow{
@@ -833,11 +833,18 @@ body{
   color:var(--ink);line-height:1.05;font-size:clamp(19px,2.6vw,30px);margin:0 0 22px;
 }
 .yd-login-tagline .accent{color:var(--acento);text-shadow:0 0 22px var(--acento-glow);}
-.yd-login-desc{color:#c9c9c5;font-size:clamp(13.5px,1.4vw,15.5px);line-height:1.6;max-width:420px;margin:0 0 34px;}
+.yd-login-desc{color:#c9c9c5;font-size:clamp(13.5px,1.4vw,15.5px);line-height:1.6;max-width:420px;margin:0;}
 
+.yd-login-cta{
+  position:relative;z-index:3;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  width:100%;
+  padding:0 clamp(20px,4.4vw,56px) clamp(48px,7vw,72px);
+  padding-bottom:calc(clamp(48px,7vw,72px) + env(safe-area-inset-bottom));
+}
 .yd-login-btn{
   display:inline-flex;align-items:center;justify-content:center;gap:12px;
-  width:100%;max-width:360px;padding:19px 30px;
+  width:100%;max-width:420px;padding:19px 30px;
   border-radius:999px;background:var(--acento);color:var(--acento-ink);
   font-family:'Work Sans',sans-serif;font-weight:800;font-size:15.5px;letter-spacing:.05em;text-transform:uppercase;
   box-shadow:0 0 0 1px rgba(138,240,78,.5),0 18px 50px rgba(138,240,78,.35),0 0 40px rgba(138,240,78,.25);
@@ -855,14 +862,16 @@ body{
       linear-gradient(90deg,rgba(5,5,5,.85) 0%,rgba(5,5,5,.35) 55%,rgba(5,5,5,.1) 100%);
   }
   .yd-login-content{
-    justify-content:flex-end;max-width:none;
-    padding:24px 20px calc(28px + env(safe-area-inset-bottom));
+    justify-content:flex-end;max-width:none;text-align:center;align-items:center;
+    padding:24px 20px 18px;
   }
+  .yd-login-desc{max-width:440px;}
   .yd-login-eyebrow{margin-bottom:10px;}
   .yd-login-title{font-size:clamp(34px,10vw,50px);margin-bottom:8px;}
   .yd-login-tagline{font-size:clamp(16px,4.6vw,21px);margin-bottom:10px;}
-  .yd-login-desc{max-width:none;margin-bottom:18px;font-size:13px;}
-  .yd-login-btn{max-width:none;padding:16px 26px;}
+  .yd-login-desc{margin-bottom:0;font-size:13px;}
+  .yd-login-cta{padding:0 20px calc(28px + env(safe-area-inset-bottom));}
+  .yd-login-btn{max-width:460px;padding:16px 26px;}
 }
 @media (max-width:380px){
   .yd-login-title{font-size:clamp(28px,10vw,40px);}
@@ -871,7 +880,8 @@ body{
   .yd-login-eyebrow{margin-bottom:6px;font-size:11px;}
   .yd-login-title{font-size:clamp(28px,9vw,40px);margin-bottom:6px;}
   .yd-login-tagline{font-size:clamp(14px,4.2vw,18px);margin-bottom:8px;}
-  .yd-login-desc{margin-bottom:14px;font-size:12.5px;-webkit-line-clamp:2;}
+  .yd-login-desc{font-size:12.5px;-webkit-line-clamp:2;}
   .yd-login-btn{padding:14px 24px;font-size:14px;}
-  .yd-login-content{padding-top:16px;padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+  .yd-login-content{padding-top:16px;padding-bottom:10px;}
+  .yd-login-cta{padding-bottom:calc(16px + env(safe-area-inset-bottom));}
 }
