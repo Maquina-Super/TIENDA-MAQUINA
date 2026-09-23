@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>MAQUINA — Ropa urbana de edición limitada</title>
+<meta name="description" content="Busos, camisetas y accesorios urbanos de edición limitada. Envíos a toda Colombia, paga contra entrega.">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="MAQUINA — Ropa urbana de edición limitada">
+<meta property="og:description" content="Busos, camisetas y accesorios urbanos de edición limitada. Envíos a toda Colombia, paga contra entrega.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/index.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<!-- ========== BANNER PRINCIPAL ========== -->
+<section class="yd-hero" id="ydHero" aria-label="Novedades de MAQUINA"></section>
+
+<!-- ========== PRODUCTOS DESTACADOS ========== -->
+<section class="yd-sec" id="destacados">
+  <div class="yd-sec-head">
+    <h2>Productos destacados</h2>
+    <div class="yd-tabs" id="ydTabs"></div>
+  </div>
+  <div class="grid" id="gridDestacados"></div>
+  <div style="text-align:center;margin-top:34px;">
+    <a href="productos.html" class="btn btn-ghost">Ver toda la colección</a>
+  </div>
+</section>
+
+<!-- ========== CATEGORÍAS ========== -->
+<section class="yd-sec" style="padding-top:0;">
+  <div class="yd-sec-head"><h2>Categorías</h2></div>
+  <div class="yd-cats" id="ydCats"></div>
+</section>
+
+<!-- ========== BANNER PROMOCIONAL ========== -->
+<section class="yd-sec" style="padding-top:0;">
+  <div class="yd-promo">
+    <div class="yd-promo-in">
+      <h3>Estilo urbano<br><span>sin límites</span></h3>
+      <p>La verdadera actitud no se compra, se viste. Cada drop se hace una sola vez y en cantidades cortas.</p>
+      <a href="productos.html" class="yd-hero-btn" style="margin-top:22px;">Ver más</a>
+    </div>
+  </div>
+</section>
+
+<!-- ========== CUENTA REGRESIVA DEL PRÓXIMO DROP ========== -->
+<section class="drop-countdown reveal-scale" id="dropCountdown">
+  <div class="drop-countdown-inner">
+    <div class="drop-countdown-label" id="dropLabel">Próximo drop en</div>
+    <div class="drop-countdown-timer" id="dropTimer">
+      <div class="drop-unit"><span id="dtDias">--</span><small>días</small></div>
+      <div class="drop-sep">:</div>
+      <div class="drop-unit"><span id="dtHoras">--</span><small>hrs</small></div>
+      <div class="drop-sep">:</div>
+      <div class="drop-unit"><span id="dtMin">--</span><small>min</small></div>
+      <div class="drop-sep">:</div>
+      <div class="drop-unit"><span id="dtSeg">--</span><small>seg</small></div>
+    </div>
+    <div class="drop-live-grid" id="dropLiveGrid" hidden></div>
+    <a href="#club" class="btn drop-countdown-cta" id="dropCta">Avísenme primero</a>
+  </div>
+</section>
+
+<!-- ========== LO MÁS PEDIDO ========== -->
+<section class="yd-sec" id="masPedido">
+  <div class="yd-sec-head">
+    <h2>Lo más pedido</h2>
+    <a href="productos.html" class="yd-clear">Ver todo</a>
+  </div>
+  <div class="grid" id="gridMasPedido"></div>
+</section>
+
+<!-- ========== VOLTAGE CLUB ========== -->
+<section class="club reveal-scale" id="club">
+  <h2>Únete al Voltage Club</h2>
+  <p>Acceso anticipado a cada drop, antes de que se agote.</p>
+  <form class="club-form" id="clubForm">
+    <input type="email" name="email" id="clubEmail" placeholder="tu@correo.com" required>
+    <button class="btn btn-primary" type="submit">Quiero entrar</button>
+  </form>
+  <div class="club-msg" id="clubMsg"></div>
+</section>
+
+<!-- ========== INFORMACIÓN DE ENVÍOS / PAGOS / CAMBIOS ========== -->
+<div class="yd-info" id="ydInfo"></div>
+
+<div id="site-footer"></div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastText">Aviso</span></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/catalog-render.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
+<script src="js/maquina-ui.js?v=4"></script>
+<script>
+renderHeader('inicio');
+renderFooter();
+
+/* El banner no depende del catálogo: se pinta de una.
+   La barra de envíos/pagos/cambios queda solo abajo, cerca del pie. */
+ydRenderHero('ydHero');
+ydRenderBeneficios('ydInfo');
+
+/* ============================================================
+   CUENTA REGRESIVA DEL PRÓXIMO DROP
+   La fecha, el título y qué productos se muestran cuando el
+   tiempo se acaba se configuran desde el panel (pestaña "Drop"
+   de admin.html). Si todavía no se ha configurado nada, se usa
+   esta fecha de respaldo para que la sección no se vea rota.
+   ============================================================ */
+const FECHA_DROP_RESPALDO = new Date('2026-09-15T00:00:00-05:00');
+
+function actualizarCountdown() {
+  const contenedor = document.getElementById('dropCountdown');
+  if (!contenedor) return;
+  const config = getConfigDrop();
+  const fechaObjetivo = config.fecha ? new Date(config.fecha) : FECHA_DROP_RESPALDO;
+  const diff = fechaObjetivo - new Date();
+
+  if (diff <= 0) {
+    document.getElementById('dropLabel').textContent = config.titulo || '¡Ya está aquí!';
+    document.getElementById('dropTimer').style.display = 'none';
+    document.getElementById('dropCta').textContent = 'Ver la colección';
+    document.getElementById('dropCta').href = 'productos.html';
+
+    const grid = document.getElementById('dropLiveGrid');
+    const idsElegidos = config.productos || [];
+    const catalogo = getCatalogo();
+    const destacados = idsElegidos
+      .map(id => catalogo.find(p => p.id == id))
+      .filter(Boolean);
+    if (destacados.length) {
+      grid.hidden = false;
+      grid.innerHTML = destacados.map(p => {
+        const fotoFrente = (p.fotos && p.fotos[p.colores[0]]) || p.foto;
+        const fotoAtras = p.fotosTrasera && p.fotosTrasera[p.colores[0]];
+        const visual = fotoFrente
+          ? `<img src="${fotoFrente}" class="drop-live-img drop-live-img-frente" alt="${p.nombre}" loading="lazy">${fotoAtras ? `<img src="${fotoAtras}" class="drop-live-img drop-live-img-atras" alt="${p.nombre} de espaldas" loading="lazy">` : ''}`
+          : iconoProducto(p.icono, p.colores[0]);
+        return `
+          <a class="drop-live-item" href="producto.html?id=${p.id}">
+            <div class="drop-live-visual">${visual}</div>
+            <span>${p.nombre}</span>
+          </a>`;
+      }).join('');
+    }
+    return;
+  }
+  const dias  = Math.floor(diff / 86400000);
+  const horas = Math.floor((diff % 86400000) / 3600000);
+  const min   = Math.floor((diff % 3600000) / 60000);
+  const seg   = Math.floor((diff % 60000) / 1000);
+  document.getElementById('dtDias').textContent  = String(dias).padStart(2, '0');
+  document.getElementById('dtHoras').textContent = String(horas).padStart(2, '0');
+  document.getElementById('dtMin').textContent   = String(min).padStart(2, '0');
+  document.getElementById('dtSeg').textContent   = String(seg).padStart(2, '0');
+}
+actualizarCountdown();
+setInterval(actualizarCountdown, 1000);
+
+(async function () {
+const gridDest = document.getElementById('gridDestacados');
+const gridTop  = document.getElementById('gridMasPedido');
+gridDest.innerHTML = construirSkeletonHtml(4);
+gridTop.innerHTML  = construirSkeletonHtml(4);
+
+await Promise.all([cargarCatalogo(), cargarConfigDrop()]);
+actualizarCountdown();
+
+const activos = productosActivos();
+
+/* ---------- pestañas de categoría ---------- */
+const categorias = Array.from(new Set(activos.map(p => p.categoria))).sort();
+const tabsEl = document.getElementById('ydTabs');
+tabsEl.innerHTML = '<button class="yd-tab is-active" data-cat="todos">Todos</button>' +
+  categorias.map(c => `<button class="yd-tab" data-cat="${c}">${c}</button>`).join('');
+
+function pintarDestacados(cat) {
+  const lista = (cat === 'todos' ? activos : activos.filter(p => p.categoria === cat)).slice(0, 8);
+  gridDest.innerHTML = lista.length
+    ? construirTarjetasHtml(lista)
+    : '<div class="yd-empty"><b>Todavía no hay nada aquí</b>Pronto cae algo en esta categoría.</div>';
+  initScrollReveal();
+  activarInteraccionGrid(gridDest);
+}
+pintarDestacados('todos');
+
+tabsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.yd-tab');
+  if (!btn) return;
+  [...tabsEl.children].forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  pintarDestacados(btn.dataset.cat);
+});
+
+/* ---------- categorías ---------- */
+const iconoPorCategoria = { Busos:'hoodie', Camisetas:'tee', Gorras:'cap', Pantalones:'pants', Chaquetas:'jacket', Shorts:'shorts' };
+document.getElementById('ydCats').innerHTML = categorias.slice(0, 8).map(cat => {
+  const dela = activos.filter(p => p.categoria === cat);
+  const conFoto = dela.find(p => p.foto || (p.fotos && Object.keys(p.fotos).length));
+  const foto = conFoto ? (conFoto.foto || conFoto.fotos[Object.keys(conFoto.fotos)[0]]) : null;
+  const arte = foto
+    ? `<img src="${foto}" alt="${cat}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`
+    : iconoProducto(iconoPorCategoria[cat] || 'tee', '#8af04e');
+  return `
+    <a class="yd-cat" href="productos.html?cat=${encodeURIComponent(cat)}">
+      <div class="yd-cat-art">${arte}</div>
+      <div class="yd-cat-label"><b>${cat}</b><span class="yd-cat-go">${YD_ICONOS.der}</span></div>
+    </a>`;
+}).join('');
+
+/* ---------- lo más pedido ----------
+   Se priorizan las piezas marcadas como "quedan pocas" (son las
+   que más salen) y se completa con el resto del catálogo. */
+const masPedido = [...activos.filter(p => p.badge === 'pocas'), ...activos.filter(p => p.badge !== 'pocas')].slice(0, 4);
+gridTop.innerHTML = masPedido.length
+  ? construirTarjetasHtml(masPedido)
+  : '<div class="yd-empty"><b>El próximo drop está por caer</b>Vuelve pronto.</div>';
+initScrollReveal();
+activarInteraccionGrid(gridTop);
+
+/* ---------- Voltage Club ---------- */
+document.getElementById('clubEmail').value = correoClubGuardado();
+document.getElementById('clubForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const email = document.getElementById('clubEmail').value.trim();
+  const msgEl = document.getElementById('clubMsg');
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (emailValido) {
+    guardarCorreoClub(email);
+    const res = await suscribirVoltageClub(email);
+    msgEl.textContent = res.ok
+      ? `Listo, ${email} ya está en el Voltage Club.`
+      : res.msg;
+  } else {
+    msgEl.textContent = 'Ingresa un correo válido.';
+  }
+});
+
+})();
+</script>
+
+</body>
+</html>

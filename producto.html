@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Producto — MAQUINA</title>
+<meta name="description" content="Ficha del producto en MAQUINA: tallas, colores, disponibilidad y envío a toda Colombia.">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:type" content="product">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main>
+  <div class="yd-pdp" id="ydPdp">
+    <!-- se rellena con JS -->
+  </div>
+
+  <section class="yd-rel" id="ydRel" hidden>
+    <div class="yd-sec-head"><h2>También te puede interesar</h2></div>
+    <div class="grid" id="gridRelacionados"></div>
+  </section>
+</main>
+
+<div class="yd-info" id="ydInfo"></div>
+<div id="site-footer"></div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastText">Aviso</span></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/catalog-render.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
+<script src="js/maquina-ui.js?v=4"></script>
+<script>
+renderHeader('productos');
+renderFooter();
+ydRenderBeneficios('ydInfo');
+
+(async function () {
+const cont = document.getElementById('ydPdp');
+cont.innerHTML = '<div class="yd-empty" style="grid-column:1/-1;">Cargando producto…</div>';
+
+await cargarCatalogo();
+
+const id = new URLSearchParams(window.location.search).get('id');
+const p = buscarProducto(id);
+
+if (!p || !p.activo) {
+  cont.innerHTML = `
+    <div class="yd-empty" style="grid-column:1/-1;">
+      <b>No encontramos esa pieza</b>
+      Puede que ya no esté disponible.
+      <div style="margin-top:18px;"><a href="productos.html" class="btn btn-primary">Ver la colección</a></div>
+    </div>`;
+  return;
+}
+
+document.title = p.nombre + ' — MAQUINA';
+
+/* ---------- datos iniciales ---------- */
+const colorInicial = (p.colores || []).find(c => !colorAgotado(p, c)) || (p.colores || [])[0];
+const sel = { color: colorInicial, talla: null, cantidad: 1 };
+const fotos = ydFotosProducto(p);
+const cal = ydCalificacion(p);
+const rango = rangoPrecioTallas(p);
+const precioTachado = Number(p.descuento) > 0 ? p.precio : p.precio_anterior;
+
+cont.innerHTML = `
+  <div class="yd-pdp-gallery">
+    <div class="yd-qv-thumbs" id="pdpThumbs">
+      ${fotos.length
+        ? fotos.slice(0, 5).map((f, i) => `<button class="yd-qv-thumb ${i === 0 ? 'is-active' : ''}" data-src="${f.src}"><img src="${f.src}" alt="${p.nombre} ${i + 1}"></button>`).join('')
+        : (p.colores || []).slice(0, 4).map((c, i) => `<button class="yd-qv-thumb ${i === 0 ? 'is-active' : ''}" data-color="${c}">${iconoProducto(p.icono, c)}</button>`).join('')}
+    </div>
+    <div class="yd-pdp-main" id="pdpMain">${ydVisual(p, colorInicial)}</div>
+  </div>
+
+  <div>
+    <div class="yd-crumbs"><a href="index.html">Inicio</a> › <a href="productos.html?cat=${encodeURIComponent(p.categoria)}">${p.categoria}</a> › <span>${p.nombre}</span></div>
+    <h1 class="yd-pdp-name">${p.nombre}</h1>
+    <div class="yd-pdp-price" id="pdpPrecio">$${rango.min.toLocaleString('es-CO')}${precioTachado ? `<span class="old">$${Number(precioTachado).toLocaleString('es-CO')}</span>` : ''}</div>
+    ${cal ? `<div class="yd-rating"><span class="yd-stars">${'★'.repeat(Math.round(cal.valor))}</span><b>${cal.valor}</b><span>(${cal.resenas} reseñas)</span></div>` : ''}
+
+    <p class="yd-pdp-desc">${p.descripcion || `${p.categoria} de MAQUINA. Corte urbano, tela de buena calidad y acabados pensados para usar todos los días.`}</p>
+
+    <div class="yd-lbl">Talla</div>
+    <div class="yd-opts" id="pdpTallas">
+      ${(p.tallas || []).map(t => `<button class="yd-size ${tallaAgotada(p, t) ? 'is-out' : ''}" data-talla="${t}">${t}</button>`).join('')}
+    </div>
+
+    <div class="yd-lbl">Color</div>
+    <div class="yd-opts" id="pdpColores">
+      ${(p.colores || []).map(c => `<button class="yd-color ${c === colorInicial ? 'is-active' : ''} ${colorAgotado(p, c) ? 'is-out' : ''}" style="background:${c}" data-color="${c}" aria-label="Color ${c}"></button>`).join('')}
+    </div>
+
+    <div class="yd-lbl">Cantidad</div>
+    <div class="yd-qty">
+      <div class="yd-stepper">
+        <button data-paso="-1" aria-label="Quitar uno">−</button>
+        <span id="pdpCant">1</span>
+        <button data-paso="1" aria-label="Sumar uno">+</button>
+      </div>
+      <div class="yd-stock" id="pdpStock"></div>
+    </div>
+
+    <div class="yd-qv-actions">
+      <button class="yd-btn-main" id="pdpAdd">${YD_ICONOS.carrito} Agregar al carrito</button>
+      <button class="yd-btn-second" id="pdpBuy">Comprar ahora</button>
+      <button class="yd-btn-fav ${esFavorito(p.id) ? 'is-fav' : ''}" id="pdpFav">${YD_ICONOS.corazon} <span>${esFavorito(p.id) ? 'En tus favoritos' : 'Agregar a favoritos'}</span></button>
+    </div>
+
+    <div class="yd-lbl">Descripción</div>
+    <ul class="yd-pdp-list">
+      <li>Categoría: ${p.categoria}</li>
+      <li>Tallas disponibles: ${(p.tallas || []).join(', ')}</li>
+      <li>Colores: ${(p.colores || []).length}</li>
+      <li>Envío a toda Colombia, con opción de pago contra entrega</li>
+    </ul>
+  </div>`;
+
+/* ---------- interacción ---------- */
+const main = document.getElementById('pdpMain');
+const stockEl = document.getElementById('pdpStock');
+const cantEl = document.getElementById('pdpCant');
+const addBtn = document.getElementById('pdpAdd');
+
+function disponibles() {
+  return sel.talla
+    ? Math.min(stockColor(p, sel.color), stockTalla(p, sel.talla))
+    : stockColor(p, sel.color);
+}
+function refrescarStock() {
+  const d = disponibles();
+  if (d <= 0) {
+    stockEl.className = 'yd-stock is-out';
+    stockEl.innerHTML = 'Disponibilidad: <b>Agotado</b>';
+    addBtn.disabled = true;
+  } else {
+    stockEl.className = 'yd-stock';
+    stockEl.innerHTML = d <= 5 ? `Disponibilidad: <b>¡Quedan ${d}!</b>` : 'Disponibilidad: <b>En stock</b>';
+    addBtn.disabled = false;
+  }
+  if (sel.cantidad > Math.max(d, 1)) { sel.cantidad = Math.max(d, 1); cantEl.textContent = sel.cantidad; }
+}
+refrescarStock();
+
+document.querySelectorAll('#pdpThumbs .yd-qv-thumb').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#pdpThumbs .yd-qv-thumb').forEach(o => o.classList.remove('is-active'));
+    t.classList.add('is-active');
+    if (t.dataset.src) main.innerHTML = `<img src="${t.dataset.src}" alt="${p.nombre}">`;
+    else if (t.dataset.color) main.innerHTML = iconoProducto(p.icono, t.dataset.color);
+  });
+});
+
+document.querySelectorAll('#pdpColores .yd-color').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#pdpColores .yd-color').forEach(o => o.classList.remove('is-active'));
+    b.classList.add('is-active');
+    sel.color = b.dataset.color;
+    main.innerHTML = ydVisual(p, sel.color);
+    refrescarStock();
+  });
+});
+
+document.querySelectorAll('#pdpTallas .yd-size').forEach(b => {
+  b.addEventListener('click', () => {
+    if (b.classList.contains('is-out')) { mostrarToast(`Talla ${b.dataset.talla} agotada por ahora.`, true); return; }
+    document.querySelectorAll('#pdpTallas .yd-size').forEach(o => o.classList.remove('is-active'));
+    b.classList.add('is-active');
+    sel.talla = b.dataset.talla;
+    const precio = precioConDescuentoTalla(p, sel.talla);
+    document.getElementById('pdpPrecio').innerHTML =
+      '$' + Number(precio).toLocaleString('es-CO') +
+      (precioTachado ? `<span class="old">$${Number(precioTachado).toLocaleString('es-CO')}</span>` : '');
+    refrescarStock();
+  });
+});
+
+document.querySelectorAll('[data-paso]').forEach(b => {
+  b.addEventListener('click', () => {
+    sel.cantidad = Math.min(Math.max(1, sel.cantidad + Number(b.dataset.paso)), Math.max(disponibles(), 1));
+    cantEl.textContent = sel.cantidad;
+  });
+});
+
+document.getElementById('pdpFav').addEventListener('click', (e) => {
+  const btn = e.currentTarget;
+  toggleFavorito(p.id);
+  const ahora = esFavorito(p.id);
+  btn.classList.toggle('is-fav', ahora);
+  btn.querySelector('span').textContent = ahora ? 'En tus favoritos' : 'Agregar a favoritos';
+  actualizarContadorFavoritos();
+  mostrarToast(ahora ? `${p.nombre} guardado en tus favoritos` : `${p.nombre} quitado de favoritos`);
+});
+
+addBtn.addEventListener('click', () => { ydAgregar(p, sel); });
+document.getElementById('pdpBuy').addEventListener('click', () => {
+  if (ydAgregar(p, sel, true)) window.location.href = 'carrito.html';
+});
+
+/* ---------- productos relacionados ---------- */
+const activos = productosActivos();
+const relacionados = [
+  ...activos.filter(x => x.id != p.id && x.categoria === p.categoria),
+  ...activos.filter(x => x.id != p.id && x.categoria !== p.categoria),
+].slice(0, 4);
+
+if (relacionados.length) {
+  document.getElementById('ydRel').hidden = false;
+  const grid = document.getElementById('gridRelacionados');
+  grid.innerHTML = construirTarjetasHtml(relacionados);
+  initScrollReveal();
+  activarInteraccionGrid(grid);
+}
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Seguir mi pedido — MAQUINA</title>
+<meta name="description" content="Consulta el estado de tu pedido en MAQUINA.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Seguir mi pedido — MAQUINA">
+<meta property="og:description" content="Consulta el estado de tu pedido en MAQUINA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/seguimiento.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<section class="section">
+  <div class="section-head reveal" style="border:none;padding-bottom:0;">
+    <div>
+      <div class="section-eyebrow">¿Dónde va mi pedido?</div>
+      <h2>Seguir mi pedido</h2>
+      <p>Escribe el número de pedido y el teléfono que usaste al comprar.</p>
+    </div>
+  </div>
+
+  <div class="seg-wrap">
+
+    <!-- ---- formulario de búsqueda ---- -->
+    <form class="seg-form" id="segForm">
+      <div class="campo-grupo">
+        <label class="campo-label">Número de pedido</label>
+        <input type="text" id="segPedidoId" placeholder="Ej: aB3xY9k9pQ2" required autocomplete="off">
+      </div>
+      <div class="campo-grupo">
+        <label class="campo-label">Teléfono</label>
+        <input type="tel" id="segTelefono" placeholder="Ej: 3001234567" required autocomplete="off">
+      </div>
+      <p class="alerta error" id="segError" style="display:none;"></p>
+      <button type="submit" class="btn-pagar" id="segBtnBuscar" style="max-width:280px;margin:6px auto 0;">Buscar mi pedido</button>
+      <p class="seg-ayuda">El número de pedido te lo mostramos apenas terminas de comprar — si no lo guardaste, escríbenos por <a href="https://wa.me/573239523623" target="_blank" rel="noopener">WhatsApp</a> con tu nombre y fecha aproximada.</p>
+    </form>
+
+    <!-- ---- resultado ---- -->
+    <div class="seg-resultado" id="segResultado" style="display:none;">
+
+      <div class="checkout-stepper seg-stepper" id="segStepperNormal">
+        <div class="stepper-step" data-seg-estado="pendiente">
+          <div class="stepper-circle">🕓</div>
+          <div class="stepper-label">Pendiente</div>
+        </div>
+        <div class="stepper-line" data-seg-line="1"></div>
+        <div class="stepper-step" data-seg-estado="confirmado">
+          <div class="stepper-circle">✅</div>
+          <div class="stepper-label">Confirmado</div>
+        </div>
+        <div class="stepper-line" data-seg-line="2"></div>
+        <div class="stepper-step" data-seg-estado="enviado">
+          <div class="stepper-circle">🚚</div>
+          <div class="stepper-label">Enviado</div>
+        </div>
+        <div class="stepper-line" data-seg-line="3"></div>
+        <div class="stepper-step" data-seg-estado="entregado">
+          <div class="stepper-circle">📦</div>
+          <div class="stepper-label">Entregado</div>
+        </div>
+      </div>
+
+      <p class="alerta error seg-cancelado" id="segCancelado" style="display:none;">
+        ✕ Este pedido fue <b>cancelado</b>. Si crees que es un error, escríbenos por WhatsApp.
+      </p>
+
+      <div class="seg-card">
+        <div class="seg-card-head">
+          <div>
+            <span class="seg-card-numero" id="segNumeroPedido"></span>
+            <span class="seg-card-fecha" id="segFechaPedido"></span>
+          </div>
+          <span class="seg-card-estado" id="segEstadoTexto"></span>
+        </div>
+
+        <div class="seg-items" id="segItems"></div>
+
+        <div class="seg-totales">
+          <div><span>Subtotal</span><span id="segSubtotal"></span></div>
+          <div><span>Envío</span><span id="segEnvio"></span></div>
+          <div class="seg-total-final"><span>Total</span><span id="segTotal"></span></div>
+        </div>
+
+        <div class="seg-envio-a">
+          <span class="campo-label">Enviado a</span>
+          <p id="segDireccion"></p>
+        </div>
+      </div>
+
+      <button type="button" class="btn-exito-volver" id="segBtnOtro">Buscar otro pedido</button>
+    </div>
+
+  </div>
+</section>
+
+<div id="site-footer"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
+<script src="js/maquina-ui.js?v=4"></script>
+<script>
+renderHeader('seguimiento');
+renderFooter();
+
+/* ---- si venimos de "gracias por tu compra" con el número ya
+   listo (ver carrito.html), lo dejamos precargado para que solo
+   falte escribir el teléfono. ---- */
+(function precargarDesdeUrl() {
+  const params = new URLSearchParams(location.search);
+  const idUrl = params.get('pedido');
+  if (idUrl) document.getElementById('segPedidoId').value = idUrl;
+})();
+
+/** Solo compara los dígitos del teléfono (sin espacios, +57, guiones)
+    para que no falle por cómo cada quien lo escribió. */
+function soloDigitos(t) {
+  return String(t || '').replace(/\D/g, '').slice(-10);
+}
+
+function formatoCOP(valor) {
+  return '$' + Math.round(Number(valor) || 0).toLocaleString('es-CO');
+}
+
+document.getElementById('segForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const idPedido = document.getElementById('segPedidoId').value.trim();
+  const telefono = document.getElementById('segTelefono').value.trim();
+  const errorEl = document.getElementById('segError');
+  const btn = document.getElementById('segBtnBuscar');
+  errorEl.style.display = 'none';
+
+  if (!idPedido || !telefono) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Buscando...';
+
+  try {
+    const doc = await fbDb.collection('pedidos').doc(idPedido).get();
+    if (!doc.exists) {
+      throw new Error('No encontramos ningún pedido con ese número. Revisa que esté completo y sin espacios.');
+    }
+    const pedido = doc.data();
+    if (soloDigitos(pedido.telefono_cliente) !== soloDigitos(telefono)) {
+      throw new Error('El teléfono no coincide con el de este pedido. Revisa que sea el mismo que usaste al comprar.');
+    }
+    mostrarResultado(idPedido, pedido);
+  } catch (err) {
+    errorEl.textContent = err.message || 'No se pudo buscar tu pedido, intenta de nuevo.';
+    errorEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Buscar mi pedido';
+  }
+});
+
+function mostrarResultado(id, p) {
+  document.getElementById('segForm').style.display = 'none';
+  const resultado = document.getElementById('segResultado');
+  resultado.style.display = 'block';
+
+  const estado = (p.estado && ['pendiente','confirmado','enviado','entregado','cancelado'].includes(p.estado)) ? p.estado : 'pendiente';
+  const ORDEN = ['pendiente','confirmado','enviado','entregado'];
+
+  if (estado === 'cancelado') {
+    document.getElementById('segStepperNormal').style.display = 'none';
+    document.getElementById('segCancelado').style.display = 'block';
+  } else {
+    const pasoActual = ORDEN.indexOf(estado);
+    document.querySelectorAll('#segStepperNormal .stepper-step').forEach((el, i) => {
+      el.classList.remove('is-active', 'is-done');
+      if (i < pasoActual) el.classList.add('is-done');
+      else if (i === pasoActual) el.classList.add('is-active');
+    });
+    document.querySelectorAll('#segStepperNormal .stepper-line').forEach((el, i) => {
+      el.classList.toggle('is-done', i < pasoActual);
+    });
+  }
+
+  const ETIQUETAS = { pendiente:'🕓 Pendiente', confirmado:'✅ Confirmado', enviado:'🚚 Enviado', entregado:'📦 Entregado', cancelado:'✕ Cancelado' };
+  document.getElementById('segEstadoTexto').textContent = ETIQUETAS[estado];
+  document.getElementById('segEstadoTexto').className = 'seg-card-estado seg-estado-' + estado;
+  document.getElementById('segNumeroPedido').textContent = 'PEDIDO #' + id;
+  document.getElementById('segFechaPedido').textContent = p.fecha ? new Date(p.fecha).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' }) : '';
+
+  const items = Array.isArray(p.items) ? p.items : [];
+  document.getElementById('segItems').innerHTML = items.map(it => `
+    <div class="seg-item">
+      <span>${it.nombre || ''} ${it.talla ? `— Talla ${it.talla}` : ''} ${it.color ? `· ${it.color}` : ''}</span>
+      <span>${formatoCOP(it.precio)}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('segSubtotal').textContent = formatoCOP(p.subtotal);
+  document.getElementById('segEnvio').textContent = Number(p.costo_envio) > 0 ? formatoCOP(p.costo_envio) : 'Gratis';
+  document.getElementById('segTotal').textContent = formatoCOP(p.total);
+
+  const partesDireccion = [p.envio_direccion, p.envio_edificio, p.envio_barrio, p.envio_vereda, p.envio_municipio].filter(Boolean);
+  document.getElementById('segDireccion').textContent = partesDireccion.join(', ') || 'Sin dirección registrada';
+}
+
+document.getElementById('segBtnOtro').addEventListener('click', () => {
+  document.getElementById('segResultado').style.display = 'none';
+  document.getElementById('segForm').style.display = 'block';
+  document.getElementById('segForm').reset();
+});
+</script>
+
+</body>
+</html>

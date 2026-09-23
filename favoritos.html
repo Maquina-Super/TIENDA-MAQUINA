@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Mis favoritos — MAQUINA</title>
+<meta name="description" content="Tus productos favoritos guardados en MAQUINA.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Mis favoritos — MAQUINA">
+<meta property="og:description" content="Tus productos favoritos guardados en MAQUINA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina.com/favoritos.html">
+<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<section class="section" id="favoritos">
+  <div class="section-head reveal">
+    <div>
+      <div class="section-eyebrow">Tu lista de deseos</div>
+      <h2>Mis favoritos <span class="hero-note" style="font-size:0.55em;transform:rotate(-3deg);">guardado, no comprado ⚡</span></h2>
+    </div>
+    <p>Lo que marcaste con el corazón, para que no se te olvide.</p>
+  </div>
+
+  <div class="grid" id="productGrid"></div>
+</section>
+
+<div id="site-footer"></div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastText">¡Sumado a tu pedido!</span></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/catalog-render.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
+<script src="js/maquina-ui.js?v=4"></script>
+<script>
+renderHeader('favoritos');
+renderFooter();
+
+(async function () {
+const gridEl = document.getElementById('productGrid');
+gridEl.innerHTML = construirSkeletonHtml(3); // mientras carga, para no dejar la grilla en blanco
+
+await cargarCatalogo(); // trae el catálogo de Firestore antes de pintar nada
+
+function pintarFavoritos() {
+  const favoritos = productosFavoritos();
+  if (favoritos.length === 0) {
+    gridEl.innerHTML = `
+      <div class="empty-state">
+        <p>Todavía no has guardado nada 💔<br>Toca el corazón de un producto en la
+        <a href="productos.html" style="color:var(--forest);font-weight:700;text-decoration:underline;">colección</a>
+        para verlo aquí.</p>
+      </div>`;
+    return;
+  }
+  gridEl.innerHTML = construirTarjetasHtml(favoritos);
+  initScrollReveal();
+  activarInteraccionGrid(gridEl, {
+    // si el cliente le quita el corazón desde esta misma página,
+    // la tarjeta se saca al instante de la vista (ya no es favorito)
+    onFavoritoQuitado: (id, card) => {
+      card.classList.add('fav-saliendo');
+      setTimeout(() => pintarFavoritos(), 260);
+    },
+  });
+}
+pintarFavoritos();
+
+})();
+</script>
+
+</body>
+</html>

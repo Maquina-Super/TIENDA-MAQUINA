@@ -1,0 +1,440 @@
+=========================================================
+ ⚠️ DESACTUALIZADO — ver GUIA_MIGRAR_ADMIN_A_AUTH.txt
+=========================================================
+Este archivo describe las reglas de la ETAPA ANTERIOR (con
+"productos", "admin_usuarios", etc. abiertos a cualquiera, porque
+el panel todavía no usaba Firebase Auth real). Eso ya cambió: usa
+el archivo firestore.rules (raíz del proyecto) como la versión
+correcta para pegar en la consola de Firebase, no lo que dice más
+abajo. Se deja este archivo solo como historial de por qué se
+llegó a las reglas actuales.
+=========================================================
+
+=========================================================
+ REGLAS DE SEGURIDAD DE FIRESTORE - MAQUINA
+=========================================================
+
+En la consola de Firebase: Firestore Database -> pestaña "Reglas"
+-> borra lo que hay y pega esto -> Publicar.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Cada cliente puede crear y leer SOLO su propio perfil
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Cualquier visitante puede crear un pedido (aunque no tenga
+    // cuenta, para no obligar a nadie a registrarse antes de
+    // comprar). Pero nadie puede leer ni editar pedidos desde el
+    // navegador del cliente: solo tú, desde el panel admin, que
+    // usa una contraseña aparte (admin.html).
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+  }
+}
+
+-----------------------------------------------------------
+OJO: con estas reglas, el panel admin (admin.html) tampoco
+podría LEER los pedidos, porque no usa una cuenta de Firebase,
+sino su propio usuario/contraseña simple. Para que tú SÍ puedas
+ver los pedidos en el panel sin exponerlos a cualquier visitante,
+usa estas reglas en su lugar (permiten lectura, pero nadie puede
+editarlos ni borrarlos desde el navegador):
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+  }
+}
+
+Con esta segunda versión, técnicamente alguien muy curioso que
+sepa programación podría leer la lista de pedidos si mira el
+código de la página. Para un negocio pequeño que está empezando
+es un riesgo bajo (no se pueden editar ni borrar, solo leer), y
+es la única forma sencilla y GRATIS de que el panel admin muestre
+los pedidos sin montar un servidor propio. Si más adelante crece
+el negocio, se puede pasar a un login de administrador real con
+Firebase Auth + "custom claims" para cerrar esto del todo.
+
+=========================================================
+ ACTUALIZACIÓN — configuración del "próximo drop"
+=========================================================
+
+La pestaña "⚡ Drop" del panel (fecha del lanzamiento, título y
+qué productos se muestran en la cuenta regresiva de index.html)
+se guarda en Firestore, colección "config", documento "drop".
+Igual que "productos", queda con lectura y escritura abiertas
+(mismo motivo: el panel admin no usa una cuenta real de Firebase).
+Agrega este bloque dentro de "match /databases/{database}/documents { ... }"
+junto con las reglas de "productos" que ya tengas pegadas:
+
+    match /config/{docId} {
+      allow read, write: if true;
+    }
+
+USA LA SEGUNDA VERSIÓN (la que permite "read: if true" en
+pedidos) para que tu panel admin funcione.
+
+=========================================================
+ ACTUALIZACIÓN — catálogo (productos) en la nube
+=========================================================
+
+El panel admin.html no usa una cuenta real de Firebase (usa su
+propio usuario/contraseña simple), así que no hay forma de que
+Firestore distinga "tú, el vendedor" de "un visitante cualquiera".
+Por eso, igual que ya pasa con "pedidos", la colección "productos"
+queda con lectura y escritura abiertas: cualquiera podría, en
+teoría, editar el catálogo si mira el código y sabe programación.
+Para una tienda pequeña que está arrancando es un riesgo bajo. Si
+más adelante crece el negocio, conviene pasar a un login de
+administrador real (Firebase Auth + "custom claims").
+
+Copia TODO este bloque completo (reemplaza lo que tengas pegado
+en Firestore Database -> Reglas) y publica:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+    match /productos/{productoId} {
+      allow read, write: if true;
+    }
+    match /telefonos/{telefono} {
+      // Recuperación de contraseña por teléfono ("Olvidaste tu
+      // contraseña" en login.html). Guarda SOLO teléfono->correo.
+      // "get" (leer UN documento) exige saber el número exacto de
+      // antemano -> solo permite averiguar el correo de TU propio
+      // teléfono, no ver la lista de nadie. "list" queda cerrado
+      // (false) a propósito, para que nadie pueda listar todos los
+      // teléfonos/correos de la tienda de una sola vez.
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+  }
+}
+
+=========================================================
+ ACTUALIZACIÓN — "Olvidaste tu contraseña" (login.html)
+=========================================================
+
+Se agregó la colección "telefonos" (arriba) para que el botón
+"¿Olvidaste tu contraseña?" de login.html pueda funcionar tanto
+con correo como con número:
+
+- Si el cliente elige "Correo", se le manda directo el enlace de
+  Firebase para crear una contraseña nueva. Ya funciona solo con
+  copiar y pegar las reglas de arriba (o incluso sin tocarlas,
+  porque ese envío no depende de Firestore).
+
+- Si el cliente elige "Teléfono", primero se le manda un código
+  por SMS para comprobar que el número es suyo (mismo mecanismo
+  del registro). Una vez confirmado, se busca en "telefonos" a
+  qué correo pertenece ese número, y se le manda el enlace a ESE
+  correo (nunca se muestra completo, ni se entra directo a la
+  cuenta).
+
+OJO: la relación teléfono -> correo solo se guarda para cuentas
+que se registren CON TELÉFONO de ahora en adelante (registro.js
+lo hace automático en cada registro nuevo). Las cuentas viejas
+que ya eligieron "Teléfono" al registrarse, antes de este cambio,
+no van a aparecer con esta búsqueda — a esos clientes hay que
+decirles que usen la opción "Correo" en su lugar, o guardarles tú
+manualmente un documento en Firestore -> colección "telefonos" ->
+ID = su número (ej: +573001234567) -> campo "correo" = su correo.
+
+=========================================================
+ ACTUALIZACIÓN — usuarios del panel (admin.html) en la nube
+=========================================================
+
+Ahora el panel admin.html soporta VARIOS usuarios (uno por cada
+persona del equipo) guardados en Firestore, en vez de un solo
+usuario/contraseña guardado en el navegador. Se agregaron dos
+colecciones nuevas:
+
+- "admin_usuarios": un documento por usuario del panel (ID = el
+  usuario, ej: "admin", "maria"). Campos: clave, activo, creado.
+- "admin_sesiones": el "candado" de una sesión a la vez por
+  usuario (ID = el mismo usuario). Campos: sesionId, ultimoLatido,
+  dispositivo, desde. Se crea al entrar y se borra al salir.
+
+Igual que "productos" y "pedidos", el panel NO usa una cuenta real
+de Firebase Auth (usa su propio usuario/contraseña simple), así
+que Firestore no puede distinguir "el equipo de la tienda" de "un
+visitante cualquiera" — por eso estas dos colecciones también
+quedan con lectura y escritura abiertas. Para una tienda pequeña
+es el mismo riesgo bajo que ya asumías con productos y pedidos:
+alguien muy curioso que sepa programación podría, en teoría, leer
+las contraseñas del panel mirando el código. Si más adelante crece
+el negocio, lo correcto es pasar el panel a un login real con
+Firebase Auth + "custom claims" (ver notas de arriba).
+
+Agrega este bloque dentro de "match /databases/{database}/documents { ... }"
+junto con las demás reglas que ya tengas pegadas:
+
+    match /admin_usuarios/{usuarioId} {
+      allow read, write: if true;
+    }
+    match /admin_sesiones/{usuarioId} {
+      allow read, write: if true;
+    }
+
+Con eso, el bloque completo de reglas queda así (copia TODO y
+publica, reemplazando lo que tengas en Firestore Database -> Reglas):
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+    match /productos/{productoId} {
+      allow read, write: if true;
+    }
+    match /config/{docId} {
+      allow read, write: if true;
+    }
+    match /telefonos/{telefono} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    match /admin_usuarios/{usuarioId} {
+      allow read, write: if true;
+    }
+    match /admin_sesiones/{usuarioId} {
+      allow read, write: if true;
+    }
+  }
+}
+
+CÓMO FUNCIONA EL "SOLO UNA SESIÓN A LA VEZ POR USUARIO":
+Cuando alguien entra al panel con un usuario, se guarda un código
+al azar en "admin_sesiones" y, mientras tenga el panel abierto, el
+navegador le manda un "aviso de que sigue ahí" cada 25 segundos. Si
+otra persona intenta entrar CON ESE MISMO usuario mientras ese
+aviso sigue llegando, no la deja entrar y le avisa que la cuenta
+está en uso. Si el que estaba adentro cierra sesión con el botón,
+el candado se libera al instante. Si se le cierra el navegador de
+golpe (se queda sin batería, por ejemplo) y nunca alcanza a cerrar
+sesión, el candado se libera solo, sin que nadie tenga que hacer
+nada, después de un poco más de un minuto sin avisos.
+
+Crea un usuario nuevo por cada persona del equipo desde la pestaña
+"👥 Usuarios" adentro del panel (no hace falta tocar Firestore a
+mano). El PRIMER usuario/contraseña que escribas en la pantalla de
+login, la primera vez que entres al panel recién publicado (cuando
+todavía no existe ningún usuario en Firestore), se convierte
+automáticamente en tu primer admin. Ya no hay usuario/contraseña
+fijo de fábrica — elige tú mismo cuál va a ser desde el primer
+login, y no lo compartas por fuera de tu equipo.
+
+=========================================================
+ ACTUALIZACIÓN — eliminar pedidos + permisos por usuario
+=========================================================
+
+Ahora cada usuario del panel tiene, además de usuario/contraseña,
+un campo "permisos" (dentro de su mismo documento en
+"admin_usuarios") que dice qué pestañas puede ver: Inventario,
+Pedidos, Drop, Usuarios, y si además puede ELIMINAR pedidos. Esto
+se elige con casillas al crear el usuario, o después con el botón
+"Editar permisos" en la pestaña Usuarios (pide el código de
+desarrollador, igual que crear/activar/eliminar usuarios).
+
+También se agregó un botón para eliminar un pedido desde la
+pestaña "🧾 Pedidos" (solo lo ve quien tenga el permiso "Eliminar
+pedidos"). Al hacer clic, pide la CONTRASEÑA de quien tiene la
+sesión abierta en ese momento (no el código de desarrollador) para
+confirmar, porque borrar un pedido no se puede deshacer.
+
+⚠️ IMPORTANTE: con las reglas de arriba, Firestore tiene "delete:
+if false" en la colección "pedidos" — es decir, aunque agregues el
+botón, Firestore va a RECHAZAR el borrado hasta que cambies esa
+regla. Reemplaza ese bloque de "pedidos" por este (permite borrar,
+igual que ya se permite crear y leer):
+
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if false;
+      allow delete: if true;
+    }
+
+Con eso, el bloque completo de reglas queda así (copia TODO y
+publica, reemplazando lo que tengas en Firestore Database -> Reglas):
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if false;
+      allow delete: if true;
+    }
+    match /productos/{productoId} {
+      allow read, write: if true;
+    }
+    match /config/{docId} {
+      allow read, write: if true;
+    }
+    match /telefonos/{telefono} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    match /admin_usuarios/{usuarioId} {
+      allow read, write: if true;
+    }
+    match /admin_sesiones/{usuarioId} {
+      allow read, write: if true;
+    }
+  }
+}
+
+OJO (mismo aviso de siempre): como el panel no usa una cuenta real
+de Firebase Auth, Firestore no puede distinguir "alguien del
+equipo, ya logueado en el panel, con permiso de eliminar" de
+"cualquier visitante que mire el código fuente" — por eso "delete"
+queda abierto (true) a nivel de Firestore, y la protección real
+(pedir la contraseña antes de borrar, mostrar el botón solo a quien
+tiene el permiso) pasa del lado del panel, no del lado del
+servidor. Para una tienda pequeña es un riesgo bajo y aceptable; si
+el negocio crece, lo correcto es pasar a Firebase Auth + "custom
+claims" para cerrar esto de verdad (mismo aviso que ya aplicaba a
+productos, pedidos y usuarios del panel).
+
+=========================================================
+ ACTUALIZACIÓN — estado del pedido (Pendiente/Enviado/etc.)
+=========================================================
+
+Ahora la pestaña "🧾 Pedidos" del panel deja cambiar el estado de
+cada pedido (Pendiente, Confirmado, Enviado, Entregado, Cancelado)
+desde un selector en la misma tabla. Esto guarda un campo "estado"
+en el pedido, en Firestore — es decir, necesita "update" en la
+colección "pedidos", que las reglas de arriba tenían cerrado
+(`allow update: if false;`).
+
+Reemplaza el bloque de "pedidos" por este (permite actualizar,
+igual que ya se permite crear, leer y borrar):
+
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+Con eso, el bloque completo de reglas queda así (copia TODO y
+publica, reemplazando lo que tengas en Firestore Database -> Reglas):
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    match /productos/{productoId} {
+      allow read, write: if true;
+    }
+    match /config/{docId} {
+      allow read, write: if true;
+    }
+    match /telefonos/{telefono} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    match /admin_usuarios/{usuarioId} {
+      allow read, write: if true;
+    }
+    match /admin_sesiones/{usuarioId} {
+      allow read, write: if true;
+    }
+  }
+}
+
+OJO (mismo aviso de siempre): igual que con el resto de campos del
+panel, "update" queda abierto (true) a nivel de Firestore porque el
+panel no usa una cuenta real de Firebase Auth; la protección real
+(que solo alguien logueado en el panel vea el selector de estado)
+pasa del lado del panel, no del servidor. Riesgo bajo y aceptable
+para una tienda pequeña.
+
+=========================================================
+ ACTUALIZACIÓN — contraseñas del panel ya NO se guardan
+ en texto plano
+=========================================================
+
+Antes, el documento de cada usuario en "admin_usuarios" guardaba su
+contraseña tal cual la escribiste (campo "clave"), en texto plano.
+Como las reglas de esa colección tienen que quedar con lectura
+abierta (el panel no usa Firebase Auth, ver avisos de arriba),
+cualquiera que supiera abrir la consola del navegador y conociera
+tu proyecto de Firebase podía leer usuario y contraseña de TODO tu
+equipo directo desde Firestore, sin necesitar hackear nada.
+
+Ahora cada usuario guarda su contraseña como huella SHA-256 (campo
+"claveHash"), igual que ya se hacía con el código de desarrollador.
+De esa huella no se puede recuperar la contraseña original. Esto
+NO cierra el hueco de las reglas abiertas (alguien todavía podría
+leer el documento), pero sí evita que lo que lea sea la contraseña
+real de alguien.
+
+No tienes que hacer nada a mano: la primera vez que cada usuario
+entre al panel con su contraseña de siempre, el sistema la migra
+solo (borra el "clave" viejo en texto plano y guarda el
+"claveHash" nuevo). Los usuarios NUEVOS que crees de ahora en
+adelante ya nacen con "claveHash" directamente.
+
+⚠️ Esto sigue siendo un parche, no la solución de fondo. La única
+forma de que Firestore distinga de verdad "alguien del equipo,
+logueado" de "cualquier visitante" es pasar el panel a un login
+real con Firebase Auth + "custom claims" (mismo aviso de siempre
+en este archivo). Mientras tanto, evita compartir el link del
+proyecto de Firebase (el que aparece en js/firebase-config.js) por
+fuera de tu equipo, y no lo publiques en foros ni redes.

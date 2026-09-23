@@ -1,0 +1,73 @@
+==========================================================
+MAQUINA — REDISEÑO STREETWEAR (qué cambió y cómo tocarlo)
+==========================================================
+
+ARCHIVOS NUEVOS
+---------------
+css/maquina-ui.css   Todo el diseño nuevo (banner, beneficios,
+                     tarjetas, vista rápida, filtros, ficha de
+                     producto, carrito lateral). Se carga
+                     DESPUÉS de estilos.css en cada página.
+js/maquina-ui.js     La lógica de lo nuevo. No toca el carrito,
+                     favoritos, login ni el panel: los usa a
+                     través de las funciones que ya existían.
+producto.html        Página individual de cada producto
+                     (producto.html?id=3).
+
+ARCHIVOS MODIFICADOS
+--------------------
+css/estilos.css      Paleta oscura: negro, gris, blanco y verde
+                     neón. Se conservaron los mismos nombres de
+                     variables, así que ninguna regla vieja se
+                     rompió.
+css/carrito.css      El amarillo pasó a verde neón.
+index.html           Portada nueva (banner, beneficios,
+                     destacados, categorías, promo, más pedido).
+productos.html       Tienda con filtros reales en barra lateral.
+js/layout.js         Menú: Inicio · Tienda · Categorías ·
+                     Contacto. Los géneros y las categorías
+                     siguen todos dentro de "Categorías".
+js/catalog-render.js Las tarjetas ahora traen calificación,
+                     botón de vista rápida y el nombre enlaza a
+                     la ficha del producto.
+
+==========================================================
+1. PONER TUS PROPIAS FOTOS EN EL BANNER
+==========================================================
+Hoy el banner usa una ilustración de marca: una persona de
+espaldas con MAQUINA estampado en el buso. El texto va recortado
+dentro de la tela, con los pliegues encima, para que se vea
+impreso en la prenda.
+
+Para usar fotos reales:
+  1. Sube la foto a la carpeta img/ (ej: img/banner-1.jpg).
+     Horizontal, mínimo 1800px de ancho.
+  2. Abre js/maquina-ui.js y busca YD_HERO_SLIDES (arriba del
+     todo).
+  3. Cambia   imagen: null
+     por      imagen: "img/banner-1.jpg"
+Puedes poner una, dos o tres. Las que dejes en null siguen
+usando la ilustración.
+
+==========================================================
+2. LAS ESTRELLAS DE LAS TARJETAS
+==========================================================
+Tus productos todavía no tienen reseñas reales. Para que la
+tarjeta no quedara coja, se calcula una calificación estable a
+partir del id del producto (siempre da el mismo número).
+
+OJO: son números de relleno. Cuando tengas reseñas de verdad:
+  · Opción A — apagarlas: en js/maquina-ui.js cambia
+      const YD_MOSTRAR_CALIFICACIONES = true;
+    por false.
+  · Opción B — poner las reales: agrégale al producto los
+    campos "rating" y "resenas" (por ejemplo rating: 4.8 y
+    resenas: 124). Si existen, se muestran esos.
+
+==========================================================
+3. COSAS QUE NO SE TOCARON
+==========================================================
+Carrito, checkout, pagos, favoritos, login, registro,
+recuperación, inventario, pedidos, buscador, Voltage Club,
+cuenta regresiva del drop, avisos a Telegram/Sheets y el panel
+admin siguen funcionando exactamente igual.
