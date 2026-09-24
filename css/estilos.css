@@ -2339,20 +2339,36 @@ footer.footer-contacto{border-top:1px solid var(--line);margin-top:auto;backgrou
 .admin-modal input:focus{outline:none;border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(215,255,61,0.15);}
 
 /* Modal "Editar permisos" y modales relacionados (Acceso a Usuarios,
-   Código de desarrollador para activar/desactivar/eliminar): todo el
-   fondo en blanco con letras oscuras para que se lea bien, no solo
-   el campo de la contraseña. */
+   Código de desarrollador para activar/desactivar/eliminar): el fondo
+   de estos 3 modales siempre sale oscuro (--surface es oscuro en esta
+   tienda), así que el texto va en blanco/claro para que se lea bien,
+   incluido lo que se escribe en el campo de contraseña. */
 #modalPermisos .admin-modal,
 #modalAccesoUsuarios .admin-modal,
 #modalCodigoDev .admin-modal{
   background:var(--surface);
-  color:#111111;
+  color:var(--adm-text);
 }
 #modalPermisos .admin-modal h3,
 #modalAccesoUsuarios .admin-modal h3,
-#modalCodigoDev .admin-modal h3{color:#111111;}
+#modalCodigoDev .admin-modal h3{color:var(--adm-text);}
 #modalAccesoUsuarios .admin-foto-hint,
-#modalCodigoDev .admin-foto-hint{color:#5a5a5a;}
+#modalCodigoDev .admin-foto-hint{color:var(--adm-text-dim);}
+#modalPermisos .admin-modal input:not([type="checkbox"]),
+#modalAccesoUsuarios .admin-modal input:not([type="checkbox"]),
+#modalCodigoDev .admin-modal input:not([type="checkbox"]){
+  background:var(--adm-bg-2);
+  border-color:var(--adm-line);
+  color:var(--adm-text) !important;
+  -webkit-text-fill-color:var(--adm-text);
+  caret-color:var(--adm-text);
+}
+#modalPermisos .admin-modal input::placeholder,
+#modalAccesoUsuarios .admin-modal input::placeholder,
+#modalCodigoDev .admin-modal input::placeholder{
+  color:var(--adm-text-dim);
+  opacity:1;
+}
 #modalPermisos .admin-btn-ghost,
 #modalAccesoUsuarios .admin-btn-ghost,
 #modalCodigoDev .admin-btn-ghost{
