@@ -317,7 +317,7 @@ body{
   border-radius:16px;overflow:hidden;background:#1a1a1a;aspect-ratio:1/1.05;
   display:grid;place-items:center;
 }
-.yd-qv-main img{width:100%;height:100%;object-fit:cover;}
+.yd-qv-main img{width:100%;height:100%;object-fit:contain;}
 .yd-qv-main svg{width:64%;height:64%;}
 .yd-qv-info{padding:28px 28px 26px;border-left:1px solid var(--line);position:relative;}
 .yd-qv-close{
@@ -524,7 +524,7 @@ body{
   border-radius:20px;overflow:hidden;background:#1a1a1a;aspect-ratio:1/1.08;
   display:grid;place-items:center;border:1px solid var(--line);
 }
-.yd-pdp-main img{width:100%;height:100%;object-fit:cover;}
+.yd-pdp-main img{width:100%;height:100%;object-fit:contain;}
 .yd-pdp-main svg{width:62%;height:62%;}
 .yd-pdp-name{font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(28px,4vw,44px);line-height:1.02;text-transform:uppercase;}
 .yd-pdp-price{font-size:30px;font-weight:700;margin-top:10px;}
