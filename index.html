@@ -128,6 +128,33 @@ ydRenderBeneficios('ydInfo');
    ============================================================ */
 const FECHA_DROP_RESPALDO = new Date('2026-09-15T00:00:00-05:00');
 
+/** Pinta la fila de productos del drop en #dropLiveGrid.
+    esTeaser=true  -> el contador todavía está corriendo: se ve la
+                       foto BORROSA, de adelanto, sin link a la ficha.
+    esTeaser=false -> ya llegó la fecha/hora del drop: foto nítida
+                       y clickeable, como ya funcionaba. */
+function pintarProductosDrop(destacados, esTeaser) {
+  const grid = document.getElementById('dropLiveGrid');
+  if (!grid) return;
+  if (!destacados.length) { grid.hidden = true; grid.innerHTML = ''; return; }
+
+  grid.hidden = false;
+  grid.innerHTML = destacados.map(p => {
+    const fotoFrente = (p.fotos && p.fotos[p.colores[0]]) || p.foto;
+    const fotoAtras = !esTeaser && p.fotosTrasera && p.fotosTrasera[p.colores[0]];
+    const visual = fotoFrente
+      ? `<img src="${fotoFrente}" class="drop-live-img drop-live-img-frente" alt="${p.nombre}" loading="lazy">${fotoAtras ? `<img src="${fotoAtras}" class="drop-live-img drop-live-img-atras" alt="${p.nombre} de espaldas" loading="lazy">` : ''}`
+      : iconoProducto(p.icono, p.colores[0]);
+    const cuerpo = `
+      <div class="drop-live-visual${esTeaser ? ' is-teaser' : ''}">${visual}${esTeaser ? '<span class="drop-live-teaser-tag">Muy pronto</span>' : ''}</div>
+      <span>${p.nombre}</span>`;
+    // Mientras es teaser no se linkea a la ficha del producto (todavía no se vende).
+    return esTeaser
+      ? `<div class="drop-live-item">${cuerpo}</div>`
+      : `<a class="drop-live-item" href="producto.html?id=${p.id}">${cuerpo}</a>`;
+  }).join('');
+}
+
 function actualizarCountdown() {
   const contenedor = document.getElementById('dropCountdown');
   if (!contenedor) return;
@@ -135,35 +162,24 @@ function actualizarCountdown() {
   const fechaObjetivo = config.fecha ? new Date(config.fecha) : FECHA_DROP_RESPALDO;
   const diff = fechaObjetivo - new Date();
 
+  const idsElegidos = config.productos || [];
+  const catalogo = getCatalogo();
+  const destacados = idsElegidos
+    .map(id => catalogo.find(p => p.id == id))
+    .filter(Boolean);
+
   if (diff <= 0) {
     document.getElementById('dropLabel').textContent = config.titulo || '¡Ya está aquí!';
     document.getElementById('dropTimer').style.display = 'none';
     document.getElementById('dropCta').textContent = 'Ver la colección';
     document.getElementById('dropCta').href = 'productos.html';
-
-    const grid = document.getElementById('dropLiveGrid');
-    const idsElegidos = config.productos || [];
-    const catalogo = getCatalogo();
-    const destacados = idsElegidos
-      .map(id => catalogo.find(p => p.id == id))
-      .filter(Boolean);
-    if (destacados.length) {
-      grid.hidden = false;
-      grid.innerHTML = destacados.map(p => {
-        const fotoFrente = (p.fotos && p.fotos[p.colores[0]]) || p.foto;
-        const fotoAtras = p.fotosTrasera && p.fotosTrasera[p.colores[0]];
-        const visual = fotoFrente
-          ? `<img src="${fotoFrente}" class="drop-live-img drop-live-img-frente" alt="${p.nombre}" loading="lazy">${fotoAtras ? `<img src="${fotoAtras}" class="drop-live-img drop-live-img-atras" alt="${p.nombre} de espaldas" loading="lazy">` : ''}`
-          : iconoProducto(p.icono, p.colores[0]);
-        return `
-          <a class="drop-live-item" href="producto.html?id=${p.id}">
-            <div class="drop-live-visual">${visual}</div>
-            <span>${p.nombre}</span>
-          </a>`;
-      }).join('');
-    }
+    pintarProductosDrop(destacados, false);
     return;
   }
+
+  // Contador todavía corriendo: se muestra el mismo producto, pero borroso.
+  pintarProductosDrop(destacados, true);
+
   const dias  = Math.floor(diff / 86400000);
   const horas = Math.floor((diff % 86400000) / 3600000);
   const min   = Math.floor((diff % 3600000) / 60000);
