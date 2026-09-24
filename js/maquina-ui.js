@@ -32,20 +32,20 @@ const YD_HERO_SLIDES = [
     href: "productos.html",
   },
   {
+    imagen: "img/banner-hoodie-3.jpg",
+    eyebrow: "Gym Plus · Streetwear",
+    titulo: 'Disciplina también es <span>una forma de respeto propio.</span>',
+    texto: "No es solo una camiseta, es un recordatorio de lo que eres y de lo que estás construyendo.",
+    boton: "Ver productos",
+    href: "productos.html",
+  },
+  {
     imagen: "img/banner-hoodie-2.jpg",
     eyebrow: "Gymrat · Streetwear",
     titulo: 'Si vas a dejar todo en tu entrenamiento <span>hazlo con una marca que hable por ti.</span>',
     texto: "Ropa que representa tu disciplina, tu mentalidad y todo lo que construyes dentro y fuera del gym.",
     boton: "Ver productos",
     href: "productos.html?cat=Busos",
-  },
-  {
-    imagen: "img/banner-hoodie-3.jpg",
-    eyebrow: "Edición limitada",
-    titulo: "Cuando se acaba, no vuelve",
-    texto: "Cada drop se hace una sola vez. Si te gusta, es ahora.",
-    boton: "Ver lo que queda",
-    href: "productos.html",
   },
 ];
 
