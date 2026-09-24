@@ -805,6 +805,11 @@ body{
   font-size:clamp(24px,2.8vw,32px);letter-spacing:.01em;color:var(--ink);text-transform:uppercase;
 }
 .yd-login-logo .accent{color:var(--acento);text-shadow:0 0 18px var(--acento-glow);}
+.yd-login-logo-img{
+  height:clamp(40px,4.6vw,58px);width:auto;display:block;
+  image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;
+  filter:drop-shadow(0 0 10px rgba(0,0,0,.55));
+}
 .yd-login-back{
   width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   color:var(--ink);border:1px solid rgba(242,242,240,.22);background:rgba(255,255,255,.04);
@@ -817,7 +822,7 @@ body{
   position:relative;z-index:3;flex:1 1 auto;min-height:0;
   display:flex;flex-direction:column;justify-content:center;
   padding:40px clamp(20px,4.4vw,56px) 24px;
-  max-width:640px;
+  max-width:900px;
 }
 .yd-login-eyebrow{
   font-family:'Space Mono',monospace;color:var(--gray);
@@ -826,8 +831,9 @@ body{
 .yd-login-title{
   font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;
   color:var(--ink);line-height:.94;letter-spacing:.005em;
-  font-size:clamp(40px,7.2vw,92px);margin:0 0 14px;
+  font-size:clamp(34px,4.4vw,60px);margin:0 0 20px;
 }
+.yd-login-title .accent{color:var(--acento);text-shadow:0 0 22px var(--acento-glow);}
 .yd-login-tagline{
   font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;
   color:var(--ink);line-height:1.05;font-size:clamp(19px,2.6vw,30px);margin:0 0 22px;
