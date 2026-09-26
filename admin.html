@@ -14,7 +14,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   #adminLoginView{ background:#060706; }
-  html:has(#adminLoginView), body:has(#adminLoginView){ height:100%; overflow:hidden; }
+  html, body{ scrollbar-width:none !important; -ms-overflow-style:none !important; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar{ width:0 !important; height:0 !important; display:none !important; }
+  html:has(body.admin-login-active), body.admin-login-active{ height:100%; overflow:hidden; }
   html:has(#adminLoginView), body:has(#adminLoginView){
     scrollbar-width:none; -ms-overflow-style:none;
   }
@@ -91,6 +93,20 @@
     color:#eef2ea; font-family:'Barlow Condensed', sans-serif; font-size:17px;
   }
   #adminLoginView .gl-box input::placeholder{ color:#5c6a58; }
+  #adminLoginView .gl-box input:-webkit-autofill,
+  #adminLoginView .gl-box input:-webkit-autofill:hover,
+  #adminLoginView .gl-box input:-webkit-autofill:focus,
+  #adminLoginView .gl-box input:-webkit-autofill:active{
+    -webkit-text-fill-color:#eef2ea !important;
+    -webkit-box-shadow:0 0 0px 1000px #0c130c inset !important;
+    box-shadow:0 0 0px 1000px #0c130c inset !important;
+    caret-color:#eef2ea;
+    transition:background-color 9999s ease-in-out 0s;
+  }
+  #adminLoginView .gl-box input:autofill{
+    -webkit-text-fill-color:#eef2ea !important;
+    box-shadow:0 0 0px 1000px #0c130c inset !important;
+  }
   #adminLoginView .gl-box .nf-eye{
     position:absolute; right:12px; top:50%; transform:translateY(-50%);
     background:none; border:none; cursor:pointer; font-size:17px; line-height:1; padding:4px;
@@ -111,21 +127,27 @@
     color:#ffb4b4; font-size:13px; padding:10px 12px; border-radius:10px; margin-bottom:14px;
   }
   #adminLoginView .gl-links{
-    margin-top:18px; display:flex; flex-direction:column; align-items:center; gap:10px;
+    margin-top:20px; display:flex; flex-direction:column; align-items:stretch; gap:8px;
   }
   #adminLoginView .gl-links a{
-    display:inline-flex; align-items:center; gap:6px;
-    color:#a9b3a6; font-family:'JetBrains Mono', monospace;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    color:#c3cdc0; font-family:'JetBrains Mono', monospace;
     font-size:12px; letter-spacing:.04em; text-decoration:none;
-    padding:6px 4px 3px; border-bottom:1px dashed rgba(168,255,61,.35);
-    transition:color .18s ease, border-color .18s ease;
+    padding:10px 14px; border-radius:10px;
+    background:rgba(168,255,61,.05); border:1px solid rgba(168,255,61,.18);
+    transition:color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease;
   }
   #adminLoginView .gl-links a::before{ content:"›"; color:#a8ff3d; font-size:13px; }
-  #adminLoginView .gl-links a:hover{ color:#c8ff7a; border-color:#a8ff3d; text-shadow:0 0 10px rgba(168,255,61,.5); }
+  #adminLoginView .gl-links a:hover{
+    color:#c8ff7a; border-color:#a8ff3d; background:rgba(168,255,61,.1);
+    transform:translateY(-1px); text-shadow:0 0 10px rgba(168,255,61,.5);
+  }
   #adminLoginView .gl-back{
-    margin-top:16px; display:inline-flex; align-items:center; gap:6px;
-    color:#8b968a; font-size:13px; font-family:'JetBrains Mono', monospace;
-    letter-spacing:.04em; text-decoration:none; transition:color .18s ease;
+    margin-top:14px; display:flex; align-items:center; justify-content:center; gap:6px;
+    color:#8b968a; font-size:12px; font-family:'JetBrains Mono', monospace;
+    letter-spacing:.06em; text-decoration:none; text-transform:uppercase;
+    padding-top:14px; border-top:1px solid rgba(255,255,255,.08);
+    transition:color .18s ease;
   }
   #adminLoginView .gl-back:hover{ color:#a8ff3d; }
   @media (max-width:560px){
@@ -157,7 +179,7 @@
   }
 </style>
 </head>
-<body>
+<body class="admin-login-active">
 
 <!-- ======================= LOGIN DEL ADMIN ======================= -->
 <div class="admin-login" id="adminLoginView">

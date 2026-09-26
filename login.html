@@ -26,6 +26,8 @@
   html:has(.yd-login-body)::-webkit-scrollbar, body.yd-login-body::-webkit-scrollbar{
     width:0; height:0; display:none;
   }
+  html, body{ scrollbar-width:none !important; -ms-overflow-style:none !important; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar{ width:0 !important; height:0 !important; display:none !important; }
   .yd-login-content{ justify-content:flex-start; padding-top:clamp(70px,10vw,120px); }
   .yd-login-cta{ margin-top:auto; padding-top:clamp(30px,5vw,60px); }
   .yd-login-topright{

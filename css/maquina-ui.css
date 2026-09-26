@@ -829,7 +829,7 @@ body{
 }
 .yd-login-logo .accent{color:var(--acento);text-shadow:0 0 18px var(--acento-glow);}
 .yd-login-logo-img{
-  height:clamp(40px,4.6vw,58px);width:auto;display:block;
+  height:clamp(54px,6.2vw,78px);width:auto;display:block;
   image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;
   filter:drop-shadow(0 0 10px rgba(0,0,0,.55));
 }
