@@ -132,6 +132,7 @@ function iniciarVigiaInactividadAdmin() {
       await cerrarSesionAdmin();
       dashView.style.display = 'none';
       loginView.style.display = 'block';
+      document.body.classList.add('admin-login-active');
       showToast('Se cerró tu sesión por estar inactivo mucho rato.', true);
     }
   }, 60 * 1000); // revisa cada minuto
@@ -140,6 +141,7 @@ function iniciarVigiaInactividadAdmin() {
 async function entrarAlPanel() {
   loginView.style.display = 'none';
   dashView.style.display = 'block';
+  document.body.classList.remove('admin-login-active');
   const elUsuario = document.getElementById('adminUsuarioActual');
   if (elUsuario) elUsuario.textContent = 'Conectado como: ' + (correoAdminActual() || '');
   permisosActuales = await obtenerPermisosUsuarioActual();

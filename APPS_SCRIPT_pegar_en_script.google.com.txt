@@ -1,11 +1,17 @@
 /* ============================================================
    SCRIPT COMPLETO - MAQUINA
    Reemplaza TODO el contenido de tu archivo .gs por esto.
-   Hace 3 cosas cuando la tienda le manda un aviso:
+   Hace lo que la tienda le manda avisar:
      1) pedido_nuevo               -> escribe la fila en Sheets
-                                       + manda correo de confirmación al cliente
+                                       + manda correo de confirmación
+                                       (dice "pagado" o "pendiente"
+                                       según el método de pago)
      2) codigo_panel_recuperacion  -> manda el código del panel por correo
-     3) pedido_eliminado           -> borra la fila de ese pedido en Sheets
+     3) aviso_drop_nuevo           -> manda el correo del drop a todo el
+                                       Voltage Club
+     4) pedido_eliminado           -> borra esa fila de la hoja de cálculo
+     5) voltage_club_bienvenida    -> manda un correo de bienvenida al
+                                       que se acaba de suscribir en la tienda
    ============================================================ */
 
 /* ---------- CONFIGURA ESTO ---------- */
@@ -13,6 +19,10 @@
 // Lo sacas de la URL: https://docs.google.com/spreadsheets/d/ESTE_ES_EL_ID/edit
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos"; // el nombre exacto de la pestaña donde están las columnas
+
+// Tu tienda en vivo, sin barra al final. Se usa para armar el link
+// de "rastrea tu pedido" que va dentro del correo de confirmación.
+const TIENDA_URL = "https://maquina-super.github.io/TIENDA-MAQUINA";
 
 /* ============================================================
    1) FUNCIÓN PRINCIPAL - recibe todos los avisos de la tienda
@@ -30,9 +40,25 @@ function doPost(e) {
       enviarCorreoCodigoPanel(datos.correo, datos.codigo);
     }
 
-    if (datos.tipo === 'pedido_eliminado') {
-      eliminarPedidoDeSheet(datos.codigo_pedido || datos.id);
+    if (datos.tipo === 'aviso_drop_nuevo') {
+      enviarAvisoDropVoltageClub(datos.correos, datos.asunto, datos.mensaje);
     }
+
+    if (datos.tipo === 'pedido_eliminado') {
+      eliminarPedidoDeSheet(datos.id);
+    }
+
+    if (datos.tipo === 'voltage_club_bienvenida') {
+      enviarBienvenidaVoltageClub(datos.correo);
+    }
+
+    // Este tipo lo manda la tienda pero, por ahora, este script no
+    // hace nada con él (no rompe nada si llega, simplemente no
+    // genera ni correo ni fila en Sheets):
+    //   - datos.tipo === 'problema'   (error al guardar un pedido)
+    // Si quieres que también te avise (por Telegram o correo),
+    // dímelo y lo agregamos. "pedido_estado" (cambio de estado) ya
+    // lo avisas por Telegram aparte, según me contaste.
 
     return ContentService.createTextOutput('ok');
   } catch (err) {
@@ -69,36 +95,66 @@ function guardarPedidoEnSheet(pedido) {
     detalle,                                                         // F - Productos
     pedido.envio_municipio || '',                                    // G - Municipio
     direccion,                                                       // H - Dirección
-    pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega',  // I - Método de pago
+    nombreMetodoPago(pedido.metodo_pago),                            // I - Método de pago
     pedido.subtotal || 0,                                            // J - Subtotal
     pedido.costo_envio || 0,                                         // K - Envío
     pedido.total || 0,                                               // L - Total
+    esPagoDeUnaVez(pedido.metodo_pago) ? 'Pagado' : 'Pendiente',      // M - Estado de pago
   ];
 
   hoja.appendRow(fila);
 }
 
+/* Nombre bonito del método de pago para la hoja y el correo. */
+function nombreMetodoPago(metodo) {
+  if (metodo === 'tarjeta') return 'Tarjeta';
+  if (metodo === 'nequi') return 'Nequi';
+  return 'Contraentrega';
+}
+
+/* true si el pago ya se hizo (tarjeta o Nequi), false si queda
+   pendiente para cuando llegue el pedido (contraentrega). */
+function esPagoDeUnaVez(metodo) {
+  return metodo === 'tarjeta' || metodo === 'nequi';
+}
+
 /* ============================================================
-   3) CORREO DE CONFIRMACIÓN DE PEDIDO AL CLIENTE
+   3) BORRA LA FILA DE LA HOJA CUANDO SE ELIMINA UN PEDIDO
+   La tienda solo manda el "id" (el de Firestore). El código que
+   aparece en la columna A de la hoja son los últimos 6 caracteres
+   de ese id en mayúsculas (así arma "codigo_pedido" la tienda), así
+   que buscamos la fila por ese mismo valor.
+   ============================================================ */
+function eliminarPedidoDeSheet(id) {
+  if (!id) return;
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) return;
+
+  const codigo = String(id).slice(-6).toUpperCase();
+  const datos = hoja.getDataRange().getValues();
+
+  // De abajo hacia arriba, para que borrar una fila no desordene
+  // los índices de las que todavía faltan por revisar.
+  for (let i = datos.length - 1; i >= 1; i--) {
+    const codigoFila = String(datos[i][0] || '').toUpperCase();
+    if (codigoFila === codigo) {
+      hoja.deleteRow(i + 1); // +1 porque las filas de Sheets empiezan en 1, no en 0
+    }
+  }
+}
+
+/* ============================================================
+   4) CORREO DE CONFIRMACIÓN DE PEDIDO AL CLIENTE
+   Si pagó de una vez (tarjeta o Nequi) dice "pago confirmado".
+   Si es contraentrega, dice "pedido confirmado, pago pendiente".
    ============================================================ */
 function enviarCorreoConfirmacion(pedido) {
   if (!pedido || !pedido.email_cliente) return;
 
   const codigo = pedido.codigo_pedido || pedido.id;
   const items = pedido.items || [];
-  const esContraentrega = pedido.metodo_pago === 'contraentrega';
-
-  // Textos que cambian según si ya se pagó (tarjeta/Nequi) o es contraentrega
-  const etiquetaEstado = esContraentrega ? '📦 Pedido confirmado' : '✅ Pago confirmado';
-  const asuntoCorreo = esContraentrega
-    ? 'MAQUINA — 📦 Pedido confirmado #' + codigo
-    : 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo;
-  const fraseEstadoTexto = esContraentrega
-    ? '📦 Ya recibimos tu pedido #' + codigo + ' en MAQUINA y lo estamos organizando para el envío. Pagas contraentrega cuando te llegue.'
-    : '✅ Tu pago se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.';
-  const fraseEstadoHtml = esContraentrega
-    ? 'Ya recibimos tu pedido <strong>#' + codigo + '</strong> en MAQUINA y lo estamos <strong>organizando para el envío</strong>. Pagas contraentrega cuando te llegue. Esto fue lo que compraste:'
-    : 'Tu pago se realizó <strong>correctamente</strong> y ya recibimos tu pedido <strong>#' + codigo + '</strong> en MAQUINA. Esto fue lo que compraste:';
+  const yaPago = esPagoDeUnaVez(pedido.metodo_pago);
+  const metodoTexto = nombreMetodoPago(pedido.metodo_pago);
 
   const filasItemsTexto = items.map(function (it) {
     return it.nombre + ' — talla ' + it.talla +
@@ -121,34 +177,58 @@ function enviarCorreoConfirmacion(pedido) {
   const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_municipio]
     .filter(Boolean).join(', ');
 
+  // Link para que el cliente rastree su pedido cuando quiera (le
+  // precarga el número, solo le falta poner su teléfono ahí mismo).
+  const linkSeguimiento = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(pedido.id || '');
+
+  // Encabezado y línea de estado, distintos según si ya pagó o no.
+  const encabezado = yaPago ? '✅ Pago confirmado' : '📦 Pedido confirmado';
+  const asunto = yaPago
+    ? 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo
+    : 'MAQUINA — 📦 Pedido confirmado (pago pendiente), #' + codigo;
+  const lineaEstadoTexto = yaPago
+    ? 'Tu pago por ' + metodoTexto + ' se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
+    : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: pagas $' +
+      Number(pedido.total || 0).toLocaleString('es-CO') + ' contraentrega, cuando te llegue.';
+  const lineaEstadoHtml = yaPago
+    ? 'Tu pago por <strong>' + metodoTexto + '</strong> se realizó <strong>correctamente</strong> y ya recibimos tu pedido ' +
+      '<strong>#' + codigo + '</strong> en MAQUINA. Esto fue lo que compraste:'
+    : 'Ya recibimos tu pedido <strong>#' + codigo + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: pagas contraentrega, cuando te llegue. Esto fue lo que pediste:';
+
   const cuerpoTexto =
     '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
-    fraseEstadoTexto + '\n\n' +
+    lineaEstadoTexto + '\n\n' +
     filasItemsTexto + '\n\n' +
     'Subtotal: $' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '\n' +
     'Envío: $' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '\n' +
-    'Total: $' + Number(pedido.total || 0).toLocaleString('es-CO') + '\n\n' +
+    'Total: $' + Number(pedido.total || 0).toLocaleString('es-CO') + '\n' +
+    'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : 'Pendiente (contraentrega)') + '\n\n' +
     'Dirección de entrega: ' + direccion + '\n' +
-    'Método de pago: ' + (pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega') + '\n\n' +
+    'Método de pago: ' + metodoTexto + '\n\n' +
+    'Rastrea tu pedido cuando quieras: ' + linkSeguimiento + '\n\n' +
     '¿Dudas sobre tu pedido? Escríbenos por WhatsApp: https://wa.me/573239523623\n\n' +
     'Gracias por tu compra ⚡\n— MAQUINA';
 
   const cuerpoHtml =
     '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
       '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
-        '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">' + etiquetaEstado + '</div>' +
+        '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">' + encabezado + '</div>' +
       '</div>' +
       '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
         '<p style="font-size:15px;color:#151512;">¡Hola <strong>' + (pedido.nombre_cliente || '') + '</strong>! ⚡</p>' +
-        '<p style="font-size:14px;color:#333;">' + fraseEstadoHtml + '</p>' +
+        '<p style="font-size:14px;color:#333;">' + lineaEstadoHtml + '</p>' +
         '<table style="width:100%;border-collapse:collapse;margin:14px 0;">' + filasItemsHtml + '</table>' +
         '<table style="width:100%;font-size:14px;color:#151512;border-top:1px solid #eee;padding-top:10px;">' +
           '<tr><td>Subtotal</td><td style="text-align:right;">$' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '</td></tr>' +
           '<tr><td>Envío</td><td style="text-align:right;">$' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '</td></tr>' +
           '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + Number(pedido.total || 0).toLocaleString('es-CO') + '</td></tr>' +
         '</table>' +
+        '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#2f8a1f' : '#b45309') + ';margin-top:6px;">' +
+          (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 Pendiente — se paga contraentrega') +
+        '</p>' +
         '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + direccion + '<br>' +
-        '💳 Método de pago: ' + (pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega') + '</p>' +
+        '💳 Método de pago: ' + metodoTexto + '</p>' +
+        '<a href="' + linkSeguimiento + '" style="display:block;text-align:center;margin:14px 0;padding:12px;border-radius:10px;background:#151512;color:#fff;text-decoration:none;font-size:13px;font-weight:700;">📦 Rastrea tu pedido aquí</a>' +
         '<p style="font-size:13px;color:#666;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp: ' +
         '<a href="https://wa.me/573239523623">https://wa.me/573239523623</a></p>' +
         '<p style="font-size:14px;color:#151512;margin-top:16px;">Gracias por tu compra ⚡<br>— MAQUINA</p>' +
@@ -157,7 +237,7 @@ function enviarCorreoConfirmacion(pedido) {
 
   MailApp.sendEmail({
     to: pedido.email_cliente,
-    subject: asuntoCorreo,
+    subject: asunto,
     body: cuerpoTexto,
     htmlBody: cuerpoHtml,
     name: 'MAQUINA',
@@ -165,7 +245,7 @@ function enviarCorreoConfirmacion(pedido) {
 }
 
 /* ============================================================
-   4) CORREO DE "OLVIDÉ MI CÓDIGO DE ACCESO AL PANEL"
+   5) CORREO DE "OLVIDÉ MI CÓDIGO DE ACCESO AL PANEL"
    ============================================================ */
 function enviarCorreoCodigoPanel(correo, codigo) {
   if (!correo || !codigo) return;
@@ -185,22 +265,59 @@ function enviarCorreoCodigoPanel(correo, codigo) {
 }
 
 /* ============================================================
-   5) BORRA LA FILA DE UN PEDIDO ELIMINADO DESDE EL PANEL
-   La columna A guarda el N° de pedido = últimos 6 caracteres del
-   id de Firestore, en mayúsculas. Se busca de abajo hacia arriba
-   y nunca se toca el encabezado (fila 1).
+   6) AVISO DE DROP NUEVO AL VOLTAGE CLUB
    ============================================================ */
-function eliminarPedidoDeSheet(idPedido) {
-  if (!idPedido) return;
-  const id = String(idPedido);
-  const codigo = id.slice(-6).toUpperCase();
-  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
-  if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
-  const ultima = hoja.getLastRow();
-  if (ultima < 2) return;
-  const valores = hoja.getRange(1, 1, ultima, 1).getValues();
-  for (let i = valores.length - 1; i >= 1; i--) {
-    const celda = String(valores[i][0]).trim();
-    if (celda === codigo || celda === id) hoja.deleteRow(i + 1);
-  }
+function enviarAvisoDropVoltageClub(correos, asunto, mensaje) {
+  if (!correos || !correos.length) return;
+  if (!asunto || !mensaje) return;
+
+  MailApp.sendEmail({
+    to: Session.getActiveUser().getEmail(),
+    bcc: correos.join(','),
+    subject: 'MAQUINA — ' + asunto,
+    body: mensaje,
+    name: 'MAQUINA',
+  });
+}
+
+/* ============================================================
+   7) CORREO DE BIENVENIDA AL VOLTAGE CLUB
+   Se manda directo al correo que la persona acaba de escribir en
+   la tienda (no es bcc, es un correo individual solo para ella),
+   confirmándole que quedó anotada para recibir el aviso de los
+   próximos drops.
+   ============================================================ */
+function enviarBienvenidaVoltageClub(correo) {
+  if (!correo) return;
+
+  const cuerpoTexto =
+    '¡Hola! ⚡\n\n' +
+    'Ya quedaste anotado(a) en el Voltage Club de MAQUINA.\n\n' +
+    'Apenas saquemos una prenda o colección nueva, te vamos a avisar ' +
+    'primero a este correo, antes que a nadie más.\n\n' +
+    '¿No pediste esto tú? Ignora este correo, no pasa nada — no te ' +
+    'vuelve a llegar nada más si no vuelves a escribir tu correo en la tienda.\n\n' +
+    '— MAQUINA';
+
+  const cuerpoHtml =
+    '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
+      '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
+        '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">⚡ Bienvenido al Voltage Club</div>' +
+      '</div>' +
+      '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
+        '<p style="font-size:15px;color:#151512;">¡Hola! ⚡</p>' +
+        '<p style="font-size:14px;color:#333;">Ya quedaste anotado(a) en el <strong>Voltage Club</strong> de MAQUINA.</p>' +
+        '<p style="font-size:14px;color:#333;">Apenas saquemos una prenda o colección nueva, te vamos a avisar <strong>primero a este correo</strong>, antes que a nadie más.</p>' +
+        '<p style="font-size:12px;color:#999;margin-top:16px;">¿No pediste esto tú? Ignora este correo, no pasa nada.</p>' +
+        '<p style="font-size:14px;color:#151512;margin-top:16px;">— MAQUINA ⚡</p>' +
+      '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: correo,
+    subject: 'MAQUINA — ⚡ Ya estás en el Voltage Club',
+    body: cuerpoTexto,
+    htmlBody: cuerpoHtml,
+    name: 'MAQUINA',
+  });
 }
