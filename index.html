@@ -230,6 +230,11 @@ function actualizarCountdown() {
     .map(id => catalogo.find(p => p.id == id))
     .filter(Boolean);
 
+  // Foto de fondo de la caja entera: la misma prenda del drop, bien
+  // grande y difuminada detrás de todo (ver .drop-countdown::after).
+  const fotoFondo = destacados.length ? ((destacados[0].fotos && destacados[0].fotos[destacados[0].colores[0]]) || destacados[0].foto) : null;
+  contenedor.style.setProperty('--drop-bg-img', fotoFondo ? `url("${fotoFondo}")` : 'none');
+
   const label   = document.getElementById('dropLabel');
   const timer   = document.getElementById('dropTimer');
   const sub     = document.getElementById('dropSub');
