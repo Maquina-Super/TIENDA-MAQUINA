@@ -448,21 +448,17 @@ function eliminarProductoAdmin(id) {
    en el panel se vean iguales para todos los visitantes, desde
    cualquier computador o celular — no solo en tu navegador.
    ============================================================ */
-let _dropConfigCache = { fecha: null, fechaFin: null, titulo: '', productos: [] };
+let _dropConfigCache = { fecha: null, titulo: '', productos: [] };
 
 /** Carga la config del drop desde Firestore a memoria. Cada página
     que la necesite debe hacer "await cargarConfigDrop()" al iniciar,
     igual que se hace con cargarCatalogo(). Si todavía no existe el
-    documento (primera vez), deja los valores por defecto de arriba.
-    fechaFin es opcional: si el vendedor la deja vacía, el drop queda
-    disponible para siempre una vez llega "fecha" (como funcionaba
-    antes). Si la pone, la cuenta regresiva pasa a mostrar "Termina
-    en" y, al llegar esa fecha, la sección se marca como agotada. */
+    documento (primera vez), deja los valores por defecto de arriba. */
 async function cargarConfigDrop() {
   try {
     const doc = await fbDb.collection('config').doc('drop').get();
     if (doc.exists) {
-      _dropConfigCache = { fecha: null, fechaFin: null, titulo: '', productos: [], ...doc.data() };
+      _dropConfigCache = { fecha: null, titulo: '', productos: [], ...doc.data() };
     }
   } catch (e) {
     console.error('Error cargando la configuración del drop:', e);

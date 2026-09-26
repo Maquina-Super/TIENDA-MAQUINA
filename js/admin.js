@@ -570,16 +570,15 @@ let intervaloCountdownDrop = null;
 function pintarTabDrop() {
   const config = getConfigDrop();
   const inputFecha = document.getElementById('dropFecha');
-  const inputFechaFin = document.getElementById('dropFechaFin');
   const inputTitulo = document.getElementById('dropTitulo');
   // <input type="datetime-local"> necesita "YYYY-MM-DDTHH:MM" en hora LOCAL del navegador
-  const pad = n => String(n).padStart(2, '0');
-  const aInputLocal = iso => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  inputFecha.value = config.fecha ? aInputLocal(config.fecha) : '';
-  inputFechaFin.value = config.fechaFin ? aInputLocal(config.fechaFin) : '';
+  if (config.fecha) {
+    const d = new Date(config.fecha);
+    const pad = n => String(n).padStart(2, '0');
+    inputFecha.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    inputFecha.value = '';
+  }
   inputTitulo.value = config.titulo || '';
 
   const productos = obtenerProductosAdmin();
@@ -615,58 +614,33 @@ document.getElementById('dropProductosLista').addEventListener('change', actuali
 function actualizarCountdownDrop() {
   const cont = document.getElementById('dropCountdownStats');
   const valorFecha = document.getElementById('dropFecha').value;
-  const valorFechaFin = document.getElementById('dropFechaFin').value;
   if (!valorFecha) {
     cont.innerHTML = `<div class="admin-stat"><b>—</b><span>Todavía no hay fecha configurada</span></div>`;
     return;
   }
-  const ahora = Date.now();
-  const restanteInicio = new Date(valorFecha).getTime() - ahora;
-  const restanteFin = valorFechaFin ? (new Date(valorFechaFin).getTime() - ahora) : null;
-
-  const pintarBloques = (restante, etiquetaExtra) => {
-    const dias = Math.floor(restante / 86400000);
-    const horas = Math.floor((restante % 86400000) / 3600000);
-    const minutos = Math.floor((restante % 3600000) / 60000);
-    return `
-      <div class="admin-stat admin-stat-acento"><b>${dias}</b><span>Días${etiquetaExtra}</span></div>
-      <div class="admin-stat admin-stat-sage"><b>${horas}</b><span>Horas${etiquetaExtra}</span></div>
-      <div class="admin-stat admin-stat-butter"><b>${minutos}</b><span>Minutos${etiquetaExtra}</span></div>
-    `;
-  };
-
-  if (restanteInicio > 0) {
-    // todavía no lanza: se ve borroso en la portada
-    cont.innerHTML = pintarBloques(restanteInicio, ' para lanzar') +
-      (valorFechaFin ? `<div class="admin-stat"><b>${new Date(valorFechaFin).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b><span>Cierra el drop</span></div>` : '');
+  const restante = new Date(valorFecha).getTime() - Date.now();
+  if (restante <= 0) {
+    cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>🔥 En vivo</b><span>El drop ya está disponible en la tienda</span></div>`;
     return;
   }
-  if (restanteFin !== null && restanteFin <= 0) {
-    cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>⏹ Terminado</b><span>Ya pasó la fecha de fin, la portada avisa que se acabó</span></div>`;
-    return;
-  }
-  if (restanteFin !== null) {
-    cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>🔥 En vivo</b><span>Disponible ahora en la tienda</span></div>` + pintarBloques(restanteFin, ' para cerrar');
-    return;
-  }
-  cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>🔥 En vivo</b><span>El drop ya está disponible en la tienda, sin fecha de cierre</span></div>`;
+  const dias = Math.floor(restante / 86400000);
+  const horas = Math.floor((restante % 86400000) / 3600000);
+  const minutos = Math.floor((restante % 3600000) / 60000);
+  cont.innerHTML = `
+    <div class="admin-stat admin-stat-acento"><b>${dias}</b><span>Días</span></div>
+    <div class="admin-stat admin-stat-sage"><b>${horas}</b><span>Horas</span></div>
+    <div class="admin-stat admin-stat-butter"><b>${minutos}</b><span>Minutos</span></div>
+  `;
 }
 document.getElementById('dropFecha').addEventListener('input', actualizarCountdownDrop);
-document.getElementById('dropFechaFin').addEventListener('input', actualizarCountdownDrop);
 
 document.getElementById('btnGuardarDrop').addEventListener('click', () => {
   const inputFecha = document.getElementById('dropFecha');
-  const inputFechaFin = document.getElementById('dropFechaFin');
   const inputTitulo = document.getElementById('dropTitulo');
   const idsElegidos = Array.from(document.querySelectorAll('.chk-drop-producto:checked')).map(chk => Number(chk.value) || chk.value);
   // el <input datetime-local> ya está en hora local -> new Date(...) lo interpreta como local y toISOString() lo pasa a UTC para guardarlo sin ambigüedad
   const fechaISO = inputFecha.value ? new Date(inputFecha.value).toISOString() : null;
-  const fechaFinISO = inputFechaFin.value ? new Date(inputFechaFin.value).toISOString() : null;
-  if (fechaFinISO && fechaISO && fechaFinISO <= fechaISO) {
-    showToast('La fecha de fin debe ser después de la fecha de lanzamiento', true);
-    return;
-  }
-  guardarConfigDropAdmin({ fecha: fechaISO, fechaFin: fechaFinISO, titulo: inputTitulo.value.trim(), productos: idsElegidos });
+  guardarConfigDropAdmin({ fecha: fechaISO, titulo: inputTitulo.value.trim(), productos: idsElegidos });
   showToast('Configuración del drop guardada ✓');
 });
 

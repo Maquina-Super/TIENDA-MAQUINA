@@ -32,11 +32,7 @@
     <form id="ydResenaForm" class="yd-resena-form">
       <div class="yd-lbl">Deja tu reseña</div>
       <div class="yd-resena-estrellas" id="resEstrellas" data-valor="0">
-        <button type="button" data-v="1" aria-label="1 estrellas">☆</button>
-        <button type="button" data-v="2" aria-label="2 estrellas">☆</button>
-        <button type="button" data-v="3" aria-label="3 estrellas">☆</button>
-        <button type="button" data-v="4" aria-label="4 estrellas">☆</button>
-        <button type="button" data-v="5" aria-label="5 estrellas">☆</button>
+        ${[1,2,3,4,5].map(n => `<button type="button" data-v="${n}" aria-label="${n} estrellas">☆</button>`).join('')}
       </div>
       <input type="text" id="resNombre" maxlength="60" placeholder="Tu nombre">
       <textarea id="resComentario" maxlength="500" placeholder="¿Qué te pareció? (opcional)"></textarea>

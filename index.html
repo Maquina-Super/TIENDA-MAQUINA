@@ -56,21 +56,6 @@
 </section>
 
 <!-- ========== CUENTA REGRESIVA DEL PRÓXIMO DROP ========== -->
-<!-- siluetas usadas para recortar la foto del producto con la forma
-     de la prenda (buso/camiseta/chaqueta) mientras está borrosa -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <clipPath id="dropClipTee" clipPathUnits="objectBoundingBox">
-      <path d="M0.38 0.1091 L0.20 0.2182 L0.10 0.3636 L0.24 0.4364 L0.30 0.3636 L0.30 0.9091 C0.30 0.9364 0.32 0.9545 0.35 0.9545 L0.65 0.9545 C0.68 0.9545 0.70 0.9364 0.70 0.9091 L0.70 0.3636 L0.76 0.4364 L0.90 0.3636 L0.80 0.2182 L0.62 0.1091 C0.58 0.1818 0.42 0.1818 0.38 0.1091 Z"/>
-    </clipPath>
-    <clipPath id="dropClipHoodie" clipPathUnits="objectBoundingBox">
-      <path d="M0.50 0.0727 C0.40 0.0727 0.33 0.1273 0.30 0.2 L0.18 0.2727 C0.14 0.3 0.13 0.3455 0.16 0.3818 L0.24 0.4545 C0.26 0.4273 0.29 0.4091 0.30 0.4091 L0.30 0.9091 C0.30 0.9364 0.32 0.9545 0.35 0.9545 L0.65 0.9545 C0.68 0.9545 0.70 0.9364 0.70 0.9091 L0.70 0.4091 C0.71 0.4091 0.74 0.4273 0.76 0.4545 L0.84 0.3818 C0.87 0.3455 0.86 0.3 0.82 0.2727 L0.70 0.2 C0.67 0.1273 0.60 0.0727 0.50 0.0727 Z"/>
-    </clipPath>
-    <clipPath id="dropClipJacket" clipPathUnits="objectBoundingBox">
-      <path d="M0.50 0.0727 L0.34 0.1455 L0.18 0.2364 L0.10 0.3818 L0.22 0.4364 L0.30 0.3455 L0.30 0.9091 C0.30 0.9364 0.32 0.9545 0.35 0.9545 L0.65 0.9545 C0.68 0.9545 0.70 0.9364 0.70 0.9091 L0.70 0.3455 L0.78 0.4364 L0.90 0.3818 L0.82 0.2364 L0.66 0.1455 Z"/>
-    </clipPath>
-  </defs>
-</svg>
 <section class="drop-countdown reveal-scale" id="dropCountdown">
   <div class="drop-countdown-inner">
     <div class="drop-countdown-label" id="dropLabel">Próximo drop en</div>
@@ -83,7 +68,6 @@
       <div class="drop-sep">:</div>
       <div class="drop-unit"><span id="dtSeg">--</span><small>seg</small></div>
     </div>
-    <div class="drop-countdown-sub" id="dropSub" hidden></div>
     <div class="drop-live-grid" id="dropLiveGrid" hidden></div>
     <a href="#club" class="btn drop-countdown-cta" id="dropCta">Avísenme primero</a>
   </div>
@@ -144,64 +128,58 @@ ydRenderBeneficios('ydInfo');
    ============================================================ */
 const FECHA_DROP_RESPALDO = new Date('2026-09-15T00:00:00-05:00');
 
-/** Qué clip-path (silueta) usar según el tipo de prenda, para que la
-    foto borrosa del teaser se vea recortada con la forma real de lo
-    que se viene — buso, camiseta o chaqueta — y no como un cuadrado. */
-function dropClipPorTipo(icono) {
-  if (icono === 'hoodie') return 'url(#dropClipHoodie)';
-  if (icono === 'jacket') return 'url(#dropClipJacket)';
-  return 'url(#dropClipTee)';
-}
-
 /** Pinta la fila de productos del drop en #dropLiveGrid.
-    estado: 'teaser'    -> el contador todavía está corriendo: la
-                            prenda se ve GRANDE, con su silueta real
-                            y borrosa, sin link a la ficha (para que
-                            no se note el diseño todavía).
-            'live'      -> ya llegó la fecha del lanzamiento: foto
-                            nítida, clickeable, y con la cantidad que
-                            queda en inventario.
-            'terminado' -> ya pasó la fecha de fin configurada: se
-                            avisa que el drop se acabó. */
-function pintarProductosDrop(destacados, estado) {
+    esTeaser=true  -> el contador todavía está corriendo: se ve la
+                       foto BORROSA, de adelanto, sin link a la ficha.
+    esTeaser=false -> ya llegó la fecha/hora del drop: foto nítida
+                       y clickeable, como ya funcionaba. */
+function pintarProductosDrop(destacados, esTeaser) {
   const grid = document.getElementById('dropLiveGrid');
   if (!grid) return;
   if (!destacados.length) { grid.hidden = true; grid.innerHTML = ''; return; }
 
-  const esTeaser = estado === 'teaser';
-  const esTerminado = estado === 'terminado';
   grid.hidden = false;
   grid.innerHTML = destacados.map(p => {
     const fotoFrente = (p.fotos && p.fotos[p.colores[0]]) || p.foto;
     const fotoAtras = !esTeaser && p.fotosTrasera && p.fotosTrasera[p.colores[0]];
-    const clip = dropClipPorTipo(p.icono);
     const visual = fotoFrente
-      ? `<img src="${fotoFrente}" class="drop-live-img drop-live-img-frente" style="clip-path:${clip};-webkit-clip-path:${clip};" alt="${p.nombre}" loading="lazy">${fotoAtras ? `<img src="${fotoAtras}" class="drop-live-img drop-live-img-atras" style="clip-path:${clip};-webkit-clip-path:${clip};" alt="${p.nombre} de espaldas" loading="lazy">` : ''}`
+      ? `<img src="${fotoFrente}" class="drop-live-img drop-live-img-frente" alt="${p.nombre}" loading="lazy">${fotoAtras ? `<img src="${fotoAtras}" class="drop-live-img drop-live-img-atras" alt="${p.nombre} de espaldas" loading="lazy">` : ''}`
       : iconoProducto(p.icono, p.colores[0]);
-
-    let etiqueta = '';
-    if (esTeaser) {
-      etiqueta = '<span class="drop-live-teaser-tag">Muy pronto</span>';
-    } else if (esTerminado) {
-      etiqueta = '<span class="drop-live-teaser-tag drop-live-tag-fin">Se acabó</span>';
-    } else {
-      const cantidad = stockTotalProducto(p);
-      etiqueta = cantidad > 0
-        ? `<span class="drop-stock-pill${cantidad <= STOCK_BAJO_UMBRAL ? ' is-bajo' : ''}">${cantidad <= STOCK_BAJO_UMBRAL ? '¡Quedan solo ' + cantidad + '!' : 'Quedan ' + cantidad}</span>`
-        : '<span class="drop-stock-pill is-agotado">Agotado</span>';
-    }
-
     const cuerpo = `
-      <div class="drop-live-visual${esTeaser ? ' is-teaser' : ''}${esTerminado ? ' is-terminado' : ''}">${visual}${etiqueta}</div>
+      <div class="drop-live-visual${esTeaser ? ' is-teaser' : ''}">${visual}${esTeaser ? '<span class="drop-live-teaser-tag">Muy pronto</span>' : ''}</div>
       <span>${p.nombre}</span>`;
-    // Mientras es teaser (o ya terminó) no se linkea a la ficha del producto.
-    return (esTeaser || esTerminado)
+    // Mientras es teaser no se linkea a la ficha del producto (todavía no se vende).
+    return esTeaser
       ? `<div class="drop-live-item">${cuerpo}</div>`
       : `<a class="drop-live-item" href="producto.html?id=${p.id}">${cuerpo}</a>`;
   }).join('');
 }
 
-function pintarTimer(diff) {
+function actualizarCountdown() {
+  const contenedor = document.getElementById('dropCountdown');
+  if (!contenedor) return;
+  const config = getConfigDrop();
+  const fechaObjetivo = config.fecha ? new Date(config.fecha) : FECHA_DROP_RESPALDO;
+  const diff = fechaObjetivo - new Date();
+
+  const idsElegidos = config.productos || [];
+  const catalogo = getCatalogo();
+  const destacados = idsElegidos
+    .map(id => catalogo.find(p => p.id == id))
+    .filter(Boolean);
+
+  if (diff <= 0) {
+    document.getElementById('dropLabel').textContent = config.titulo || '¡Ya está aquí!';
+    document.getElementById('dropTimer').style.display = 'none';
+    document.getElementById('dropCta').textContent = 'Ver la colección';
+    document.getElementById('dropCta').href = 'productos.html';
+    pintarProductosDrop(destacados, false);
+    return;
+  }
+
+  // Contador todavía corriendo: se muestra el mismo producto, pero borroso.
+  pintarProductosDrop(destacados, true);
+
   const dias  = Math.floor(diff / 86400000);
   const horas = Math.floor((diff % 86400000) / 3600000);
   const min   = Math.floor((diff % 3600000) / 60000);
@@ -210,69 +188,6 @@ function pintarTimer(diff) {
   document.getElementById('dtHoras').textContent = String(horas).padStart(2, '0');
   document.getElementById('dtMin').textContent   = String(min).padStart(2, '0');
   document.getElementById('dtSeg').textContent   = String(seg).padStart(2, '0');
-}
-
-function actualizarCountdown() {
-  const contenedor = document.getElementById('dropCountdown');
-  if (!contenedor) return;
-  const config = getConfigDrop();
-  const fechaInicio = config.fecha ? new Date(config.fecha) : FECHA_DROP_RESPALDO;
-  const fechaFin = config.fechaFin ? new Date(config.fechaFin) : null;
-  const ahora = new Date();
-  const diffInicio = fechaInicio - ahora;
-  const diffFin = fechaFin ? fechaFin - ahora : null;
-
-  const idsElegidos = config.productos || [];
-  const catalogo = getCatalogo();
-  const destacados = idsElegidos
-    .map(id => catalogo.find(p => p.id == id))
-    .filter(Boolean);
-
-  const label   = document.getElementById('dropLabel');
-  const timer   = document.getElementById('dropTimer');
-  const sub     = document.getElementById('dropSub');
-  const cta     = document.getElementById('dropCta');
-
-  // ---- todavía no lanza: grande, borroso, con la forma de la prenda ----
-  if (diffInicio > 0) {
-    label.textContent = 'Próximo drop en';
-    timer.style.display = '';
-    sub.hidden = true;
-    cta.textContent = 'Avísenme primero';
-    cta.href = '#club';
-    pintarProductosDrop(destacados, 'teaser');
-    pintarTimer(diffInicio);
-    return;
-  }
-
-  // ---- ya lanzó, pero se configuró una fecha de fin y ya pasó ----
-  if (diffFin !== null && diffFin <= 0) {
-    label.textContent = 'Este drop ya se acabó';
-    timer.style.display = 'none';
-    sub.hidden = true;
-    cta.textContent = 'Ver toda la colección';
-    cta.href = 'productos.html';
-    pintarProductosDrop(destacados, 'terminado');
-    return;
-  }
-
-  // ---- en vivo: foto nítida, clickeable, con la cantidad disponible ----
-  label.textContent = config.titulo || '¡Ya está aquí!';
-  cta.textContent = 'Ver la colección';
-  cta.href = 'productos.html';
-  pintarProductosDrop(destacados, 'live');
-
-  if (diffFin !== null) {
-    // hay fecha de fin: el mismo reloj ahora cuenta lo que falta para que cierre
-    sub.hidden = false;
-    sub.textContent = 'Este drop termina en';
-    timer.style.display = '';
-    pintarTimer(diffFin);
-  } else {
-    // sin fecha de fin: queda disponible siempre, no hace falta reloj
-    timer.style.display = 'none';
-    sub.hidden = true;
-  }
 }
 actualizarCountdown();
 setInterval(actualizarCountdown, 1000);

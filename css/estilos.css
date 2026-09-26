@@ -464,7 +464,7 @@ body.menu-open{overflow:hidden;}
   font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;
   color:var(--acento);margin-bottom:20px;
 }
-.drop-countdown-timer{display:flex;align-items:flex-start;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.drop-countdown-timer{display:flex;align-items:flex-start;justify-content:center;gap:8px;margin-bottom:30px;flex-wrap:wrap;}
 .drop-unit{display:flex;flex-direction:column;align-items:center;min-width:58px;}
 .drop-unit span{font-family:'Anton',sans-serif;font-size:clamp(34px,6vw,58px);line-height:1;color:var(--white);}
 .drop-unit small{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#a7a49c;margin-top:4px;}
@@ -473,77 +473,41 @@ body.menu-open{overflow:hidden;}
 .drop-countdown-cta:hover{background:var(--acento);color:var(--acento-ink);}
 @media (max-width:520px){.drop-unit{min-width:46px;}}
 
-/* ---- texto pequeño que aparece SOLO cuando el drop ya está en vivo
-   y además se configuró una fecha de fin: aclara que el reloj de
-   arriba ya no cuenta para el lanzamiento sino para el cierre ---- */
-.drop-countdown-sub{
-  font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--acento);margin:-4px 0 14px;
-}
-.drop-countdown-sub[hidden]{display:none;}
-
-/* ---- fila de productos del drop, elegidos en el panel (pestaña
-   "Drop"): mientras es adelanto se ven grandes y con la forma real
-   de la prenda (recortadas con un clip-path de camiseta/buso/
-   chaqueta) para generar expectativa sin mostrar el diseño; cuando
-   el drop ya está en vivo se ven nítidas, clickeables y con la
-   cantidad que queda en inventario ---- */
+/* ---- cuando el contador llega a cero: en vez del reloj, se ve una
+   fila de los productos que el vendedor eligió en el panel (pestaña
+   "Drop"), cada uno con su foto de frente y, si tiene, la de
+   espaldas al pasar el mouse (o tocar en celular) ---- */
 .drop-live-grid{
-  display:flex;gap:28px;justify-content:center;flex-wrap:wrap;margin-bottom:30px;
+  display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:30px;
 }
 .drop-live-grid[hidden]{display:none;}
 .drop-live-item{
-  display:flex;flex-direction:column;align-items:center;gap:12px;width:min(260px,72vw);
+  display:flex;flex-direction:column;align-items:center;gap:10px;width:130px;
   color:var(--white);text-align:center;
 }
 .drop-live-visual{
-  width:100%;aspect-ratio:100/110;position:relative;
+  width:110px;height:110px;border-radius:18px;overflow:hidden;position:relative;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
 }
 .drop-live-visual svg{width:60%;height:60%;position:absolute;top:20%;left:20%;}
-.drop-live-img{
-  width:100%;height:100%;object-fit:cover;position:absolute;inset:0;
-  transition:opacity .25s ease,transform .35s ease;
-  filter:drop-shadow(0 10px 24px rgba(0,0,0,.45));
-}
-.drop-live-img-atras{opacity:0;}
-.drop-live-item:hover .drop-live-img-frente{transform:scale(1.04);}
-.drop-live-item:hover .drop-live-img-atras{opacity:1;transform:scale(1.04);}
-.drop-live-item span{font-size:13.5px;font-weight:600;}
+.drop-live-img{width:100%;height:100%;object-fit:cover;transition:opacity .25s ease,transform .35s ease;}
+.drop-live-img-atras{position:absolute;inset:0;opacity:0;}
+.drop-live-item:hover .drop-live-img-frente{transform:scale(1.06);}
+.drop-live-item:hover .drop-live-img-atras{opacity:1;transform:scale(1.06);}
+.drop-live-item span{font-size:12.5px;font-weight:600;}
 
 /* ---- mientras el contador SIGUE corriendo (antes de la fecha/hora
-   del drop): se ve la misma prenda elegida en el panel, grande, con
-   su silueta real pero bien borrosa, a modo de adelanto. Al llegar
-   la fecha, esta clase deja de agregarse y la foto se ve nítida
-   (ver actualizarCountdown en index.html) ---- */
-.drop-live-visual.is-teaser .drop-live-img{filter:blur(18px) saturate(1.2);transform:scale(1.25);}
-.drop-live-visual.is-teaser{
-  cursor:default;
-  filter:drop-shadow(0 0 40px var(--acento-glow));
-}
+   del drop): se ve el mismo producto elegido en el panel, pero
+   borroso, a modo de adelanto. Al llegar la fecha, esta clase deja
+   de agregarse y la foto se ve nítida (ver actualizarCountdown en
+   index.html) ---- */
+.drop-live-visual.is-teaser{cursor:default;}
+.drop-live-visual.is-teaser .drop-live-img{filter:blur(14px) saturate(1.15);transform:scale(1.2);}
 .drop-live-teaser-tag{
-  position:absolute;left:50%;bottom:6%;transform:translateX(-50%);
-  font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:#fff;background:rgba(0,0,0,.55);
-  border:1px solid rgba(255,255,255,.25);border-radius:999px;
-  padding:6px 16px;white-space:nowrap;backdrop-filter:blur(2px);
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:#fff;background:rgba(0,0,0,.4);text-align:center;padding:0 8px;
 }
-
-/* ---- ya llegó el fin del drop (fechaFin configurada y ya pasó):
-   la prenda se ve apagada, en gris, con un aviso de que se acabó ---- */
-.drop-live-visual.is-terminado .drop-live-img{filter:grayscale(1) brightness(.55);}
-.drop-live-tag-fin{background:rgba(0,0,0,.7);border-color:rgba(255,255,255,.35);}
-
-/* ---- pastilla con la cantidad disponible: se pinta sola con el
-   stock real del producto (mismo dato que usa el resto de la
-   tienda), así que baja/sube automáticamente con cada venta ---- */
-.drop-stock-pill{
-  position:absolute;left:50%;bottom:6%;transform:translateX(-50%);
-  font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--acento-ink);background:var(--acento);
-  border-radius:999px;padding:6px 16px;white-space:nowrap;
-}
-.drop-stock-pill.is-bajo{background:#f2a33d;}
-.drop-stock-pill.is-agotado{background:#3a3a36;color:#fff;}
 
 /* ---------- BANNERS ---------- */
 .banners{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:70px clamp(20px,5vw,56px) 0;}
