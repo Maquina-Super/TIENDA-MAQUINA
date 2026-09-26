@@ -15,6 +15,14 @@
 <style>
   #adminLoginView{ background:#060706; }
   html:has(#adminLoginView), body:has(#adminLoginView){ height:100%; overflow:hidden; }
+  html:has(#adminLoginView), body:has(#adminLoginView){
+    scrollbar-width:none; -ms-overflow-style:none;
+  }
+  html:has(#adminLoginView)::-webkit-scrollbar, body:has(#adminLoginView)::-webkit-scrollbar{
+    width:0; height:0; display:none;
+  }
+  #adminLoginView .gl-page{ scrollbar-width:none; -ms-overflow-style:none; }
+  #adminLoginView .gl-page::-webkit-scrollbar{ width:0; height:0; display:none; }
   #adminLoginView .gl-bg{
     position:fixed; inset:0; z-index:0;
     background-color:#060706;
