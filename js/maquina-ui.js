@@ -153,23 +153,19 @@ const YD_ICONOS = {
 /* ============================================================
    CALIFICACIONES
    ------------------------------------------------------------
-   Si el producto trae calificación real (campos "rating" y
-   "resenas", que se pueden llenar desde el panel), se muestra
-   esa. Si todavía no tiene, se calcula una estable a partir de
-   su id para que la tarjeta no quede coja.
-   Para APAGAR las estrellas mientras no tengas reseñas reales,
-   cambia esta línea a false:
+   Los campos "rating" y "resenas" del producto son el promedio
+   real de las reseñas de clientes (ver crearResena en store.js,
+   que los recalcula sola cada vez que entra una reseña nueva).
+   Si el producto todavía no tiene ninguna reseña, no se inventa
+   ningún número: sencillamente no se muestran estrellas hasta que
+   la primera reseña real llegue.
    ============================================================ */
-const YD_MOSTRAR_CALIFICACIONES = true;
-
 function ydCalificacion(p) {
   if (!p) return null;
-  if (p.rating) return { valor: Number(p.rating).toFixed(1), resenas: Number(p.resenas) || 0 };
-  if (!YD_MOSTRAR_CALIFICACIONES) return null;
-  const n = Math.abs(Number(String(p.id).replace(/\D/g, "")) || String(p.nombre || "").length);
-  const valor = (4.4 + ((n * 7) % 6) / 10).toFixed(1);   // entre 4.4 y 4.9
-  const resenas = 48 + ((n * 37) % 120);                  // entre 48 y 167
-  return { valor, resenas };
+  if (p.rating && Number(p.resenas) > 0) {
+    return { valor: Number(p.rating).toFixed(1), resenas: Number(p.resenas) };
+  }
+  return null;
 }
 
 function ydEstrellasHtml(p) {

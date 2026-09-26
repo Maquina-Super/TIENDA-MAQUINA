@@ -799,6 +799,74 @@ async function eliminarPedidoAdmin(id) {
   }
 }
 
+/* ============================================================
+   RESEÑAS REALES DE CLIENTES
+   ------------------------------------------------------------
+   Antes, si un producto no tenía "rating"/"resenas" cargados a
+   mano, la tarjeta se inventaba un número solo para no quedar
+   coja (ver YD_MOSTRAR_CALIFICACIONES en maquina-ui.js, ya
+   apagado). Esto de aquí reemplaza eso por reseñas de verdad:
+   cada una se guarda en la colección "resenas", y el promedio del
+   producto (p.rating / p.resenas, los mismos campos que ya leía
+   todo el código) se recalcula solo cada vez que entra una nueva.
+   ============================================================ */
+
+/** Trae las reseñas reales de un producto, más recientes primero. */
+async function listarResenas(productoId) {
+  try {
+    const snap = await fbDb.collection('resenas')
+      .where('productoId', '==', String(productoId))
+      .orderBy('fecha', 'desc')
+      .limit(50)
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Guarda una reseña real y actualiza el promedio del producto.
+    Un mismo navegador solo puede dejar una reseña por producto
+    (se recuerda en localStorage), para frenar el spam sin tener
+    que armar un sistema de "solo quien compró" todavía. */
+async function crearResena(productoId, nombreInput, estrellasInput, comentarioInput) {
+  const id = String(productoId);
+  const nombre = String(nombreInput || '').trim().slice(0, 60);
+  const comentario = String(comentarioInput || '').trim().slice(0, 500);
+  const estrellas = Math.min(5, Math.max(1, Math.round(Number(estrellasInput) || 0)));
+
+  if (!nombre) return { ok: false, msg: 'Escribe tu nombre.' };
+  if (!estrellas) return { ok: false, msg: 'Elige cuántas estrellas le das.' };
+  if (localStorage.getItem('yd_resena_' + id)) {
+    return { ok: false, msg: 'Ya dejaste una reseña para este producto desde este navegador.' };
+  }
+
+  try {
+    await fbDb.collection('resenas').add({
+      productoId: id, nombre, estrellas, comentario,
+      fecha: new Date().toISOString(),
+    });
+
+    // Recalcula el promedio dentro de una transacción, para que
+    // dos reseñas que lleguen casi al mismo tiempo no se pisen.
+    const ref = fbDb.collection('productos').doc(id);
+    await fbDb.runTransaction(async (t) => {
+      const doc = await t.get(ref);
+      const actual = doc.exists ? doc.data() : {};
+      const conteoActual = Number(actual.resenas) || 0;
+      const promActual = Number(actual.rating) || 0;
+      const nuevoConteo = conteoActual + 1;
+      const nuevoProm = ((promActual * conteoActual) + estrellas) / nuevoConteo;
+      t.set(ref, { rating: Number(nuevoProm.toFixed(2)), resenas: nuevoConteo }, { merge: true });
+    });
+
+    localStorage.setItem('yd_resena_' + id, '1');
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, msg: 'No hay conexión a internet.' };
+  }
+}
+
 /* ---------- SOLICITUDES DE SERVICIO (cambios, garantías, quejas) ----------
    extra puede traer:
      foto:      dataURL (jpeg) ya comprimido, o null

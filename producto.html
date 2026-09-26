@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <meta property="og:type" content="product">
-<meta property="og:image" content="https://maquina.com/img/portada.jpg">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/portada.jpg">
 <meta name="theme-color" content="#0a0a0a">
 <link rel="stylesheet" href="css/estilos.css?v=4">
 <link rel="stylesheet" href="css/maquina-ui.css?v=8">
@@ -23,6 +23,23 @@
   <div class="yd-pdp" id="ydPdp">
     <!-- se rellena con JS -->
   </div>
+
+  <section class="yd-resenas" id="ydResenas">
+    <div class="yd-sec-head"><h2>Reseñas</h2></div>
+    <div id="ydResenasLista" class="yd-resenas-lista">
+      <p class="yd-resenas-vacio">Cargando reseñas…</p>
+    </div>
+    <form id="ydResenaForm" class="yd-resena-form">
+      <div class="yd-lbl">Deja tu reseña</div>
+      <div class="yd-resena-estrellas" id="resEstrellas" data-valor="0">
+        ${[1,2,3,4,5].map(n => `<button type="button" data-v="${n}" aria-label="${n} estrellas">☆</button>`).join('')}
+      </div>
+      <input type="text" id="resNombre" maxlength="60" placeholder="Tu nombre">
+      <textarea id="resComentario" maxlength="500" placeholder="¿Qué te pareció? (opcional)"></textarea>
+      <button type="submit" class="yd-btn-second" id="resEnviar">Publicar reseña</button>
+      <p class="yd-resena-msg" id="resMsg"></p>
+    </form>
+  </section>
 
   <section class="yd-rel" id="ydRel" hidden>
     <div class="yd-sec-head"><h2>También te puede interesar</h2></div>
@@ -212,6 +229,77 @@ addBtn.addEventListener('click', () => { ydAgregar(p, sel); });
 document.getElementById('pdpBuy').addEventListener('click', () => {
   if (ydAgregar(p, sel, true)) window.location.href = 'carrito.html';
 });
+
+/* ---------- reseñas reales ---------- */
+const listaResenasEl = document.getElementById('ydResenasLista');
+const formResena = document.getElementById('ydResenaForm');
+const estrellasEl = document.getElementById('resEstrellas');
+const resMsg = document.getElementById('resMsg');
+
+function pintarResenas(lista) {
+  if (!lista.length) {
+    listaResenasEl.innerHTML = '<p class="yd-resenas-vacio">Todavía no hay reseñas de este producto. ¡Sé el primero en opinar!</p>';
+    return;
+  }
+  listaResenasEl.innerHTML = lista.map(r => {
+    const estr = '★'.repeat(r.estrellas) + '☆'.repeat(5 - r.estrellas);
+    const fecha = r.fecha ? new Date(r.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    return `
+      <div class="yd-resena-item">
+        <div class="yd-resena-top"><b>${r.nombre}</b><span class="yd-resena-estr">${estr}</span></div>
+        ${r.comentario ? `<p>${r.comentario}</p>` : ''}
+        <span class="yd-resena-fecha">${fecha}</span>
+      </div>`;
+  }).join('');
+}
+
+listarResenas(p.id).then(pintarResenas);
+
+// Si este navegador ya opinó de este producto, no le muestra el
+// formulario de nuevo (crearResena también lo bloquea del lado
+// del servidor, esto es solo para no confundir con un form inútil).
+if (localStorage.getItem('yd_resena_' + p.id)) {
+  formResena.innerHTML = '<p class="yd-resenas-vacio">Ya dejaste tu reseña de este producto. ¡Gracias! 🙌</p>';
+} else {
+  let estrellasElegidas = 0;
+  estrellasEl.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      estrellasElegidas = Number(btn.dataset.v);
+      estrellasEl.dataset.valor = estrellasElegidas;
+      estrellasEl.querySelectorAll('button').forEach(b => {
+        b.textContent = Number(b.dataset.v) <= estrellasElegidas ? '★' : '☆';
+      });
+    });
+  });
+
+  formResena.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('resEnviar');
+    btn.disabled = true;
+    const res = await crearResena(
+      p.id,
+      document.getElementById('resNombre').value,
+      estrellasElegidas,
+      document.getElementById('resComentario').value,
+    );
+    btn.disabled = false;
+    if (res.ok) {
+      resMsg.textContent = '¡Gracias por tu reseña!';
+      resMsg.className = 'yd-resena-msg is-ok';
+      formResena.reset();
+      estrellasElegidas = 0;
+      estrellasEl.dataset.valor = 0;
+      estrellasEl.querySelectorAll('button').forEach(b => b.textContent = '☆');
+      listarResenas(p.id).then(pintarResenas);
+      setTimeout(() => {
+        formResena.innerHTML = '<p class="yd-resenas-vacio">Ya dejaste tu reseña de este producto. ¡Gracias! 🙌</p>';
+      }, 1500);
+    } else {
+      resMsg.textContent = res.msg;
+      resMsg.className = 'yd-resena-msg is-error';
+    }
+  });
+}
 
 /* ---------- productos relacionados ---------- */
 const activos = productosActivos();

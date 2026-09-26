@@ -7,4 +7,4 @@ Disallow: /registro.html
 Disallow: /favoritos.html
 Disallow: /seguimiento.html
 
-Sitemap: https://maquina.com/sitemap.xml
+Sitemap: https://maquina-super.github.io/TIENDA-MAQUINA/sitemap.xml
