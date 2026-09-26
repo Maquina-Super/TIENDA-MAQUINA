@@ -936,6 +936,9 @@ async function suscribirVoltageClub(email) {
       correo,
       fecha: Date.now(),
     }, { merge: true });
+    // Correo de bienvenida al que se acaba de suscribir, confirmándole
+    // que ya quedó anotado para que le avisen de los próximos drops.
+    enviarAviso({ tipo: 'voltage_club_bienvenida', correo });
     return { ok: true };
   } catch (e) {
     // sin internet: ya quedó guardado localmente, se puede reintentar después

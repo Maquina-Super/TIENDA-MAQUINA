@@ -132,6 +132,7 @@ function iniciarVigiaInactividadAdmin() {
       await cerrarSesionAdmin();
       dashView.style.display = 'none';
       loginView.style.display = 'block';
+      document.body.classList.add('admin-login-active');
       showToast('Se cerró tu sesión por estar inactivo mucho rato.', true);
     }
   }, 60 * 1000); // revisa cada minuto
@@ -140,6 +141,7 @@ function iniciarVigiaInactividadAdmin() {
 async function entrarAlPanel() {
   loginView.style.display = 'none';
   dashView.style.display = 'block';
+  document.body.classList.remove('admin-login-active');
   const elUsuario = document.getElementById('adminUsuarioActual');
   if (elUsuario) elUsuario.textContent = 'Conectado como: ' + (correoAdminActual() || '');
   permisosActuales = await obtenerPermisosUsuarioActual();
@@ -1278,10 +1280,12 @@ function pintarTabla(productosPagina, sinResultados, hayFiltro) {
     const tieneC = p.stockColores && Object.keys(p.stockColores).length;
     const stockDe = tieneT ? 'por talla' : (tieneC ? 'por color' : 'general');
 
-    const estadoPill = agotado
-      ? '<span class="estado-pill out">Agotado</span>'
-      : (nivel === 'bajo' ? `<span class="estado-pill low">Quedan ${stockTotal}</span>` : '<span class="estado-pill ok">Disponible</span>');
-    const oculto = !p.activo ? '<span class="estado-pill oculto">Oculto</span>' : '';
+    const estadoPill = !p.activo
+      ? '<span class="estado-pill out">No disponible</span>'
+      : (agotado
+        ? '<span class="estado-pill out">Agotado</span>'
+        : (nivel === 'bajo' ? `<span class="estado-pill low">Quedan ${stockTotal}</span>` : '<span class="estado-pill ok">Disponible</span>'));
+    const oculto = '';
     const nuevo = p.badge === 'nuevo' ? '<span class="pill-newdrop">New drop</span>' : '';
 
     return `
