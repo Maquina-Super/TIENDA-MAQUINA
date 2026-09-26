@@ -14,41 +14,34 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   #adminLoginView{ background:#060706; }
+  html:has(#adminLoginView), body:has(#adminLoginView){ height:100%; overflow:hidden; }
   #adminLoginView .gl-bg{
     position:fixed; inset:0; z-index:0;
-<<<<<<< HEAD
     background:#060706;
   }
   #adminLoginView .gl-side{
     position:fixed; top:0; bottom:0; z-index:0;
-    width:clamp(90px,18vw,340px);
+    width:clamp(160px,32vw,620px);
     background-size:cover; background-repeat:no-repeat;
     opacity:.85;
   }
-  #adminLoginView .gl-side.left{ left:0; background-image:url('img/gym-login-side-left.png'); background-position:left center; }
-  #adminLoginView .gl-side.right{ right:0; background-image:url('img/gym-login-side-right.png'); background-position:right center; }
+  #adminLoginView .gl-side.left{ left:0; background-image:url('img/gym-login-side-left.png'); background-position:left center; -webkit-mask-image:linear-gradient(to right, #000 60%, transparent 100%); mask-image:linear-gradient(to right, #000 60%, transparent 100%); }
+  #adminLoginView .gl-side.right{ right:0; background-image:url('img/gym-login-side-right.png'); background-position:right center; -webkit-mask-image:linear-gradient(to left, #000 60%, transparent 100%); mask-image:linear-gradient(to left, #000 60%, transparent 100%); }
   #adminLoginView .gl-tint{
     position:fixed; inset:0; z-index:0;
     background: radial-gradient(circle at 50% 45%, rgba(168,255,61,.10) 0%, rgba(168,255,61,.03) 35%, transparent 65%);
-=======
-    background-image:url('img/gym-login-bg.jpg');
-    background-size:cover; background-position:center; background-repeat:no-repeat;
-  }
-  #adminLoginView .gl-tint{
-    position:fixed; inset:0; z-index:0;
-    background: radial-gradient(ellipse at center, rgba(3,5,3,.55) 0%, rgba(3,5,3,.82) 45%, rgba(3,5,3,.95) 100%);
->>>>>>> 81915402d8d985e9314edf00b9fbfda15e5d5d01
   }
   #adminLoginView .gl-page{
     position:relative; z-index:2;
-    min-height:100vh; min-height:100dvh;
+    height:100vh; height:100dvh;
+    overflow:hidden;
     display:flex; flex-direction:column; align-items:center; justify-content:space-between;
-    padding: clamp(16px,3vw,36px) clamp(16px,4vw,64px);
-    gap:18px;
+    padding: clamp(10px,2vw,28px) clamp(16px,4vw,64px);
+    gap:10px;
     font-family:'Barlow Condensed', sans-serif;
     box-sizing:border-box;
-    padding-top:calc(env(safe-area-inset-top,0px) + clamp(16px,3vw,36px));
-    padding-bottom:calc(env(safe-area-inset-bottom,0px) + clamp(16px,3vw,36px));
+    padding-top:calc(env(safe-area-inset-top,0px) + clamp(10px,2vw,28px));
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + clamp(10px,2vw,28px));
   }
   #adminLoginView .gl-rail{
     width:100%; max-width:1500px;
@@ -131,6 +124,13 @@
   @media (max-width:560px){
     #adminLoginView .gl-rail, #adminLoginView .gl-footer{ font-size:8.5px; letter-spacing:.08em; }
   }
+  @media (max-height:760px){
+    #adminLoginView .gl-page{ gap:6px; padding-top:calc(env(safe-area-inset-top,0px) + 10px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px); }
+    #adminLoginView .gl-card-wrap{ width:min(300px,80vw); }
+    #adminLoginView .gl-field{ margin-bottom:9px; }
+    #adminLoginView .gl-links{ margin-top:8px; gap:5px; }
+    #adminLoginView .gl-back{ margin-top:8px; }
+  }
 </style>
 </head>
 <body>
@@ -138,11 +138,8 @@
 <!-- ======================= LOGIN DEL ADMIN ======================= -->
 <div class="admin-login" id="adminLoginView">
   <div class="gl-bg"></div>
-<<<<<<< HEAD
   <div class="gl-side left"></div>
   <div class="gl-side right"></div>
-=======
->>>>>>> 81915402d8d985e9314edf00b9fbfda15e5d5d01
   <div class="gl-tint"></div>
 
   <div class="gl-page">
