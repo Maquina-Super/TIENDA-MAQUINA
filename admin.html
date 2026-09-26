@@ -596,10 +596,13 @@
     <div id="tabDrop" style="display:none;">
       <div class="admin-stats admin-stats-color" id="dropCountdownStats"></div>
       <div class="admin-card">
-        <p class="admin-foto-hint" style="margin-bottom:14px;">💡 Aquí configuras la cuenta regresiva de "Próximo drop" que se ve en la página de inicio. Pon la fecha y hora en que se lanza, y elige qué productos se muestran ahí mismo (con foto de frente y de espaldas) apenas el tiempo llegue a cero — sin tocar código, y se ve igual para todos los que entren a la tienda.</p>
+        <p class="admin-foto-hint" style="margin-bottom:14px;">💡 Aquí configuras la cuenta regresiva de "Próximo drop" que se ve en la página de inicio. Mientras falta para la fecha de lanzamiento, la portada muestra la prenda en grande con su silueta pero borrosa, para generar expectativa sin enseñar el diseño. Apenas el tiempo llegue a cero se ve nítida, clickeable y con la cantidad que quede en inventario (se actualiza sola con el stock del producto). Si además pones una fecha de fin, ahí la cuenta pasa a mostrar "Termina en" y, al llegar esa hora, la sección avisa que el drop se acabó. Déjala vacía si quieres que quede disponible para siempre una vez lance.</p>
         <div class="admin-drop-form">
           <label class="admin-drop-label">Fecha y hora del lanzamiento
             <input type="datetime-local" id="dropFecha" class="admin-input" style="width:100%;">
+          </label>
+          <label class="admin-drop-label">Fecha y hora en que termina (opcional)
+            <input type="datetime-local" id="dropFechaFin" class="admin-input" style="width:100%;">
           </label>
           <label class="admin-drop-label">Título cuando ya esté disponible (opcional)
             <input type="text" id="dropTitulo" class="admin-input" placeholder="¡Ya está aquí! ⚡" style="width:100%;">
