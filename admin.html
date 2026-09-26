@@ -364,6 +364,10 @@
 
       <label class="pe-check"><input type="checkbox" id="peNewDrop"><span>Marcar como <b>New Drop</b></span></label>
       <label class="pe-check"><input type="checkbox" id="peVisible"><span>Visible en la tienda</span></label>
+      <label class="pe-check">
+        <input type="checkbox" id="peOcultoDrop">
+        <span>🙈 Ocultar hasta el próximo drop — borroso en la cuenta regresiva de la portada; se vuelve visible y comprable solo cuando llegue la fecha de la pestaña Drop.</span>
+      </label>
 
       <div class="pe-final">
         <span class="pe-label">Precio final calculado</span>
@@ -509,6 +513,10 @@
           </label>
           <span class="admin-foto-hint">Si no subes foto, se usa un dibujo genérico según la categoría.</span>
         </div>
+        <label class="pe-check">
+          <input type="checkbox" id="nProdOcultoDrop">
+          <span>🙈 Ocultar hasta el próximo drop — se guarda en el inventario pero nadie lo ve en la tienda; en la cuenta regresiva de la portada aparece borroso, y se muestra nítido y disponible para comprar automáticamente cuando llegue la fecha configurada en la pestaña Drop.</span>
+        </label>
         <div class="admin-add-actions">
           <button class="admin-btn admin-btn-primary" id="btnGuardarNuevo">Guardar producto</button>
           <button class="admin-btn admin-btn-ghost" id="btnCancelarNuevo">Cancelar</button>
