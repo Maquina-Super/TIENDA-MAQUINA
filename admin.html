@@ -21,12 +21,12 @@
   }
   #adminLoginView .gl-side{
     position:fixed; top:0; bottom:0; z-index:0;
-    width:clamp(220px,38vw,760px);
+    width:clamp(160px,32vw,620px);
     background-size:cover; background-repeat:no-repeat;
     opacity:.85;
   }
-  #adminLoginView .gl-side.left{ left:0; background-image:url('img/gym-login-side-left.png'); background-position:left center; -webkit-mask-image:linear-gradient(to right, #000 78%, transparent 100%); mask-image:linear-gradient(to right, #000 78%, transparent 100%); }
-  #adminLoginView .gl-side.right{ right:0; background-image:url('img/gym-login-side-right.png'); background-position:right center; -webkit-mask-image:linear-gradient(to left, #000 78%, transparent 100%); mask-image:linear-gradient(to left, #000 78%, transparent 100%); }
+  #adminLoginView .gl-side.left{ left:0; background-image:url('img/gym-login-side-left.png'); background-position:left center; -webkit-mask-image:linear-gradient(to right, #000 60%, transparent 100%); mask-image:linear-gradient(to right, #000 60%, transparent 100%); }
+  #adminLoginView .gl-side.right{ right:0; background-image:url('img/gym-login-side-right.png'); background-position:right center; -webkit-mask-image:linear-gradient(to left, #000 60%, transparent 100%); mask-image:linear-gradient(to left, #000 60%, transparent 100%); }
   #adminLoginView .gl-tint{
     position:fixed; inset:0; z-index:0;
     background: radial-gradient(circle at 50% 45%, rgba(168,255,61,.10) 0%, rgba(168,255,61,.03) 35%, transparent 65%);
@@ -66,42 +66,42 @@
   #adminLoginView .gl-footer .accent{ color:#a8ff3d; }
   #adminLoginView .gl-footer .right{ display:flex; gap:10px; align-items:flex-end; }
 
-  #adminLoginView .gl-card-wrap{ width:min(560px,94vw); }
+  #adminLoginView .gl-card-wrap{ width:min(620px,94vw); }
   #adminLoginView .gl-card-wrap img{ display:block; width:100%; height:auto; filter:drop-shadow(0 0 40px rgba(168,255,61,.16)); }
   #adminLoginView .gl-card{
     position:relative; margin-top:-4px;
     border-radius:0 0 20px 20px;
     background:linear-gradient(180deg,#0b0f0a 0%, #08090a 100%);
     box-shadow:0 0 60px rgba(168,255,61,.10), 0 30px 60px rgba(0,0,0,.55);
-    padding: clamp(18px,3.5vw,28px) clamp(18px,4vw,32px) clamp(22px,3.5vw,28px);
+    padding: clamp(18px,3.5vw,32px) clamp(18px,4vw,36px) clamp(22px,3.5vw,30px);
     border:1px solid rgba(168,255,61,.18); border-top:none;
   }
-  #adminLoginView .gl-field{ width:100%; margin-bottom:14px; }
+  #adminLoginView .gl-field{ width:100%; margin-bottom:16px; }
   #adminLoginView .gl-field label{
     display:block; font-family:'JetBrains Mono', monospace;
-    font-size:11px; letter-spacing:.16em; color:#8b968a; margin-bottom:7px;
+    font-size:12px; letter-spacing:.16em; color:#8b968a; margin-bottom:8px;
   }
   #adminLoginView .gl-box{
     position:relative; display:flex; align-items:center;
     background:#0c130c; border:1px solid rgba(168,255,61,.28); border-radius:12px;
-    padding:12px 44px 12px 14px;
+    padding:16px 48px 16px 16px;
   }
   #adminLoginView .gl-box input{
     flex:1; min-width:0; background:transparent; border:none; outline:none;
-    color:#eef2ea; font-family:'Barlow Condensed', sans-serif; font-size:16px;
+    color:#eef2ea; font-family:'Barlow Condensed', sans-serif; font-size:17px;
   }
   #adminLoginView .gl-box input::placeholder{ color:#5c6a58; }
   #adminLoginView .gl-box .nf-eye{
-    position:absolute; right:10px; top:50%; transform:translateY(-50%);
-    background:none; border:none; cursor:pointer; font-size:16px; line-height:1; padding:4px;
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; font-size:17px; line-height:1; padding:4px;
     filter:grayscale(1) brightness(1.6);
   }
   #adminLoginView .gl-submit{
-    width:100%; border:none; cursor:pointer; margin-top:6px;
-    padding:14px 20px; border-radius:12px;
+    width:100%; border:none; cursor:pointer; margin-top:8px;
+    padding:16px 20px; border-radius:12px;
     background:linear-gradient(180deg,#baff5e,#8fe62c); color:#0a1204;
     font-family:'Barlow Condensed', sans-serif; font-weight:700;
-    font-size:clamp(15px,2vw,17px); letter-spacing:.03em;
+    font-size:clamp(15px,2vw,18px); letter-spacing:.03em;
     display:flex; align-items:center; justify-content:center; gap:8px;
     box-shadow:0 10px 30px rgba(168,255,61,.25);
   }
@@ -123,18 +123,34 @@
   #adminLoginView .gl-back:hover{ color:#a8ff3d; }
   @media (max-width:560px){
     #adminLoginView .gl-rail, #adminLoginView .gl-footer{ font-size:8.5px; letter-spacing:.08em; }
+    #adminLoginView .gl-card-wrap{ width:min(420px,92vw); }
   }
   @media (max-height:900px){
-    #adminLoginView .gl-page{ gap:8px; padding-top:calc(env(safe-area-inset-top,0px) + 12px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px); }
-    #adminLoginView .gl-card-wrap{ width:min(420px,86vw); }
-    #adminLoginView .gl-field{ margin-bottom:10px; }
-    #adminLoginView .gl-links{ margin-top:10px; gap:6px; }
+    #adminLoginView .gl-page{ gap:6px; padding-top:calc(env(safe-area-inset-top,0px) + 10px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px); }
+    #adminLoginView .gl-rail{ font-size:clamp(8px,1vw,11px); }
+    #adminLoginView .gl-card-wrap{ width:min(560px,90vw); margin-top:-4px; }
+    #adminLoginView .gl-card-wrap img{ max-height:15vh; width:auto; margin:0 auto; object-fit:contain; }
+    #adminLoginView .gl-field{ margin-bottom:11px; }
+    #adminLoginView .gl-links{ margin-top:10px; gap:5px; }
     #adminLoginView .gl-back{ margin-top:10px; }
   }
   @media (max-height:760px){
-    #adminLoginView .gl-page{ gap:6px; padding-top:calc(env(safe-area-inset-top,0px) + 10px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px); }
-    #adminLoginView .gl-card-wrap{ width:min(320px,80vw); }
+    #adminLoginView .gl-page{ gap:4px; padding-top:calc(env(safe-area-inset-top,0px) + 8px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 8px); }
+    #adminLoginView .gl-rail, #adminLoginView .gl-footer{ font-size:8px; }
+    #adminLoginView .gl-card-wrap{ width:min(500px,88vw); }
+    #adminLoginView .gl-card-wrap img{ max-height:11vh; }
+    #adminLoginView .gl-card{ padding: clamp(14px,3vw,22px) clamp(16px,3.5vw,26px) clamp(16px,3vw,20px); }
     #adminLoginView .gl-field{ margin-bottom:8px; }
+    #adminLoginView .gl-field label{ margin-bottom:5px; }
+    #adminLoginView .gl-box{ padding:11px 42px 11px 14px; }
+    #adminLoginView .gl-submit{ padding:12px 18px; margin-top:4px; }
+    #adminLoginView .gl-links{ margin-top:6px; gap:4px; }
+    #adminLoginView .gl-back{ margin-top:6px; }
+  }
+  @media (max-height:600px){
+    #adminLoginView .gl-rail, #adminLoginView .gl-footer{ display:none; }
+    #adminLoginView .gl-card-wrap{ width:min(440px,88vw); }
+    #adminLoginView .gl-card-wrap img{ max-height:9vh; }
     #adminLoginView .gl-links{ margin-top:8px; gap:5px; }
     #adminLoginView .gl-back{ margin-top:8px; }
   }

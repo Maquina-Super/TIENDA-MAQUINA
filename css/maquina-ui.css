@@ -810,7 +810,7 @@ body{
   filter:blur(38px) brightness(.4) saturate(1.15);transform:scale(1.15);
 }
 .yd-login-media-fg{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;
 }
 .yd-login-overlay{
   position:absolute;inset:0;z-index:1;pointer-events:none;
@@ -884,7 +884,7 @@ body{
 .yd-login-btn:hover svg{transform:translateX(3px);}
 
 @media (max-width:1024px){
-  .yd-login-media-fg{object-fit:cover;object-position:42% center;}
+  .yd-login-media-fg{object-position:42% center;}
   .yd-login-overlay{
     background:
       linear-gradient(0deg,rgba(5,5,5,.97) 0%,rgba(5,5,5,.9) 38%,rgba(5,5,5,.45) 62%,rgba(5,5,5,.15) 100%),
@@ -913,4 +913,15 @@ body{
   .yd-login-btn{padding:14px 24px;font-size:14px;}
   .yd-login-content{padding-top:16px;padding-bottom:10px;}
   .yd-login-cta{padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+}
+@media (max-height:460px) and (max-width:1024px){
+  .yd-login-top{padding-top:10px;}
+  .yd-login-logo-img{height:30px;}
+  .yd-login-content{padding-top:6px;padding-bottom:4px;}
+  .yd-login-eyebrow{display:none;}
+  .yd-login-title{font-size:clamp(17px,6vw,24px);margin-bottom:4px;line-height:1.05;}
+  .yd-login-desc{display:none;}
+  .yd-login-cta{padding-bottom:calc(8px + env(safe-area-inset-bottom));}
+  .yd-login-btn{padding:9px 20px;font-size:12px;max-width:340px;}
+  .yd-login-btn svg{width:15px;height:15px;}
 }
