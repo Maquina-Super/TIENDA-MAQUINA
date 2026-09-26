@@ -21,12 +21,21 @@
   }
   #adminLoginView .gl-side{
     position:fixed; top:0; bottom:0; z-index:0;
+<<<<<<< HEAD
     width:clamp(220px,38vw,760px);
     background-size:cover; background-repeat:no-repeat;
     opacity:.85;
   }
   #adminLoginView .gl-side.left{ left:0; background-image:url('img/gym-login-side-left.png'); background-position:left center; -webkit-mask-image:linear-gradient(to right, #000 78%, transparent 100%); mask-image:linear-gradient(to right, #000 78%, transparent 100%); }
   #adminLoginView .gl-side.right{ right:0; background-image:url('img/gym-login-side-right.png'); background-position:right center; -webkit-mask-image:linear-gradient(to left, #000 78%, transparent 100%); mask-image:linear-gradient(to left, #000 78%, transparent 100%); }
+=======
+    width:clamp(160px,32vw,620px);
+    background-size:cover; background-repeat:no-repeat;
+    opacity:.85;
+  }
+  #adminLoginView .gl-side.left{ left:0; background-image:url('img/gym-login-side-left.png'); background-position:left center; -webkit-mask-image:linear-gradient(to right, #000 60%, transparent 100%); mask-image:linear-gradient(to right, #000 60%, transparent 100%); }
+  #adminLoginView .gl-side.right{ right:0; background-image:url('img/gym-login-side-right.png'); background-position:right center; -webkit-mask-image:linear-gradient(to left, #000 60%, transparent 100%); mask-image:linear-gradient(to left, #000 60%, transparent 100%); }
+>>>>>>> 85a1c6cb13d1f3a12eed4b7370639500c99be7c3
   #adminLoginView .gl-tint{
     position:fixed; inset:0; z-index:0;
     background: radial-gradient(circle at 50% 45%, rgba(168,255,61,.10) 0%, rgba(168,255,61,.03) 35%, transparent 65%);
@@ -124,6 +133,7 @@
   @media (max-width:560px){
     #adminLoginView .gl-rail, #adminLoginView .gl-footer{ font-size:8.5px; letter-spacing:.08em; }
   }
+<<<<<<< HEAD
   @media (max-height:900px){
     #adminLoginView .gl-page{ gap:8px; padding-top:calc(env(safe-area-inset-top,0px) + 12px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px); }
     #adminLoginView .gl-card-wrap{ width:min(420px,86vw); }
@@ -135,6 +145,12 @@
     #adminLoginView .gl-page{ gap:6px; padding-top:calc(env(safe-area-inset-top,0px) + 10px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px); }
     #adminLoginView .gl-card-wrap{ width:min(320px,80vw); }
     #adminLoginView .gl-field{ margin-bottom:8px; }
+=======
+  @media (max-height:760px){
+    #adminLoginView .gl-page{ gap:6px; padding-top:calc(env(safe-area-inset-top,0px) + 10px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px); }
+    #adminLoginView .gl-card-wrap{ width:min(300px,80vw); }
+    #adminLoginView .gl-field{ margin-bottom:9px; }
+>>>>>>> 85a1c6cb13d1f3a12eed4b7370639500c99be7c3
     #adminLoginView .gl-links{ margin-top:8px; gap:5px; }
     #adminLoginView .gl-back{ margin-top:8px; }
   }
