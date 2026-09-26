@@ -113,6 +113,12 @@ let _catalogoCache = [];
     productosActivos(), buscarProducto(), obtenerProductosAdmin(),
     etc. — si no, esas funciones van a devolver una lista vacía. */
 async function cargarCatalogo() {
+  // La config del drop (fecha del lanzamiento) se carga siempre junto
+  // con el catálogo: productosActivos() la necesita para saber si un
+  // producto "oculto hasta el drop" ya se puede mostrar o no, así
+  // cualquier página que haga "await cargarCatalogo()" queda lista
+  // sin tener que acordarse de pedir la config del drop aparte.
+  const configDropListo = cargarConfigDrop();
   try {
     const snap = await fbDb.collection('productos').get();
     if (snap.empty) {
@@ -138,6 +144,7 @@ async function cargarCatalogo() {
     // Si falla internet, al menos que la tienda muestre el catálogo de fábrica
     _catalogoCache = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).map(p => ({ ...p, descuento: 0 }));
   }
+  await configDropListo.catch(() => {});
   return _catalogoCache;
 }
 /** Lectura sincrónica del catálogo ya cargado en memoria (ver
@@ -338,6 +345,7 @@ function actualizarProductoAdmin(id, cambios) {
   if (cambios.foto !== undefined) p.foto = cambios.foto;
   if (cambios.badge !== undefined) p.badge = cambios.badge;            // "nuevo" = New Drop, o null
   if (cambios.descripcion !== undefined) p.descripcion = String(cambios.descripcion).trim();
+  if (cambios.ocultoHastaDrop !== undefined) p.ocultoHastaDrop = !!cambios.ocultoHastaDrop;
   _guardarProductoEnNube(p);
   return p;
 }
@@ -415,6 +423,12 @@ function agregarProductoAdmin(nuevo) {
     stockColores: stockColores, // {"#hex": cantidad, ...} — vacío = bolsa compartida (stock arriba)
     stockTallas: stockTallas,   // {"talla": cantidad, ...} — vacío = bolsa compartida (stock arriba)
     activo: true,
+    // Si viene marcado, el producto entra al inventario y se puede
+    // elegir en la pestaña Drop, pero queda invisible en toda la
+    // tienda pública (borroso solo en la cuenta regresiva) hasta que
+    // llegue la fecha del "Próximo drop" — ver estaOcultoPorDrop()
+    // en js/products.js.
+    ocultoHastaDrop: !!nuevo.ocultoHastaDrop,
   };
   _catalogoCache.push(producto);
   _guardarProductoEnNube(producto);

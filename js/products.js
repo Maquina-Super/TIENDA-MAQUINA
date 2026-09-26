@@ -58,13 +58,34 @@ function categoriasPorGeneroAgrupadas(genero) {
     .filter(g => g.categorias.length > 0);
 }
 
+/** Un producto marcado "Ocultar hasta el drop" (p.ocultoHastaDrop)
+    queda invisible en toda la tienda pública (catálogo, buscador,
+    favoritos, ficha del producto, etc.) SOLO mientras la cuenta
+    regresiva del "Próximo drop" (panel admin, pestaña Drop) siga
+    corriendo. En la sección de "Próximo drop" de index.html sí se
+    ve, pero borrosa (ver pintarProductosDrop en index.html). En
+    cuanto la fecha/hora configurada se cumple, esta función deja
+    de ocultarlo — sin que nadie tenga que tocar nada — y el
+    producto aparece nítido y comprable en toda la tienda.
+    Si todavía no hay fecha configurada, se sigue ocultando (no
+    hay drop "que ya llegó" todavía). */
+function estaOcultoPorDrop(p) {
+  if (!p || !p.ocultoHastaDrop) return false;
+  const config = typeof getConfigDrop === 'function' ? getConfigDrop() : null;
+  if (!config || !config.fecha) return true;
+  return new Date(config.fecha).getTime() > Date.now();
+}
+
 /** Devuelve solo los productos activos, leyendo el catálogo editable
     (maquina_catalogo en localStorage) que el admin puede modificar
     desde admin.html. Si por algún motivo esa función no existe
-    todavía, cae de vuelta al catálogo de fábrica PRODUCTS. */
+    todavía, cae de vuelta al catálogo de fábrica PRODUCTS. También
+    quita los productos que están "ocultos hasta el drop" mientras
+    su cuenta regresiva no haya llegado a cero (ver
+    estaOcultoPorDrop arriba). */
 function productosActivos() {
   const lista = typeof getCatalogo === 'function' ? getCatalogo() : PRODUCTS;
-  return lista.filter(p => p.activo);
+  return lista.filter(p => p.activo && !estaOcultoPorDrop(p));
 }
 
 /** Busca un producto por id (los ids vienen como string desde el DOM, por eso == ) */

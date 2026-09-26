@@ -1310,7 +1310,13 @@ function pintarTabla(productosPagina, sinResultados, hayFiltro) {
       : (agotado
         ? '<span class="estado-pill out">Agotado</span>'
         : (nivel === 'bajo' ? `<span class="estado-pill low">Quedan ${stockTotal}</span>` : '<span class="estado-pill ok">Disponible</span>'));
-    const oculto = '';
+    // Producto marcado "ocultar hasta el drop": aunque esté activo,
+    // no lo ve nadie en la tienda mientras la cuenta regresiva del
+    // Próximo drop no llegue a cero (ver estaOcultoPorDrop en
+    // js/products.js). Esto le avisa al vendedor en la tabla.
+    const oculto = (p.ocultoHastaDrop && estaOcultoPorDrop(p))
+      ? '<span class="estado-pill" style="background:rgba(168,124,255,.16);color:#c9a8ff;">🙈 Oculto (drop)</span>'
+      : '';
     const nuevo = p.badge === 'nuevo' ? '<span class="pill-newdrop">New drop</span>' : '';
 
     return `
@@ -1377,6 +1383,7 @@ const peEl = {
   fotosColor: document.getElementById('peFotosColor'),
   newDrop: document.getElementById('peNewDrop'),
   visible: document.getElementById('peVisible'),
+  ocultoDrop: document.getElementById('peOcultoDrop'),
   finalAntes: document.getElementById('peFinalAntes'),
   finalValor: document.getElementById('peFinalValor'),
 };
@@ -1404,6 +1411,7 @@ function abrirEditorProducto(id) {
   peEl.categoria.value = p.categoria || '';
   peEl.newDrop.checked = p.badge === 'nuevo';
   peEl.visible.checked = !!p.activo;
+  peEl.ocultoDrop.checked = !!p.ocultoHastaDrop;
 
   /* categorías ya usadas, para sugerirlas al escribir */
   const cats = [...new Set(obtenerProductosAdmin().map(x => x.categoria).filter(Boolean))].sort();
@@ -1585,6 +1593,7 @@ function guardarEditorProducto() {
     precio,
     descuento,
     activo: peEl.visible.checked,
+    ocultoHastaDrop: peEl.ocultoDrop.checked,
   };
   if (preciosTalla) cambios.preciosTalla = preciosTalla;
   if (!usaT && !usaC) cambios.stock = peEl.stock.value;
@@ -1668,6 +1677,7 @@ document.getElementById('btnMostrarNuevo').addEventListener('click', () => {
 });
 document.getElementById('btnCancelarNuevo').addEventListener('click', () => {
   cardNuevo.style.display = 'none';
+  document.getElementById('nProdOcultoDrop').checked = false;
 });
 
 /* ---- genera un input de stock por cada color que el admin va escribiendo,
@@ -1745,8 +1755,9 @@ document.getElementById('btnGuardarNuevo').addEventListener('click', () => {
   nProdStockTallaWrap.querySelectorAll('.input-stock-talla-nuevo').forEach(inp => {
     stockTallas[inp.dataset.talla] = Math.max(0, Number(inp.value) || 0);
   });
-  agregarProductoAdmin({ nombre, categoria, precio, stock, stockColores, stockTallas, icono, colores, tallas, foto: fotoNuevaDataUrl });
-  showToast(`${nombre} agregado al catálogo ✓`);
+  const ocultoHastaDrop = document.getElementById('nProdOcultoDrop').checked;
+  agregarProductoAdmin({ nombre, categoria, precio, stock, stockColores, stockTallas, icono, colores, tallas, foto: fotoNuevaDataUrl, ocultoHastaDrop });
+  showToast(ocultoHastaDrop ? `${nombre} agregado al inventario, oculto hasta el drop ✓` : `${nombre} agregado al catálogo ✓`);
   document.querySelectorAll('.admin-add-grid input').forEach(i => i.value = '');
   nProdStockColorWrap.innerHTML = '';
   nProdStockTallaWrap.innerHTML = '';
@@ -1755,6 +1766,7 @@ document.getElementById('btnGuardarNuevo').addEventListener('click', () => {
   previewFotoNuevo.src = '';
   textoFotoNuevo.textContent = '📷 Subir foto del producto (opcional)';
   inputFotoNuevo.value = '';
+  document.getElementById('nProdOcultoDrop').checked = false;
   cardNuevo.style.display = 'none';
   pintarTodo();
 });

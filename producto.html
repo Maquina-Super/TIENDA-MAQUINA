@@ -76,7 +76,7 @@ await cargarCatalogo();
 const id = new URLSearchParams(window.location.search).get('id');
 const p = buscarProducto(id);
 
-if (!p || !p.activo) {
+if (!p || !p.activo || estaOcultoPorDrop(p)) {
   cont.innerHTML = `
     <div class="yd-empty" style="grid-column:1/-1;">
       <b>No encontramos esa pieza</b>
