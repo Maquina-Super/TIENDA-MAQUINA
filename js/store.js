@@ -465,6 +465,37 @@ function guardarConfigDropAdmin(cambios) {
   return _dropConfigCache;
 }
 
+/* ============================================================
+   CONFIGURACIÓN DE COSTOS DE ENVÍO (editable desde el panel)
+   Igual que la config del drop, vive en Firestore (colección
+   "config", documento "envio") para que el costo de cada zona
+   se vea igual para todos los visitantes. Si todavía no existe
+   el documento (primera vez), se usan los valores de fábrica de
+   ZONAS_ENVIO_POR_DEFECTO (js/products.js).
+   ============================================================ */
+
+/** Carga las zonas de envío guardadas en Firestore a la caché en
+    memoria de js/products.js. carrito.html debe hacer
+    "await cargarConfigEnvio()" al iniciar, igual que se hace con
+    cargarConfigDrop(). */
+async function cargarConfigEnvio() {
+  try {
+    const doc = await fbDb.collection('config').doc('envio').get();
+    if (doc.exists) setZonasEnvioCache(doc.data().zonas);
+  } catch (e) {
+    console.error('Error cargando la configuración de envío:', e);
+  }
+  return zonasEnvio();
+}
+/** Guarda (desde el panel admin) la lista completa de zonas de
+    envío, con sus costos ya editados. */
+function guardarConfigEnvioAdmin(zonas) {
+  setZonasEnvioCache(zonas);
+  fbDb.collection('config').doc('envio').set({ zonas: zonasEnvio() }, { merge: true })
+    .catch(e => console.error('Error guardando la configuración de envío en la nube:', e));
+  return zonasEnvio();
+}
+
 /* ---------- CARRITO ---------- */
 function getCarrito() {
   return _leer(LS_KEYS.carrito);

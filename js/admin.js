@@ -147,11 +147,36 @@ async function entrarAlPanel() {
   permisosActuales = await obtenerPermisosUsuarioActual();
   usuariosTabDesbloqueada = false;
   aplicarPermisosUI();
-  await Promise.all([cargarCatalogo(), cargarConfigDrop()]); // catálogo y config del drop desde Firestore antes de pintar la tabla
+  await Promise.all([cargarCatalogo(), cargarConfigDrop(), cargarConfigEnvio()]); // catálogo, config del drop y costos de envío desde Firestore antes de pintar la tabla
   pintarTodo();
   pintarVoltageClub();
+  pintarCostosEnvio();
   iniciarVigiaInactividadAdmin();
 }
+
+/* ---------- pestaña Resumen: costos de envío por zona ---------- */
+function pintarCostosEnvio() {
+  const tbody = document.getElementById('costosEnvioTablaBody');
+  tbody.innerHTML = zonasEnvio().map(z => `
+    <tr>
+      <td>${z.nombre}</td>
+      <td>
+        <input type="number" class="admin-input input-costo-envio" data-zona="${z.id}"
+          value="${Number(z.costo) || 0}" min="0" step="500" style="width:140px;">
+      </td>
+    </tr>
+  `).join('');
+}
+document.getElementById('btnGuardarCostosEnvio').addEventListener('click', () => {
+  const nuevasZonas = zonasEnvio().map(z => {
+    const input = document.querySelector(`.input-costo-envio[data-zona="${z.id}"]`);
+    const costo = input ? Math.max(0, Number(input.value) || 0) : z.costo;
+    return { ...z, costo };
+  });
+  guardarConfigEnvioAdmin(nuevasZonas);
+  pintarCostosEnvio();
+  showToast('Costos de envío guardados ✓');
+});
 
 /* ---------- pestaña Resumen: correos del Voltage Club ---------- */
 let _correosVoltageClub = [];

@@ -109,6 +109,23 @@ const ENVIO_GRATIS_DESDE = 0;
    (para revisar stock) y el menú del encabezado. */
 const catalogoListo = cargarCatalogo().then(() => renderHeader('carrito')).catch(e => console.error('Catálogo:', e));
 
+/* Los costos de envío por zona también se cargan en segundo plano
+   (pueden haber cambiado desde el panel). Si ya llegaron antes de
+   que el cliente empiece a llenar el formulario, se repinta el
+   carrito para que el desplegable de zona salga con el costo al
+   día; si el cliente ya escribió algo, se deja tal cual para no
+   perderle lo que ya llenó (el precio elegido en su momento sigue
+   siendo válido para ESE pedido). */
+function _checkoutTieneAlgoEscrito() {
+  const ids = ['nombreCliente', 'emailCliente', 'telefonoCliente', 'direccionCliente'];
+  if (ids.some(id => (document.getElementById(id)?.value || '').trim())) return true;
+  if (document.getElementById('municipioEnvio')?.value) return true;
+  return false;
+}
+const envioConfigListo = cargarConfigEnvio()
+  .then(() => { if (typeof pintarCarrito === 'function' && !_checkoutTieneAlgoEscrito()) pintarCarrito(); })
+  .catch(e => console.error('Envío:', e));
+
 /* ---------- helpers ---------- */
 function fmtDinero(n) {
   return '$' + Number(n || 0).toLocaleString('es-CO');

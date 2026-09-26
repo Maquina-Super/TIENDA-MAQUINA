@@ -82,9 +82,15 @@ function categoriasDisponibles() {
 /* ============================================================
    ZONAS DE ENVÍO
    Costo de envío según dónde queda el municipio/zona del
-   cliente. Para agregar o editar zonas, edita este arreglo.
+   cliente. Estos son los valores DE FÁBRICA: se usan mientras
+   no haya nada guardado todavía en Firestore, y sirven para
+   "sembrar" el panel admin la primera vez. Para cambiar los
+   costos día a día, hazlo desde el panel (pestaña Resumen →
+   "🚚 Costos de envío") en vez de editar esto — así el cambio
+   se ve igual para todos los que entren a la tienda, sin tener
+   que volver a publicar el sitio.
    ============================================================ */
-const ZONAS_ENVIO = [
+const ZONAS_ENVIO_POR_DEFECTO = [
   { id: "medellin",     nombre: "Medellín (zona urbana)",                    costo: 8000  },
   { id: "metro",        nombre: "Área metropolitana (Bello, Itagüí, Envigado, Sabaneta, La Estrella, Copacabana)", costo: 10000 },
   { id: "oriente",      nombre: "Oriente antioqueño (Rionegro, Marinilla, La Ceja, El Retiro)",  costo: 15000 },
@@ -93,9 +99,24 @@ const ZONAS_ENVIO = [
   { id: "otra_ciudad",  nombre: "Otra ciudad de Colombia",                   costo: 25000 },
 ];
 
-/** Devuelve la lista completa de zonas de envío disponibles */
+/** Caché en memoria de las zonas de envío que de verdad están en
+    uso: arranca con los valores de fábrica de arriba, y se
+    reemplaza por lo que haya guardado en Firestore en cuanto
+    cargarConfigEnvio() (js/store.js) responde. */
+let _zonasEnvioCache = ZONAS_ENVIO_POR_DEFECTO;
+
+/** Devuelve la lista completa de zonas de envío disponibles (con
+    los costos ya actualizados, si el panel los cambió). */
 function zonasEnvio() {
-  return ZONAS_ENVIO;
+  return _zonasEnvioCache;
+}
+
+/** Reemplaza la caché de zonas de envío. Lo usa cargarConfigEnvio()
+    al leer Firestore, y guardarConfigEnvioAdmin() al guardar desde
+    el panel. Ignora listas vacías/inválidas para no dejar el
+    carrito sin ninguna zona por un dato mal guardado. */
+function setZonasEnvioCache(zonas) {
+  if (Array.isArray(zonas) && zonas.length) _zonasEnvioCache = zonas;
 }
 
 /* ============================================================
@@ -140,6 +161,6 @@ function municipiosAntioquia() {
 
 /** Devuelve el costo de envío de una zona por su id (0 si no existe) */
 function costoEnvio(zonaId) {
-  const zona = ZONAS_ENVIO.find(z => z.id === zonaId);
+  const zona = zonasEnvio().find(z => z.id === zonaId);
   return zona ? zona.costo : 0;
 }

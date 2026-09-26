@@ -112,10 +112,36 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Catálogo: lectura pública (es tu vitrina), escritura solo admin.
+    /* Descuento de stock durante el checkout: cuando un cliente paga
+       (contraentrega o tarjeta), la tienda descuenta el stock del
+       producto en la MISMA transacción en que crea el pedido (ver
+       crearPedido() en js/store.js) — y esa escritura la hace el
+       navegador del cliente, que NUNCA está logueado como admin.
+       Antes "productos" exigía isAdmin() para CUALQUIER escritura,
+       así que ese descuento de stock quedaba rechazado por las
+       reglas y el pedido entero fallaba (pantalla "Error en el
+       pago" / "problema de conexión con el servidor", aunque la
+       conexión estuviera perfecta: era un permission-denied).
+       Esta función deja pasar SOLO una actualización que baja el
+       stock (nunca lo sube) y no toca ningún otro campo del
+       producto — así un cliente puede completar su compra, pero
+       seguir sin poder cambiar precios, fotos, nombres, etc. */
+    function soloDescuentaStock() {
+      let antes = resource.data;
+      let despues = request.resource.data;
+      return despues.diff(antes).affectedKeys().hasOnly(['stock', 'stockColores', 'stockTallas'])
+        && (!('stock' in despues) || (despues.stock is number && antes.stock is number && despues.stock >= 0 && despues.stock <= antes.stock));
+    }
+
+    // Catálogo: lectura pública (es tu vitrina). Crear o borrar un
+    // producto, y cualquier cambio que no sea bajar el stock (precio,
+    // fotos, nombre, activar/desactivar, etc.), solo admin. Bajar el
+    // stock también lo puede hacer el checkout de un cliente normal
+    // (ver soloDescuentaStock() arriba).
     match /productos/{productoId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || soloDescuentaStock();
     }
 
     // Config del "drop": lectura pública, escritura solo admin.

@@ -266,18 +266,49 @@ function enviarCorreoCodigoPanel(correo, codigo) {
 
 /* ============================================================
    6) AVISO DE DROP NUEVO AL VOLTAGE CLUB
+   ------------------------------------------------------------
+   Antes mandaba UN solo correo con todos los suscriptores en bcc.
+   El problema: Gmail (cuenta gratis) cuenta cada destinatario en
+   bcc como un envío aparte para la cuota diaria de MailApp (~100
+   al día en total, sumando también los correos de pedidos y de
+   códigos del panel) — y si la lista de suscriptores + esos otros
+   correos se pasaba de la cuota, MailApp.sendEmail lanzaba un
+   error y el correo NO salía para nadie. Como el aviso se manda
+   con fetch(..., {mode:"no-cors"}) desde la tienda, el panel
+   nunca se entera de que falló: por eso se veía "Enviando..." en
+   el admin pero no le llegaba a nadie.
+   Ahora se manda en tandas de MAX_POR_TANDA correos: si una tanda
+   falla (por cuota u otra cosa), las demás igual se intentan, así
+   que en vez de "todo o nada" quedan mandados los que alcanzaron
+   antes de toparse con la cuota. Revisa "Ejecuciones" en el editor
+   de Apps Script para ver cuántas tandas salieron bien.
    ============================================================ */
 function enviarAvisoDropVoltageClub(correos, asunto, mensaje) {
   if (!correos || !correos.length) return;
   if (!asunto || !mensaje) return;
 
-  MailApp.sendEmail({
-    to: Session.getActiveUser().getEmail(),
-    bcc: correos.join(','),
-    subject: 'MAQUINA — ' + asunto,
-    body: mensaje,
-    name: 'MAQUINA',
-  });
+  const MAX_POR_TANDA = 45;
+  const propio = Session.getActiveUser().getEmail();
+  let enviados = 0;
+  for (let i = 0; i < correos.length; i += MAX_POR_TANDA) {
+    const tanda = correos.slice(i, i + MAX_POR_TANDA);
+    try {
+      MailApp.sendEmail({
+        to: propio,
+        bcc: tanda.join(','),
+        subject: 'MAQUINA — ' + asunto,
+        body: mensaje,
+        name: 'MAQUINA',
+      });
+      enviados += tanda.length;
+    } catch (err) {
+      // No paramos las demás tandas por una que falle (ej. se
+      // acabó la cuota diaria a mitad de camino) — solo lo
+      // registramos para poder revisarlo en "Ejecuciones".
+      console.error('Tanda de aviso de drop falló (' + tanda.length + ' correos): ' + err.message);
+    }
+  }
+  console.log('Aviso de drop: ' + enviados + ' de ' + correos.length + ' correos enviados.');
 }
 
 /* ============================================================
