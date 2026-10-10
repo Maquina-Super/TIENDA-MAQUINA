@@ -88,8 +88,8 @@
 .pg-inicio .yd-tab{padding:8px 14px;font-size:12.5px;font-weight:500;}
 .pg-inicio .yd-tab.is-active{background:transparent;color:var(--acento);border-color:var(--acento);}
 
-/* ---------- 5. Productos: 4 por fila (el diseño de la tarjeta está en tarjetas.css) ---------- */
-.pg-inicio .grid{grid-template-columns:repeat(4,1fr);gap:clamp(14px,1.6vw,22px);}
+/* ---------- 5. Productos: 5 por fila (el diseño de la tarjeta está en tarjetas.css) ---------- */
+.pg-inicio .grid{grid-template-columns:repeat(5,1fr);gap:clamp(10px,1.2vw,16px);}
 .pg-inicio .yd-rating{display:none;}   /* estrellas de relleno: ver LEEME_REDISENO.txt */
 
 /* ---------- 4. Categorías: tarjetas uniformes ---------- */
@@ -144,6 +144,9 @@
 /* ============================================================
    RESPONSIVO
    ============================================================ */
+@media (max-width:1180px){
+  .pg-inicio .grid{grid-template-columns:repeat(4,1fr);}
+}
 @media (max-width:1100px){
   .pg-inicio .grid{grid-template-columns:repeat(3,1fr);}
   .pg-inicio .yd-cats{grid-template-columns:repeat(3,1fr);}
@@ -175,7 +178,6 @@
 }
 @media (max-width:420px){
   .pg-inicio .grid{grid-template-columns:1fr 1fr;}
-  .pg-inicio .size-chip{min-width:30px;}
 }
 @media (prefers-reduced-motion:reduce){
   .pg-inicio *{transition-duration:.01ms !important;}
