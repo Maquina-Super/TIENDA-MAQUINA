@@ -76,6 +76,12 @@
   }
   .yd-login-btn.outline:hover{ background:rgba(138,240,78,.12); }
 
+  /* Botón INGRESAR más abajo en computador: antes dejaba 72 px de aire debajo.
+     Solo pantallas grandes; en celular/tablet queda como estaba. */
+  @media (min-width:1025px){
+    .yd-login-cta{ padding-bottom:calc(clamp(10px,1.4vw,20px) + env(safe-area-inset-bottom)); }
+  }
+
   .yd-login-footer{
     position:relative; z-index:3; flex:0 0 auto;
     display:flex; align-items:flex-end; justify-content:space-between;
