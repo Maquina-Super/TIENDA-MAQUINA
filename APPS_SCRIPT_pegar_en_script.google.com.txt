@@ -8,7 +8,9 @@
      codigo_panel_recuperacion  -> manda el código del panel por correo
      aviso_drop_nuevo           -> correo del drop a todo el Voltage Club
      voltage_club_bienvenida    -> correo de bienvenida al suscribirse
-     contacto_nuevo             -> te avisa por correo del formulario de Contacto
+     contacto_nuevo             -> escribe la fila en la pestaña "Contactos" + correo
+     contactos_sincronizar      -> reenvía contactos que faltaron (sin duplicar)
+     contacto_estado            -> actualiza el estado en la pestaña "Contactos"
 
    Esta versión une las dos anteriores:
      - Conserva el borrado robusto de pedidos (código como texto, candado).
@@ -19,10 +21,17 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-10 final-unificado";
+const VERSION_SCRIPT = "2026-10-10 contactos-en-sheet";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
+
+// Pestaña NUEVA e independiente para los mensajes del formulario de Contacto.
+// Se crea sola la primera vez (con sus encabezados). No toca "Pedidos".
+const SHEET_TAB_CONTACTOS = "Contactos";
+// Aquí se anotan los contactos que NO se pudieron escribir (si esta pestaña
+// también falla, el error queda en "Ejecuciones" del editor de Apps Script).
+const SHEET_TAB_ERRORES = "Errores_Contactos";
 
 // Tu tienda en vivo, sin barra al final.
 const TIENDA_URL = "https://maquina-super.github.io/TIENDA-MAQUINA";
@@ -53,7 +62,13 @@ function doPost(e) {
       enviarBienvenidaVoltageClub(datos.correo);
     }
     if (datos.tipo === 'contacto_nuevo') {
-      enviarCorreoContacto(datos);
+      procesarContactoNuevo(datos);
+    }
+    if (datos.tipo === 'contactos_sincronizar') {
+      sincronizarContactos(datos.contactos);
+    }
+    if (datos.tipo === 'contacto_estado') {
+      actualizarEstadoContactoEnSheet(datos.codigo, datos.estado);
     }
     // 'problema' y 'pedido_estado' no hacen nada aquí (no rompen nada).
 
@@ -180,6 +195,176 @@ function eliminarPedidoDeSheet(id) {
     }
   } finally {
     candado.releaseLock();
+  }
+}
+
+/* ---------- 5b) CONTACTOS EN LA HOJA (pestaña "Contactos") ----------
+   Columnas: A ID · B Fecha y hora · C Nombre completo · D Correo ·
+             E Teléfono · F Asunto · G Mensaje · H Estado del contacto
+   - Siempre agrega al final (nunca sobrescribe filas anteriores).
+   - Anti-duplicados: si el ID (columna A) ya existe, no inserta otra fila.
+   - Si la hoja falla, el contacto NO se pierde: ya está en Firestore (la
+     tienda lo guarda primero allí). El error se anota y, desde el panel
+     (Mensajes -> "Sincronizar con la hoja"), se reenvía sin duplicar. */
+const ENCABEZADOS_CONTACTOS = [
+  'ID del contacto', 'Fecha y hora', 'Nombre completo', 'Correo electrónico',
+  'Teléfono', 'Asunto', 'Mensaje', 'Estado del contacto'
+];
+const ESTADOS_CONTACTO_TXT = { nuevo: 'Nuevo', en_revision: 'En revisión', respondido: 'Respondido' };
+
+function etiquetaEstadoContacto(estado) {
+  return ESTADOS_CONTACTO_TXT[estado] || 'Nuevo';
+}
+
+/* Evita que una celda se interprete como fórmula (=, +, -, @). */
+function textoSeguroHoja(v) {
+  let t = String(v === null || v === undefined ? '' : v);
+  if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+  return t;
+}
+
+/* Devuelve la pestaña "Contactos"; la crea (con encabezados) si no existe. */
+function obtenerHojaContactos() {
+  const libro = SpreadsheetApp.openById(SHEET_ID);
+  let hoja = libro.getSheetByName(SHEET_TAB_CONTACTOS);
+  if (!hoja) hoja = libro.insertSheet(SHEET_TAB_CONTACTOS);
+  if (hoja.getLastRow() === 0) {
+    hoja.getRange(1, 1, 1, ENCABEZADOS_CONTACTOS.length)
+      .setValues([ENCABEZADOS_CONTACTOS]).setFontWeight('bold');
+    hoja.setFrozenRows(1);
+  }
+  return hoja;
+}
+
+function idsContactosExistentes(hoja) {
+  const ids = {};
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) return ids;
+  hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues().forEach(function (f) {
+    const id = normalizarCodigo(f[0]);
+    if (id) ids[id] = true;
+  });
+  return ids;
+}
+
+/* Escribe UN contacto. Devuelve 'nuevo' si insertó o 'duplicado' si ya estaba. */
+function guardarContactoEnSheet(c) {
+  const id = normalizarCodigo(c && (c.codigo || c.id));
+  if (!id) throw new Error('El contacto llegó sin ID.');
+
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = obtenerHojaContactos();
+    if (idsContactosExistentes(hoja)[id]) return 'duplicado';
+    insertarFilaContacto(hoja, c, id);
+    return 'nuevo';
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+function insertarFilaContacto(hoja, c, id) {
+  const fechaMs = Number(c.fecha);
+  const fecha = Number.isFinite(fechaMs) && fechaMs > 0 ? new Date(fechaMs) : new Date();
+  const fila = [
+    id,
+    fecha,
+    textoSeguroHoja(c.nombre),
+    textoSeguroHoja(c.correo),
+    textoSeguroHoja(c.telefono),
+    textoSeguroHoja(c.asunto),
+    textoSeguroHoja(c.mensaje),
+    etiquetaEstadoContacto(c.estado),
+  ];
+  const numeroFila = hoja.getLastRow() + 1;
+  // Todo como texto (ID y teléfono sin perder ceros), salvo la fecha.
+  hoja.getRange(numeroFila, 1, 1, fila.length).setNumberFormat('@');
+  hoja.getRange(numeroFila, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+  hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
+}
+
+/* contacto_nuevo: hoja primero (sin que su fallo frene el correo) y luego correo. */
+function procesarContactoNuevo(d) {
+  let resultado = 'error';
+  try {
+    resultado = guardarContactoEnSheet(d);
+  } catch (err) {
+    registrarErrorContacto(d, err);
+  }
+  // Si ya estaba en la hoja es un reintento: no se vuelve a mandar el correo.
+  if (resultado !== 'duplicado') enviarCorreoContacto(d);
+}
+
+/* contactos_sincronizar: reenvío masivo desde el panel. Solo agrega los que
+   faltan; los que ya están se omiten. No manda correos. */
+function sincronizarContactos(lista) {
+  if (!lista || !lista.length) return;
+  const candado = LockService.getScriptLock();
+  candado.waitLock(30000);
+  try {
+    const hoja = obtenerHojaContactos();
+    const existentes = idsContactosExistentes(hoja);
+    let nuevos = 0, omitidos = 0, fallidos = 0;
+    lista.forEach(function (c) {
+      try {
+        const id = normalizarCodigo(c && (c.codigo || c.id));
+        if (!id) throw new Error('El contacto llegó sin ID.');
+        if (existentes[id]) { omitidos++; return; }
+        insertarFilaContacto(hoja, c, id);
+        existentes[id] = true;
+        nuevos++;
+      } catch (err) {
+        fallidos++;
+        registrarErrorContacto(c, err);
+      }
+    });
+    console.log('Sincronización de contactos: ' + nuevos + ' nuevos, ' + omitidos + ' ya estaban, ' + fallidos + ' con error.');
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* contacto_estado: el panel cambió el estado; se refleja en la columna H. */
+function actualizarEstadoContactoEnSheet(codigo, estado) {
+  const id = normalizarCodigo(codigo);
+  if (!id) return;
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = obtenerHojaContactos();
+    const ultima = hoja.getLastRow();
+    if (ultima < 2) return;
+    const ids = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (normalizarCodigo(ids[i][0]) === id) {
+        hoja.getRange(i + 2, 8).setValue(etiquetaEstadoContacto(estado));
+        return;
+      }
+    }
+    console.warn('contacto_estado: el contacto ' + id + ' aún no está en la hoja (se agregará al sincronizar).');
+  } catch (err) {
+    console.error('No se pudo actualizar el estado del contacto ' + id + ': ' + err.message);
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* Anota el fallo (sin datos personales) para poder sincronizar después. */
+function registrarErrorContacto(c, err) {
+  const id = normalizarCodigo(c && (c.codigo || c.id)) || '(sin id)';
+  console.error('Contacto ' + id + ' NO se escribió en la hoja: ' + (err && err.message));
+  try {
+    const libro = SpreadsheetApp.openById(SHEET_ID);
+    let hoja = libro.getSheetByName(SHEET_TAB_ERRORES);
+    if (!hoja) {
+      hoja = libro.insertSheet(SHEET_TAB_ERRORES);
+      hoja.getRange(1, 1, 1, 3).setValues([['Fecha', 'ID del contacto', 'Error']]).setFontWeight('bold');
+      hoja.setFrozenRows(1);
+    }
+    hoja.appendRow([new Date(), id, textoSeguroHoja(err && err.message)]);
+  } catch (e2) {
+    console.error('Tampoco se pudo anotar el error en la hoja: ' + e2.message);
   }
 }
 
@@ -429,4 +614,14 @@ function probarContacto() {
     codigo: 'TEST01', nombre: 'Prueba', correo: correoPropio(),
     telefono: '3000000000', asunto: 'Prueba', mensaje: 'Hola, esto es una prueba.'
   });
+}
+
+/* Prueba de la hoja de Contactos (ejecútala a mano; ejecútala 2 veces:
+   la segunda NO debe crear otra fila). */
+function probarContactoEnHoja() {
+  const r = guardarContactoEnSheet({
+    codigo: 'TEST01', fecha: Date.now(), nombre: 'Prueba Hoja', correo: correoPropio(),
+    telefono: '3000000000', asunto: 'Prueba', mensaje: 'Hola, esto es una prueba de la hoja.', estado: 'nuevo'
+  });
+  console.log('Resultado: ' + r + ' (nuevo = insertó, duplicado = ya estaba)');
 }

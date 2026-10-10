@@ -240,6 +240,16 @@
     await window.pintarMensajes();
     if (abiertoId) pintarModal();
   });
+  /* Reenvía a la hoja "Contactos" todo lo cargado; el script omite lo que ya está. */
+  const btnHoja = $('btnSincronizarHoja');
+  if (btnHoja) btnHoja.addEventListener('click', () => {
+    if (!cache.length) { toast('No hay mensajes para sincronizar.', true); return; }
+    if (typeof sincronizarContactosConHoja !== 'function') { toast('La sincronización no está disponible.', true); return; }
+    btnHoja.disabled = true;
+    const r = sincronizarContactosConHoja(cache);
+    toast('Enviados ' + r.enviados + ' mensajes a la hoja. Los que ya estaban se omiten; revisa la pestaña Contactos en unos segundos.');
+    setTimeout(() => { btnHoja.disabled = false; }, 8000);
+  });
   const thFecha = document.querySelector('#tablaMensajes th[data-campo="fecha"]');
   if (thFecha) thFecha.addEventListener('click', () => { ordenDir = -ordenDir; pagina = 1; aplicarFiltros(); });
 

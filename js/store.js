@@ -913,6 +913,8 @@ async function actualizarGestionMensajeContacto(id, cambios) {
   datos.historial_estados = firebase.firestore.FieldValue.arrayUnion(entrada);
   try {
     await fbDb.collection('mensajes_contacto').doc(id).update(datos);
+    // Refleja el nuevo estado en la columna "Estado" de la hoja "Contactos".
+    if (datos.estado) enviarAviso({ tipo: 'contacto_estado', codigo: String(id).slice(-6).toUpperCase(), estado: datos.estado });
     return { ok: true, datos: { ...datos, historial_estados: undefined }, entrada };
   } catch (e) {
     console.error('No se pudo actualizar el mensaje de contacto:', e);
@@ -1050,9 +1052,31 @@ async function enviarMensajeContacto(datos, intento) {
   } catch (e) { /* localStorage lleno o bloqueado: no importa */ }
   if (!intento.avisado) {
     intento.avisado = true;
-    enviarAviso({ tipo: 'contacto_nuevo', codigo, ...doc });
+    // Incluye "id" y el estado para que el Apps Script los registre en la hoja "Contactos".
+    enviarAviso({ tipo: 'contacto_nuevo', id: intento.id, codigo, estado: 'nuevo', ...doc });
   }
   return { ok: true, codigo };
+}
+
+/** Reenvía a la hoja "Contactos" los mensajes que se le pasen (desde el panel).
+    El Apps Script solo agrega los que faltan (compara por ID), así que se puede
+    pulsar las veces que haga falta sin duplicar. Va en tandas pequeñas.
+    Con \"no-cors\" no hay respuesta: devuelve cuántos se ENVIARON, no cuántos
+    se escribieron; el resultado real se ve en la pestaña "Contactos". */
+function sincronizarContactosConHoja(mensajes) {
+  const lista = (mensajes || []).map((m) => ({
+    id: m.id,
+    codigo: String(m.id || '').slice(-6).toUpperCase(),
+    fecha: m.fecha,
+    nombre: m.nombre, correo: m.correo, telefono: m.telefono,
+    asunto: m.asunto, mensaje: m.mensaje,
+    estado: estadoContacto(m),
+  }));
+  const TANDA = 20;
+  for (let i = 0; i < lista.length; i += TANDA) {
+    enviarAviso({ tipo: 'contactos_sincronizar', contactos: lista.slice(i, i + TANDA) });
+  }
+  return { enviados: lista.length };
 }
 
 /** Comprime una foto (File) a un dataURL jpeg liviano antes de guardarla
