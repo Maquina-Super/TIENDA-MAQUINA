@@ -25,6 +25,135 @@ function construirSkeletonHtml(cantidad = 6) {
   return html;
 }
 
+/* ============================================================
+   FOTOS DE LA TARJETA
+   Cada producto puede traer:  foto (general) · fotos[color] ·
+   fotosTrasera[color]. Estas funciones deciden qué mostrar y cómo
+   encajarlo en la tarjeta SIN deformar ni cortar la prenda.
+   Campos opcionales por producto (ver products.js):
+     ajusteFoto    'contain' | 'cover'   (forzar el modo)
+     posicionFoto  p.ej. 'center top'    (object-position)
+   ============================================================ */
+
+/* false = el fondo de la tarjeta es siempre oscuro, aunque la foto tenga
+   fondo blanco. true = si la foto tiene fondo liso CLARO, la tarjeta toma
+   ese mismo color (se ve continuo, pero esa tarjeta queda clara). Los
+   fondos lisos oscuros siempre se funden con la tarjeta. */
+const FONDO_CLARO_ADAPTATIVO = false;
+
+/** Foto de un producto para un color: la del color o, si no tiene, la general. */
+function fotoDeProducto(p, color) {
+  return (p.fotos && p.fotos[color]) || p.foto || null;
+}
+
+function _attrSeguro(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+/** HTML de lo que va dentro de .card-fotos: foto de frente (+ espalda y
+    puntitos si existe), o el dibujo con un mensaje discreto si no hay foto. */
+function htmlFotosTarjeta(p, color) {
+  let colorFoto = color;
+  let frente = fotoDeProducto(p, color);
+  if (!frente) {   // ese color no tiene foto: usa la de cualquier otro color antes que el dibujo
+    colorFoto = (p.colores || []).find(c => p.fotos && p.fotos[c]);
+    frente = colorFoto ? p.fotos[colorFoto] : null;
+  }
+  if (!frente) {
+    return `<div data-icon>${iconoProducto(p.icono, color)}</div><span class="card-sin-foto">Foto próximamente</span>`;
+  }
+  const atras = p.fotosTrasera && p.fotosTrasera[colorFoto];
+  const alt = _attrSeguro(p.nombre);
+  return `<img src="${_attrSeguro(frente)}" class="card-photo" data-photo alt="${alt}" loading="lazy">`
+    + (atras ? `<img src="${_attrSeguro(atras)}" class="card-photo card-photo-trasera" data-photo-trasera alt="${alt} de espaldas" loading="lazy">
+       <span class="card-dots" aria-hidden="true"><i></i><i></i></span>` : '');
+}
+
+/** Mira el borde de la foto: ¿tiene un fondo liso (foto de estudio, aunque
+    una manga toque el borde) o una escena detrás (editorial / modelo)?
+    Devuelve null si el navegador no deja leer la imagen (otra web sin CORS). */
+function analizarBordeFoto(img) {
+  try {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const k = Math.min(1, 96 / Math.max(w, h));
+    const cw = Math.max(8, Math.round(w * k)), ch = Math.max(8, Math.round(h * k));
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, cw, ch);
+    const d = ctx.getImageData(0, 0, cw, ch).data;
+    const at = (x, y) => (y * cw + x) * 4;
+    /* color de fondo = promedio de las 4 esquinas (bloques de 3x3 px) */
+    let R = 0, G = 0, B = 0, A = 0, m = 0;
+    [[0, 0], [cw - 3, 0], [0, ch - 3], [cw - 3, ch - 3]].forEach(([x0, y0]) => {
+      for (let y = y0; y < y0 + 3; y++) for (let x = x0; x < x0 + 3; x++) {
+        const i = at(x, y); R += d[i]; G += d[i + 1]; B += d[i + 2]; A += d[i + 3]; m++;
+      }
+    });
+    R /= m; G /= m; B /= m; A /= m;
+    if (A < 128) return { uniforme: true, transparente: true };
+    /* ¿qué parte del anillo exterior se parece a ese fondo? */
+    let cerca = 0, n = 0;
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        if (x > 1 && x < cw - 2 && y > 1 && y < ch - 2) continue;
+        const i = at(x, y); n++;
+        if (Math.hypot(d[i] - R, d[i + 1] - G, d[i + 2] - B) < 32) cerca++;
+      }
+    }
+    return {
+      uniforme: cerca / n >= 0.72, transparente: false,
+      luma: 0.2126 * R + 0.7152 * G + 0.0722 * B,
+      rgb: `rgb(${Math.round(R)},${Math.round(G)},${Math.round(B)})`,
+    };
+  } catch (e) { return null; }
+}
+
+/** Decide cómo encaja una foto cargada:
+    · contain (por defecto): se ve la prenda COMPLETA, sin cortar mangas ni estampado.
+    · cover: solo si la foto trae escena de fondo (editorial/modelo) Y su
+      proporción ya es casi la de la tarjeta (4:5), así el recorte es mínimo.
+    ajusteFoto / posicionFoto del producto mandan sobre esta decisión. */
+function ajustarFotoTarjeta(img, card) {
+  const media = card.querySelector('[data-media]');
+  const p = (typeof buscarProducto === 'function' && buscarProducto(card.id)) || {};
+  const analisis = analizarBordeFoto(img);
+  let ajuste = p.ajusteFoto;
+  if (ajuste !== 'cover' && ajuste !== 'contain') {
+    const ratio = img.naturalWidth / img.naturalHeight;
+    ajuste = (analisis && !analisis.uniforme && Math.abs(ratio - 0.8) < 0.1) ? 'cover' : 'contain';
+  }
+  img.dataset.fit = ajuste;
+  img.style.objectPosition = p.posicionFoto || (ajuste === 'cover' ? 'center 22%' : 'center');
+  if (media && !img.hasAttribute('data-photo-trasera') && ajuste === 'contain'
+      && analisis && analisis.uniforme && !analisis.transparente
+      && (analisis.luma < 110 || FONDO_CLARO_ADAPTATIVO)) {
+    media.style.setProperty('--fondo-foto', analisis.rgb);   // la foto se funde con la tarjeta
+  }
+}
+
+/** Si una foto no carga, la tarjeta no se rompe: vuelve al dibujo + mensaje. */
+function mostrarSinFotoTarjeta(card) {
+  const fotos = card.querySelector('[data-fotos]');
+  const p = typeof buscarProducto === 'function' && buscarProducto(card.id);
+  if (!fotos || !p) return;
+  const color = card.querySelector('.swatch.active')?.dataset.color || (p.colores || [])[0];
+  fotos.innerHTML = `<div data-icon>${iconoProducto(p.icono, color)}</div><span class="card-sin-foto">Foto próximamente</span>`;
+  card.querySelector('[data-media]')?.style.removeProperty('--fondo-foto');
+}
+
+/** Conecta el ajuste y el control de errores a las fotos de UNA tarjeta. */
+function activarFotosTarjeta(card) {
+  card.querySelectorAll('img.card-photo').forEach(img => {
+    if (img.complete) {
+      img.naturalWidth ? ajustarFotoTarjeta(img, card) : mostrarSinFotoTarjeta(card);
+      return;
+    }
+    img.addEventListener('load', () => ajustarFotoTarjeta(img, card), { once: true });
+    img.addEventListener('error', () => mostrarSinFotoTarjeta(card), { once: true });
+  });
+}
+
 /** Arma el HTML de una sola tarjeta de producto. */
 function construirTarjetaHtml(p, i = 0) {
   const revealDelay = `reveal-d${(i % 6) + 1}`;
@@ -51,10 +180,6 @@ function construirTarjetaHtml(p, i = 0) {
     const etiqueta = `Talla ${sz}${agotadaSz ? ' — agotada' : ''}`;
     return `<div class="size-chip ${agotadaSz ? 'size-chip-agotado' : ''}" data-size="${sz}" title="${agotadaSz ? 'Agotada' : ''}" role="button" tabindex="0" aria-pressed="false" aria-label="${etiqueta}">${sz}</div>`;
   }).join('');
-  /* foto a mostrar de entrada: la del primer color con stock, si no la foto general, si no el dibujo */
-  const fotoInicial = (p.fotos && p.fotos[colorInicial]) || p.foto || null;
-  /* foto de espaldas de ese color (opcional) */
-  const fotoTraseraInicial = (p.fotosTrasera && p.fotosTrasera[colorInicial]) || null;
   const precioTachado = descuento > 0 ? p.precio : p.precio_anterior;
   const precioAnteriorHtml = precioTachado
     ? `<span class="old">$${Number(precioTachado).toLocaleString('es-CO')}</span>` : '';
@@ -69,13 +194,10 @@ function construirTarjetaHtml(p, i = 0) {
 
   return `
     <div class="card reveal ${revealDelay} ${sinStock ? 'sin-stock' : ''}" id="${p.id}" data-cat="${p.categoria}" data-stock="${stockNum}" data-product>
-      <div class="card-media" data-media style="background:${colorInicial}22">
+      <div class="card-media" data-media>
         ${badgeHtml}
         ${favHtml}
-        ${fotoInicial
-          ? `<img src="${fotoInicial}" class="card-photo" data-photo alt="${p.nombre}" loading="lazy">`
-          : `<div data-icon>${iconoProducto(p.icono, colorInicial)}</div>`}
-        ${fotoTraseraInicial ? `<img src="${fotoTraseraInicial}" class="card-photo card-photo-trasera" data-photo-trasera alt="${p.nombre} de espaldas" loading="lazy">` : ''}
+        <div class="card-fotos" data-fotos>${htmlFotosTarjeta(p, colorInicial)}</div>
         ${typeof YD_ICONOS !== 'undefined' ? `<button class="yd-quick" data-quick="${p.id}" type="button">${YD_ICONOS.ojo} Vista rápida</button>` : ''}
       </div>
       <div class="card-body">
@@ -148,6 +270,7 @@ function activarInteraccionGrid(gridEl, opciones = {}) {
       }
     }
     refrescarAvisoStock();
+    activarFotosTarjeta(card);
 
     /* accesibilidad por teclado: los círculos de color y las tallas son
        <div role="button"> (para que se vean como antes), así que no
@@ -179,28 +302,21 @@ function activarInteraccionGrid(gridEl, opciones = {}) {
         sw.setAttribute('aria-pressed', 'true');
         const colorElegido = sw.dataset.color;
         seleccion[id].color = colorElegido;
-        card.querySelectorAll('[data-icon] svg path[fill]').forEach(path => {
-          path.setAttribute('fill', colorElegido);
-        });
-        card.querySelector('[data-media]').style.background = colorElegido + '22';
-
         const producto = buscarProducto(id);
-        const imgEl = card.querySelector('[data-photo]');
-        if (imgEl && producto) {
-          const fotoDelColor = (producto.fotos && producto.fotos[colorElegido]) || producto.foto;
-          if (fotoDelColor) imgEl.src = fotoDelColor;
-        }
-        const imgTraseraEl = card.querySelector('[data-photo-trasera]');
-        const fotoTraseraDelColor = producto && producto.fotosTrasera && producto.fotosTrasera[colorElegido];
-        if (fotoTraseraDelColor) {
-          if (imgTraseraEl) {
-            imgTraseraEl.src = fotoTraseraDelColor;
+        const fotosEl = card.querySelector('[data-fotos]');
+        if (producto && fotosEl) {
+          if (fotoDeProducto(producto, colorElegido)) {
+            /* ese color tiene foto: se pinta (aunque antes se viera el dibujo) */
+            fotosEl.innerHTML = htmlFotosTarjeta(producto, colorElegido);
+            card.querySelector('[data-media]').style.removeProperty('--fondo-foto');
+            card.classList.remove('card-trasera-activa');
+            activarFotosTarjeta(card);
           } else {
-            card.querySelector('[data-media]').insertAdjacentHTML('beforeend',
-              `<img src="${fotoTraseraDelColor}" class="card-photo card-photo-trasera" data-photo-trasera alt="${producto.nombre} de espaldas" loading="lazy">`);
+            /* sin foto para este color: se deja la que hay (sin espalda) o se tiñe el dibujo */
+            fotosEl.querySelectorAll('[data-photo-trasera], .card-dots').forEach(el => el.remove());
+            card.classList.remove('card-trasera-activa');
+            fotosEl.querySelectorAll('[data-icon] svg path[fill]').forEach(path => path.setAttribute('fill', colorElegido));
           }
-        } else if (imgTraseraEl) {
-          imgTraseraEl.remove();
         }
         refrescarAvisoStock();
       });

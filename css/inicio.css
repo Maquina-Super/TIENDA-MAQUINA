@@ -34,9 +34,6 @@
 .account-btn .account-name{font-size:13px;}
 
 @media (max-width:760px){
-  .nav{gap:8px;}
-  .nav-right{gap:8px;min-width:0;}
-  .account-btn .account-name,.account-btn .chev{display:none;}   /* queda el ícono/inicial de la cuenta */
   .subbar{font-size:11.5px;}
   .topbar{font-size:9.5px;letter-spacing:.08em;line-height:1.4;}
 }
@@ -91,30 +88,8 @@
 .pg-inicio .yd-tab{padding:8px 14px;font-size:12.5px;font-weight:500;}
 .pg-inicio .yd-tab.is-active{background:transparent;color:var(--acento);border-color:var(--acento);}
 
-/* ---------- 5. Productos: tarjetas livianas y uniformes ---------- */
+/* ---------- 5. Productos: 4 por fila (el diseño de la tarjeta está en tarjetas.css) ---------- */
 .pg-inicio .grid{grid-template-columns:repeat(4,1fr);gap:clamp(14px,1.6vw,22px);}
-.pg-inicio .card,
-.pg-inicio .card:nth-child(n){
-  transform:none;background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--ini-radius);box-shadow:none;
-}
-.pg-inicio .card:hover,
-.pg-inicio .card:nth-child(n):hover{transform:none;border-color:var(--line-strong);box-shadow:none;}
-.pg-inicio .card-media,.pg-inicio .card-media:has([data-icon]){aspect-ratio:4/5;height:auto !important;background:var(--surface-2) !important;}
-.pg-inicio .card-photo{object-fit:cover;}
-.pg-inicio .card-media [data-icon]{width:100%;height:100%;display:grid;place-items:center;}
-.pg-inicio .card-media [data-icon] svg{width:52%;height:52%;}
-.pg-inicio .card:hover .card-photo{transform:scale(1.03);}
-.pg-inicio .card-body{border-top:0;padding:14px 16px 16px;gap:10px;}
-.pg-inicio .card-cat{font-size:10.5px;letter-spacing:.12em;border:0 !important;}
-.pg-inicio .card-name{font-size:16px;line-height:1.2;text-transform:none;letter-spacing:.01em;}
-.pg-inicio .card-price{background:transparent !important;border:0 !important;padding:0 !important;box-shadow:none !important;font-size:16px;}
-.pg-inicio .card-price .old{display:block;font-size:12px;margin:0 0 1px;}
-.pg-inicio .add-btn{padding:9px 14px;font-size:12px;border-radius:10px;white-space:nowrap;}
-.pg-inicio .card-bottom{flex-wrap:wrap;gap:8px 10px;}
-.pg-inicio .add-btn:hover{box-shadow:none;transform:none;}
-.pg-inicio .badge{transform:none !important;box-shadow:none !important;font-size:10.5px;letter-spacing:.06em;padding:5px 10px;top:12px;left:12px;}
-.pg-inicio .size-chip{border-radius:8px;}
 .pg-inicio .yd-rating{display:none;}   /* estrellas de relleno: ver LEEME_REDISENO.txt */
 
 /* ---------- 4. Categorías: tarjetas uniformes ---------- */
@@ -193,11 +168,7 @@
   .pg-inicio .yd-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none;margin:0 calc(var(--ini-pad) * -1);padding:0 var(--ini-pad);width:calc(100% + 2*var(--ini-pad));}
   .pg-inicio .yd-tabs::-webkit-scrollbar{display:none;}
   .pg-inicio .yd-tab{white-space:nowrap;flex-shrink:0;}
-  .pg-inicio .grid{grid-template-columns:repeat(2,1fr);gap:12px;}
-  .pg-inicio .badge{font-size:9.5px;padding:4px 8px;top:10px;left:10px;max-width:calc(100% - 64px);white-space:nowrap;}
-  .pg-inicio .card-body{padding:12px;gap:8px;}
-  .pg-inicio .card-name{font-size:14.5px;}
-  .pg-inicio .add-btn{padding:8px 12px;}
+  .pg-inicio .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
   .pg-inicio .yd-cats{grid-template-columns:repeat(2,1fr);}
   .pg-inicio .yd-promo::before{background:linear-gradient(0deg,rgba(10,10,10,.95) 0%,rgba(10,10,10,.6) 100%),url("../img/banner-hoodie-2.jpg") 70% 20%/cover no-repeat;}
   .pg-inicio .yd-promo{align-items:flex-end;}

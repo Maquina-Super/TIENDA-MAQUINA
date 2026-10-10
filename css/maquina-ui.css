@@ -180,15 +180,6 @@ body{
    4. TARJETA DE PRODUCTO
    ============================================================ */
 .grid{gap:clamp(14px,1.8vw,22px);}
-.card{
-  background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;
-  transition:transform .28s cubic-bezier(.22,1,.36,1), border-color .28s ease, box-shadow .28s ease;
-}
-.card:hover{transform:translateY(-5px);border-color:#3a3a3a;box-shadow:0 22px 44px rgba(0,0,0,.55);}
-.card-media{background:#1a1a1a !important;aspect-ratio:1/1;}
-.card-photo{transition:transform .5s cubic-bezier(.22,1,.36,1);}
-.card:hover .card-photo{transform:scale(1.05);}
-.card-body{padding:15px 16px 17px;}
 .card-cat{
   background:transparent !important;color:var(--gray) !important;padding:0 !important;
   font-size:11px;letter-spacing:.1em;text-transform:uppercase;
@@ -203,7 +194,6 @@ body{
 .yd-stars{color:#ffc53d;letter-spacing:1px;font-size:12.5px;}
 
 /* fila inferior: precio a la izquierda, botón redondo a la derecha */
-.card-bottom{align-items:center;}
 .add-btn{
   border-radius:12px;padding:10px 16px;font-size:12.5px;font-weight:700;
   background:var(--acento);color:var(--acento-ink);border:1.5px solid var(--acento);
@@ -924,4 +914,11 @@ body{
   .yd-login-cta{padding-bottom:calc(8px + env(safe-area-inset-bottom));}
   .yd-login-btn{padding:9px 20px;font-size:12px;max-width:340px;}
   .yd-login-btn svg{width:15px;height:15px;}
+}
+
+/* encabezado en celular: sin desbordamiento horizontal (carrito/cuenta caben en 390 px) */
+@media (max-width:760px){
+  .nav{gap:8px;}
+  .nav-right{gap:8px;min-width:0;}
+  .account-btn .account-name,.account-btn .chev{display:none;}
 }

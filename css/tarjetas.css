@@ -1,0 +1,95 @@
+/* ============================================================
+   MAQUINA — TARJETAS DE PRODUCTO (diseño + sistema de fotos)
+   ------------------------------------------------------------
+   ÚNICO lugar donde se define cómo se ve una tarjeta y su foto.
+   Se carga al final en: index, productos, catalogo, categorias,
+   favoritos y producto (productos relacionados).
+   La lógica que decide contain/cover vive en js/catalog-render.js.
+   ============================================================ */
+
+/* ---------- cuadrícula (la portada define sus propias columnas en inicio.css) ---------- */
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));}
+@media (max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}}
+
+/* ---------- tarjeta: carbón, borde sutil, sin inclinación ni sombras duras ---------- */
+.card{
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:none;transform:none;
+  transition:border-color .25s ease, box-shadow .25s ease;
+}
+.card:hover{transform:none;border-color:#3a3a3a;box-shadow:0 18px 40px rgba(0,0,0,.45);z-index:2;}
+.card-body{flex:1;display:flex;flex-direction:column;padding:14px 16px 16px;}
+.card-bottom{margin-top:auto;align-items:center;flex-wrap:wrap;gap:8px 10px;}
+.add-btn{white-space:nowrap;}
+
+/* ---------- textos de la tarjeta: jerarquía limpia ---------- */
+.card-cat{font-size:10.5px;letter-spacing:.12em;border:0 !important;}
+.card-name{font-size:16px;line-height:1.2;text-transform:none;letter-spacing:.01em;}
+.card-price{background:transparent !important;border:0 !important;padding:0 !important;box-shadow:none !important;font-size:16px;}
+.card-price .old{display:block;font-size:12px;margin:0 0 1px;}
+.add-btn{padding:9px 14px;font-size:12px;border-radius:10px;}
+.add-btn:hover{box-shadow:none;transform:none;}
+.size-chip{border-radius:8px;}
+
+/* ---------- zona de la foto: SIEMPRE 4:5, oscura y uniforme ---------- */
+.card-media{
+  position:relative;overflow:hidden;aspect-ratio:4/5;height:auto;
+  background:var(--fondo-foto,#141414);   /* la foto puede fundir el fondo con --fondo-foto */
+  transition:background .3s ease;
+}
+.card-fotos{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+
+/* foto de producto: entera, centrada, sin deformar (contain) */
+.card-photo{
+  position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;padding:5%;
+  object-fit:contain;object-position:center;
+  transition:transform .6s cubic-bezier(.22,1,.36,1), opacity .3s ease;
+}
+/* fotos editoriales / de modelo: llenan el espacio (lo decide catalog-render.js) */
+.card-photo[data-fit="cover"]{padding:0;object-fit:cover;}
+
+/* espalda: vive encima; al pasar el mouse por la foto (o al tocarla en celular) reemplaza al frente */
+.card-photo-trasera{opacity:0;pointer-events:none;}
+.card.card-trasera-activa .card-photo-trasera{opacity:1;}
+.card.card-trasera-activa .card-fotos .card-photo:not(.card-photo-trasera){opacity:0;}
+@media (hover:hover){
+  .card:hover .card-photo{transform:scale(1.04);}           /* zoom suave */
+  .card-media:hover .card-photo-trasera{opacity:1;}
+  .card-media:hover .card-fotos:has(.card-photo-trasera) .card-photo:not(.card-photo-trasera){opacity:0;}
+}
+
+/* puntitos 1/2: avisan que hay otra foto (se toca la foto para cambiar) */
+.card-dots{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;gap:6px;z-index:3;pointer-events:none;}
+.card-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.3);transition:background .2s ease,transform .2s ease;}
+.card-dots i:first-child{background:#fff;}
+.card.card-trasera-activa .card-dots i:first-child{background:rgba(255,255,255,.3);}
+.card.card-trasera-activa .card-dots i:last-child{background:#fff;}
+@media (hover:hover){
+  .card-media:hover .card-dots i:first-child{background:rgba(255,255,255,.3);}
+  .card-media:hover .card-dots i:last-child{background:#fff;}
+}
+
+/* sin foto (o foto que no cargó): dibujo discreto + mensaje; no rompe la tarjeta */
+.card-fotos [data-icon]{width:46%;display:grid;place-items:center;}
+.card-fotos [data-icon] svg{width:100%;height:auto;opacity:.8;}
+.card-sin-foto{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gray);}
+
+/* capas sobre la foto */
+.badge{position:absolute;top:12px;left:12px;z-index:3;transform:none !important;animation:none !important;box-shadow:none !important;}
+.card.sin-stock .card-media{filter:grayscale(.75);opacity:.6;}
+
+/* ---------- celular: tarjetas compactas, botones fáciles de pulsar ---------- */
+@media (max-width:600px){
+  .card-body{padding:12px;}
+  .card-name{font-size:14.5px;}
+  .badge{font-size:9.5px;padding:4px 8px;top:10px;left:10px;max-width:calc(100% - 64px);white-space:nowrap;}
+  .card-dots{bottom:46px;}
+  .yd-quick{bottom:8px;padding:6px 12px;font-size:10.5px;white-space:nowrap;gap:6px;}
+  .yd-quick svg{width:13px;height:13px;}
+  .add-btn{padding:10px 12px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .card,.card-photo,.card-media{transition:none;}
+  .card:hover .card-photo{transform:none;}
+}

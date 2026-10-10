@@ -101,3 +101,27 @@ los <link> maquina-ui.css, inicio.css y carrito-pro.css de carrito.html.
 Copia del archivo original: carrito.original.html (en esta entrega).
 =======
 >>>>>>> 28fac29d051b82fd13855fd713d5b0a1bbed9bb8
+
+
+==========================================================
+FOTOS DE LAS TARJETAS DE PRODUCTO (css/tarjetas.css + js/catalog-render.js)
+==========================================================
+- Las fotos NO estan en el repositorio: se guardan en Firestore (foto,
+  fotos[color], fotosTrasera[color]) y se suben desde admin.html.
+- Antes: si el primer color no tenia foto se mostraba el icono, y al
+  elegir un color con foto nunca aparecia. Ahora siempre se usa la
+  foto del color, o la general, o la de cualquier otro color.
+- Todas las tarjetas: zona de foto 4:5, fondo oscuro, foto entera
+  (object-fit: contain) sin deformar ni cortar. Fotos con escena de
+  fondo y proporcion ~4:5 (editorial/modelo) usan cover.
+- Opcional por producto: ajusteFoto ('contain'|'cover') y posicionFoto.
+- FONDO_CLARO_ADAPTATIVO (inicio de catalog-render.js): false = fondo
+  siempre oscuro; true = fotos con fondo blanco liso funden la tarjeta.
+- Espalda: al pasar el mouse sobre la foto (escritorio) o tocarla
+  (celular); los puntitos avisan que hay segunda foto.
+- Foto que no carga / producto sin foto: dibujo + "Foto proximamente".
+- Limpieza: se quitaron de estilos.css, maquina-ui.css e inicio.css las
+  reglas duplicadas o inutiles de tarjeta (inclinaciones, sombras duras,
+  colores por tarjeta, tinte de fondo). Ahora todo vive en tarjetas.css.
+- Error corregido: la espalda se activaba con :focus-within, o sea, al
+  tocar una talla se volteaba la foto.

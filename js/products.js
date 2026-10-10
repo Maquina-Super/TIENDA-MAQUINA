@@ -12,6 +12,11 @@
             se sube desde admin.html, columna "Fotos por color".
             Si el cliente hace clic en un color que tiene foto propia,
             la imagen del producto cambia a esa foto.
+   fotosTrasera : foto de espaldas por color (se ve al pasar el mouse / tocar la foto).
+   ajusteFoto   : (opcional) 'contain' = prenda completa (por defecto) | 'cover' = la
+            foto llena el cuadro (útil en fotos de modelo). Si no se pone, la tienda
+            lo decide sola mirando el fondo de la foto (ver js/catalog-render.js).
+   posicionFoto : (opcional) dónde anclar la foto, ej: 'center top' (object-position).
    ============================================================ */
 
 const PRODUCTS = [
