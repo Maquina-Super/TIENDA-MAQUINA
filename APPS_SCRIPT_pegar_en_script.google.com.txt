@@ -12,6 +12,10 @@
      4) pedido_eliminado           -> borra esa fila de la hoja de cálculo
      5) voltage_club_bienvenida    -> manda un correo de bienvenida al
                                        que se acaba de suscribir en la tienda
+     6) contacto_nuevo             -> te avisa por correo cuando alguien
+                                       llena el formulario de Contacto
+                                       (puedes responderle directo: el
+                                       correo trae su dirección en "Responder")
    ============================================================ */
 
 /* ---------- CONFIGURA ESTO ---------- */
@@ -50,6 +54,10 @@ function doPost(e) {
 
     if (datos.tipo === 'voltage_club_bienvenida') {
       enviarBienvenidaVoltageClub(datos.correo);
+    }
+
+    if (datos.tipo === 'contacto_nuevo') {
+      enviarCorreoContacto(datos);
     }
 
     // Este tipo lo manda la tienda pero, por ahora, este script no
@@ -349,6 +357,56 @@ function enviarBienvenidaVoltageClub(correo) {
     subject: 'MAQUINA — ⚡ Ya estás en el Voltage Club',
     body: cuerpoTexto,
     htmlBody: cuerpoHtml,
+    name: 'MAQUINA',
+  });
+}
+
+/* ============================================================
+   6) AVISO DE MENSAJE NUEVO DEL FORMULARIO DE CONTACTO
+   Llega al correo de la cuenta de Google dueña de este script.
+   Si quieres que llegue a otro correo, cambia DESTINO_CONTACTO.
+   Al darle "Responder" le contestas directo al cliente.
+   ============================================================ */
+const DESTINO_CONTACTO = ''; // vacío = el correo de la cuenta dueña del script
+
+function enviarCorreoContacto(d) {
+  if (!d || !d.correo || !d.mensaje) return;
+  const destino = DESTINO_CONTACTO || Session.getEffectiveUser().getEmail();
+  const esc = function (t) {
+    return String(t == null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+
+  const texto =
+    'Nuevo mensaje desde el formulario de Contacto\n\n' +
+    'Código:   ' + (d.codigo || '') + '\n' +
+    'Nombre:   ' + d.nombre + '\n' +
+    'Correo:   ' + d.correo + '\n' +
+    'Teléfono: ' + d.telefono + '\n' +
+    'Asunto:   ' + d.asunto + '\n\n' +
+    d.mensaje;
+
+  const html =
+    '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">' +
+      '<div style="background:#b4e614;color:#151512;padding:14px 20px;border-radius:14px 14px 0 0;font-weight:700;">' +
+        '✉️ Nuevo mensaje de contacto' +
+        (d.codigo ? ' · <span style="font-family:monospace;">' + esc(d.codigo) + '</span>' : '') +
+      '</div>' +
+      '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;font-size:14px;color:#222;">' +
+        '<p style="margin:0 0 6px;"><strong>Nombre:</strong> ' + esc(d.nombre) + '</p>' +
+        '<p style="margin:0 0 6px;"><strong>Correo:</strong> ' + esc(d.correo) + '</p>' +
+        '<p style="margin:0 0 6px;"><strong>Teléfono:</strong> ' + esc(d.telefono) + '</p>' +
+        '<p style="margin:0 0 14px;"><strong>Asunto:</strong> ' + esc(d.asunto) + '</p>' +
+        '<div style="background:#f6f6f4;border-radius:10px;padding:14px;white-space:pre-wrap;">' + esc(d.mensaje) + '</div>' +
+      '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: destino,
+    replyTo: d.correo,
+    subject: 'MAQUINA — Contacto: ' + d.asunto + ' (' + d.nombre + ')',
+    body: texto,
+    htmlBody: html,
     name: 'MAQUINA',
   });
 }

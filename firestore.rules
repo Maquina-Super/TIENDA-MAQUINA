@@ -93,6 +93,20 @@ service cloud.firestore {
         && d.detalle is string && d.detalle.size() <= 2000;
     }
 
+    /* Forma exacta del mensaje de contacto (ver enviarMensajeContacto
+       en js/store.js). Sin campos de más, con tamaños razonables. */
+    function contactoValido() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['nombre','correo','telefono','asunto','mensaje','fecha','origen'])
+        && d.keys().hasAll(['nombre','correo','telefono','asunto','mensaje','fecha'])
+        && d.nombre is string && d.nombre.size() >= 3 && d.nombre.size() <= 80
+        && d.correo is string && d.correo.size() <= 120 && d.correo.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && d.telefono is string && d.telefono.size() >= 7 && d.telefono.size() <= 20
+        && d.asunto is string && d.asunto.size() >= 2 && d.asunto.size() <= 60
+        && d.mensaje is string && d.mensaje.size() >= 10 && d.mensaje.size() <= 1000
+        && d.fecha is number;
+    }
+
     // Pedidos:
     // - "get" (leer UNO, sabiendo su ID) queda abierto: lo necesita
     //   seguimiento.html para que un cliente vea SU pedido con el
@@ -174,6 +188,19 @@ service cloud.firestore {
         && request.resource.data.correo.size() <= 160;
       allow read, list: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // Mensajes del formulario de contacto (servicios.html). Cualquier
+    // visitante puede ENVIAR un mensaje (create), pero solo con la forma
+    // exacta que manda el formulario (campos y tamaños validados), y
+    // solo el admin puede leerlos o borrarlos. El "update" solo se
+    // acepta si los datos son IDÉNTICOS: es el reintento del mismo
+    // envío cuando la conexión se cortó, y así nunca se duplica ni se
+    // puede modificar un mensaje ya enviado.
+    match /mensajes_contacto/{mensajeId} {
+      allow create: if contactoValido();
+      allow update: if request.resource.data == resource.data;
+      allow get, list, delete: if isAdmin();
     }
 
     // Usuarios y sesiones del panel: SOLO admin puede leer o escribir.

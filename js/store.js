@@ -936,6 +936,53 @@ function guardarSolicitud(servicio, nombre, contacto, descripcion, extra = {}) {
   _guardar(LS_KEYS.solicitudes, solicitudes);
 }
 
+/* ---------- MENSAJES DEL FORMULARIO DE CONTACTO ----------
+   Se guardan en Firestore (colección "mensajes_contacto", reglas en
+   firestore.rules) porque ahí SÍ hay confirmación real de que el
+   mensaje llegó. Además se avisa al Apps Script (correo al dueño) y
+   se deja la misma copia local que usan las demás solicitudes.
+
+   Anti-duplicados: cada "intento" de envío tiene su propio id de
+   documento. Si el envío se corta o tarda y la persona reintenta,
+   se reutiliza ese mismo id, así el mensaje nunca queda repetido
+   (las reglas aceptan el reintento solo si los datos son idénticos). */
+function nuevoIntentoContacto() {
+  const id = fbDb.collection('mensajes_contacto').doc().id;   // se genera sin internet
+  return { id, fecha: Date.now(), avisado: false };
+}
+
+async function enviarMensajeContacto(datos, intento) {
+  const doc = {
+    nombre:   String(datos.nombre   || '').trim().slice(0, 80),
+    correo:   String(datos.correo   || '').trim().toLowerCase().slice(0, 120),
+    telefono: String(datos.telefono || '').trim().slice(0, 20),
+    asunto:   String(datos.asunto   || '').trim().slice(0, 60),
+    mensaje:  String(datos.mensaje  || '').trim().slice(0, 1000),
+    fecha:    intento.fecha,
+    origen:   'servicios.html',
+  };
+  const codigo = intento.id.slice(-6).toUpperCase();
+
+  try {
+    await fbDb.collection('mensajes_contacto').doc(intento.id).set(doc);
+  } catch (e) {
+    console.error('No se pudo guardar el mensaje de contacto:', e);
+    const sinRed = (typeof navigator !== 'undefined' && navigator.onLine === false) || (e && e.code === 'unavailable');
+    return { ok: false, motivo: sinRed ? 'red' : 'servidor' };
+  }
+
+  // Lo de abajo es secundario: si falla algo, el mensaje YA quedó guardado.
+  try {
+    guardarSolicitud('Mensaje de contacto', doc.nombre, doc.correo + ' · ' + doc.telefono,
+      'Asunto: ' + doc.asunto + ' | Mensaje: ' + doc.mensaje + ' | Código: ' + codigo);
+  } catch (e) { /* localStorage lleno o bloqueado: no importa */ }
+  if (!intento.avisado) {
+    intento.avisado = true;
+    enviarAviso({ tipo: 'contacto_nuevo', codigo, ...doc });
+  }
+  return { ok: true, codigo };
+}
+
 /** Comprime una foto (File) a un dataURL jpeg liviano antes de guardarla
     en localStorage. Devuelve una Promise<string|null>. */
 function comprimirImagen(file, maxAncho = 900, calidad = 0.72) {

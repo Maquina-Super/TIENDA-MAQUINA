@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google" content="notranslate">
-<title>Servicio al cliente — MAQUINA</title>
-<meta name="description" content="Envíos, cambios, garantía y atención al cliente de MAQUINA.">
+<title>Contacto y servicio al cliente — MAQUINA</title>
+<meta name="description" content="Escríbenos: formulario de contacto, WhatsApp, cambios, garantía y atención al cliente de MAQUINA.">
 <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-<meta property="og:title" content="Servicio al cliente — MAQUINA">
+<meta property="og:title" content="Contacto y servicio al cliente — MAQUINA">
 <meta property="og:description" content="Envíos, cambios, garantía y atención al cliente de MAQUINA.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/servicios.html">
@@ -19,12 +19,200 @@
 <link rel="stylesheet" href="css/estilos.css?v=5">
 <link rel="stylesheet" href="css/maquina-ui.css?v=10">
 <link rel="stylesheet" href="css/extras-cliente.css?v=1">
+<link rel="stylesheet" href="css/contacto.css?v=1">
 </head>
 <body>
 
 <div id="site-header"></div>
 
-<section class="section">
+<!-- Iconos del formulario de contacto (sprite SVG) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="ct-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="ct-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="ct-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+  <symbol id="ct-whatsapp" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></symbol>
+  <symbol id="ct-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="ct-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></symbol>
+  <symbol id="ct-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8"/><path d="M8 12h5"/></symbol>
+  <symbol id="ct-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="ct-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="ct-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="ct-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="ct-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="ct-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+</svg>
+
+<!-- ========== CONTACTO: formulario + canales directos ========== -->
+<section class="ct" id="contacto" aria-labelledby="ctTitulo">
+  <div class="ct-wrap">
+
+    <div class="ct-intro">
+      <div class="ct-eyebrow">Contacto</div>
+      <h1 class="ct-title" id="ctTitulo">Escríbe<em>nos</em></h1>
+      <p class="ct-lead">¿Dudas con un pedido, una talla o una colaboración? Cuéntanos y te respondemos por el medio que prefieras.</p>
+    </div>
+
+    <div class="ct-canales">
+      <a class="ct-canal" href="https://wa.me/573239523623?text=Hola%2C%20quiero%20hacer%20una%20consulta" target="_blank" rel="noopener">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-whatsapp"/></svg></span>
+        <span class="ct-canal-txt"><small>WhatsApp</small><strong>+57 323 952 3623</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal" href="tel:+573239523623">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-phone"/></svg></span>
+        <span class="ct-canal-txt"><small>Llámanos</small><strong>+57 323 952 3623</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal" href="mailto:contacto@maquina.co">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-mail"/></svg></span>
+        <span class="ct-canal-txt"><small>Correo</small><strong>contacto@maquina.co</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal" href="https://www.google.com/maps/search/?api=1&amp;query=Calle+50+%2345-30+Medell%C3%ADn+Colombia" target="_blank" rel="noopener">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-pin"/></svg></span>
+        <span class="ct-canal-txt"><small>Ubicación</small><strong>Calle 50 #45-30, Medellín</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <p class="ct-nota">¿Es por un cambio, garantía o queja? Usa las <a href="#servicio-cliente">opciones de servicio al cliente</a> más abajo.</p>
+    </div>
+
+    <div class="ct-form-card" id="ctCard">
+
+      <div class="ct-formulario" id="ctFormulario">
+        <div class="ct-form-head">
+          <h2>Envíanos un mensaje</h2>
+          <p>Todos los campos son obligatorios <b>*</b></p>
+        </div>
+
+        <form id="formContacto" class="ct-form" novalidate autocomplete="on">
+          <fieldset class="ct-fieldset" id="ctCampos">
+            <legend class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Datos de contacto</legend>
+
+            <div class="ct-field ct-full" data-campo="nombre">
+              <label class="ct-label" for="ctNombre">Nombre completo<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-user"/></svg>
+                <input class="ct-input" type="text" id="ctNombre" name="nombre" placeholder="Ej: Camila Rodríguez" autocomplete="name" autocapitalize="words" maxlength="80" required aria-describedby="ctNombreErr">
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctNombreErr"></div>
+            </div>
+
+            <div class="ct-field" data-campo="correo">
+              <label class="ct-label" for="ctCorreo">Correo electrónico<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-mail"/></svg>
+                <input class="ct-input" type="email" id="ctCorreo" name="correo" placeholder="nombre@correo.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="120" required aria-describedby="ctCorreoErr">
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctCorreoErr"></div>
+              <div class="ct-sugerencia" id="ctCorreoSug" role="status"></div>
+            </div>
+
+            <div class="ct-field" data-campo="telefono">
+              <label class="ct-label" for="ctTelefono">Teléfono / celular<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <span class="ct-prefijo" aria-hidden="true"><svg class="ct-i" aria-hidden="true"><use href="#ct-phone"/></svg>+57</span>
+                <input class="ct-input tiene-prefijo" type="tel" id="ctTelefono" name="telefono" placeholder="300 123 4567" autocomplete="tel-national" inputmode="tel" maxlength="20" required aria-describedby="ctTelefonoAyuda ctTelefonoErr">
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-ayuda" id="ctTelefonoAyuda">Celular de 10 dígitos.</div>
+              <div class="ct-error" id="ctTelefonoErr"></div>
+            </div>
+
+            <div class="ct-field ct-full" data-campo="asunto">
+              <label class="ct-label" for="ctAsunto">Asunto<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-tag"/></svg>
+                <select class="ct-select" id="ctAsunto" name="asunto" required aria-describedby="ctAsuntoErr">
+                  <option value="" selected disabled>Selecciona un asunto</option>
+                  <option>Consulta sobre un pedido</option>
+                  <option>Información de un producto o talla</option>
+                  <option>Envíos y entregas</option>
+                  <option>Pagos</option>
+                  <option>Cambios, garantía o devoluciones</option>
+                  <option>Ventas al por mayor / colaboraciones</option>
+                  <option>Otro</option>
+                </select>
+                <svg class="ct-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-chevron"/></svg>
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctAsuntoErr"></div>
+            </div>
+
+            <div class="ct-field ct-full" data-campo="mensaje">
+              <label class="ct-label" for="ctMensaje">Mensaje<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control is-area">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-msg"/></svg>
+                <textarea class="ct-textarea" id="ctMensaje" name="mensaje" placeholder="Cuéntanos en qué podemos ayudarte. Si es sobre un pedido, incluye tu número de pedido." maxlength="1000" required aria-describedby="ctMensajeErr"></textarea>
+                <span class="ct-contador" id="ctContador" aria-hidden="true">0/1000</span>
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true" style="right:14px"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true" style="right:14px"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctMensajeErr"></div>
+            </div>
+
+            <div class="ct-field ct-full ct-acepto" data-campo="acepto" id="ctAcepto">
+              <label class="ct-check" for="ctAceptoChk">
+                <input type="checkbox" id="ctAceptoChk" name="acepto" required aria-describedby="ctAceptoErr">
+                <span class="ct-box"><svg class="ct-i" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg></span>
+                <span>Autorizo a MAQUINA a usar mis datos para responder este mensaje, según la <a href="legal.html#datos-personales" target="_blank" rel="noopener">política de datos personales</a>.</span>
+              </label>
+              <div class="ct-error" id="ctAceptoErr"></div>
+            </div>
+
+            <!-- Campo trampa para bots: las personas no lo ven -->
+            <div class="ct-trampa" aria-hidden="true">
+              <label for="ctWeb">No llenes este campo</label>
+              <input type="text" id="ctWeb" name="web" tabindex="-1" autocomplete="off">
+            </div>
+
+            <div class="ct-aviso error ct-full" id="ctAviso" role="alert" aria-live="assertive">
+              <svg class="ct-i" aria-hidden="true"><use href="#ct-alert"/></svg>
+              <div class="ct-aviso-txt" id="ctAvisoTxt"></div>
+            </div>
+
+            <div class="ct-full">
+              <button type="submit" class="ct-enviar" id="ctEnviar">
+                <span class="ct-spin" aria-hidden="true"></span>
+                <span id="ctEnviarTxt">Enviar mensaje</span>
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-send"/></svg>
+              </button>
+            </div>
+
+            <div class="ct-full ct-privacidad">
+              <svg class="ct-i" aria-hidden="true"><use href="#ct-shield"/></svg>
+              <span>Tus datos están seguros y solo los usamos para responderte.</span>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+
+      <!-- Estado: enviado correctamente -->
+      <div class="ct-exito" id="ctExito" role="status" aria-live="polite">
+        <div class="ct-exito-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h2 id="ctExitoTitulo" tabindex="-1">¡Mensaje enviado!</h2>
+        <p id="ctExitoTxt"></p>
+        <div class="ct-codigo">Código de tu mensaje <span id="ctCodigo"></span></div>
+        <div class="ct-exito-acciones">
+          <a class="ct-btn-sec principal" href="https://wa.me/573239523623" target="_blank" rel="noopener" id="ctExitoWa">
+            <svg class="ct-i sm" aria-hidden="true"><use href="#ct-whatsapp"/></svg> Escribir por WhatsApp
+          </a>
+          <button type="button" class="ct-btn-sec" id="ctOtro">Enviar otro mensaje</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="ct-sep" aria-hidden="true"><div></div></div>
+
+<section class="section" id="servicio-cliente">
   <div class="section-head reveal" style="border:none;padding-bottom:0;">
     <div>
       <div class="section-eyebrow">Estamos para ayudarte</div>
@@ -235,10 +423,11 @@
 <script src="js/firebase-config.js?v=4"></script>
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=5"></script>
-<script src="js/store.js?v=4"></script>
+<script src="js/store.js?v=5"></script>
 <script src="js/layout.js?v=4"></script>
 <script src="js/maquina-ui.js?v=4"></script>
 <script src="js/extras-cliente.js?v=1"></script>
+<script src="js/contacto.js?v=1"></script>
 <script>
 renderHeader('servicios');
 renderFooter();
