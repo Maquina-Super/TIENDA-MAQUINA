@@ -107,6 +107,19 @@ service cloud.firestore {
         && d.fecha is number;
     }
 
+    /* Lo ÚNICO que un admin puede cambiar en un mensaje de contacto ya
+       recibido: su gestión (estado, leído, historial). Nombre, correo,
+       teléfono, asunto, mensaje y fecha quedan intocables, así nadie
+       puede alterar lo que escribió el cliente. */
+    function gestionContactoValida() {
+      let antes = resource.data;
+      let despues = request.resource.data;
+      return despues.diff(antes).affectedKeys().hasOnly(['estado', 'leido', 'estado_fecha', 'estado_por', 'historial_estados'])
+        && (!('estado' in despues) || despues.estado in ['nuevo', 'en_revision', 'respondido'])
+        && (!('leido' in despues) || despues.leido is bool)
+        && (!('historial_estados' in despues) || (despues.historial_estados is list && despues.historial_estados.size() <= 200));
+    }
+
     // Pedidos:
     // - "get" (leer UNO, sabiendo su ID) queda abierto: lo necesita
     //   seguimiento.html para que un cliente vea SU pedido con el
@@ -190,16 +203,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Mensajes del formulario de contacto (servicios.html). Cualquier
-    // visitante puede ENVIAR un mensaje (create), pero solo con la forma
-    // exacta que manda el formulario (campos y tamaños validados), y
-    // solo el admin puede leerlos o borrarlos. El "update" solo se
-    // acepta si los datos son IDÉNTICOS: es el reintento del mismo
-    // envío cuando la conexión se cortó, y así nunca se duplica ni se
-    // puede modificar un mensaje ya enviado.
+    // Mensajes del formulario de contacto (servicios.html).
+    // - create: cualquier visitante, pero solo con la forma exacta que
+    //   manda el formulario (campos y tamaños validados).
+    // - get / list / delete: SOLO admin (nadie más puede leer los datos
+    //   de los clientes).
+    // - update: (a) un admin, pero solo para cambiar la gestión (estado,
+    //   leído, historial; ver gestionContactoValida()); (b) cualquiera,
+    //   solo si los datos son IDÉNTICOS: es el reintento del mismo envío
+    //   cuando la conexión se cortó, y así nunca se duplica ni se puede
+    //   modificar un mensaje ya enviado.
     match /mensajes_contacto/{mensajeId} {
       allow create: if contactoValido();
-      allow update: if request.resource.data == resource.data;
+      allow update: if (isAdmin() && gestionContactoValida())
+                    || request.resource.data == resource.data;
       allow get, list, delete: if isAdmin();
     }
 

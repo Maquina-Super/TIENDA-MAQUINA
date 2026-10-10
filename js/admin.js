@@ -151,6 +151,7 @@ async function entrarAlPanel() {
   pintarTodo();
   pintarVoltageClub();
   pintarCostosEnvio();
+  if (permisosActuales.mensajes && typeof cargarBadgeMensajes === 'function') cargarBadgeMensajes(); // contador de "sin leer" en el menú
   iniciarVigiaInactividadAdmin();
 }
 
@@ -269,6 +270,7 @@ function aplicarPermisosUI() {
     [tabBtnResumen, '__resumen__'],
     [tabBtnInventario, 'inventario'],
     [tabBtnPedidos, 'pedidos'],
+    [tabBtnMensajes, 'mensajes'],
     [tabBtnDrop, 'drop'],
     [tabBtnUsuarios, 'usuarios'],
   ];
@@ -311,11 +313,13 @@ function aplicarPermisosUI() {
 const tabBtnResumen = document.getElementById('tabBtnResumen');
 const tabBtnInventario = document.getElementById('tabBtnInventario');
 const tabBtnPedidos = document.getElementById('tabBtnPedidos');
+const tabBtnMensajes = document.getElementById('tabBtnMensajes');
 const tabBtnDrop = document.getElementById('tabBtnDrop');
 const tabBtnUsuarios = document.getElementById('tabBtnUsuarios');
 const tabResumen = document.getElementById('tabResumen');
 const tabInventario = document.getElementById('tabInventario');
 const tabPedidos = document.getElementById('tabPedidos');
+const tabMensajes = document.getElementById('tabMensajes');
 const tabDrop = document.getElementById('tabDrop');
 const tabUsuarios = document.getElementById('tabUsuarios');
 const tituloTab = document.getElementById('adminTituloTab');
@@ -325,11 +329,13 @@ function ocultarTodasLasPestanas() {
   tabBtnResumen.classList.remove('active');
   tabBtnInventario.classList.remove('active');
   tabBtnPedidos.classList.remove('active');
+  tabBtnMensajes.classList.remove('active');
   tabBtnDrop.classList.remove('active');
   tabBtnUsuarios.classList.remove('active');
   tabResumen.style.display = 'none';
   tabInventario.style.display = 'none';
   tabPedidos.style.display = 'none';
+  tabMensajes.style.display = 'none';
   tabDrop.style.display = 'none';
   tabUsuarios.style.display = 'none';
 }
@@ -357,6 +363,16 @@ tabBtnPedidos.addEventListener('click', () => {
   tabPedidos.style.display = 'block';
   tituloTab.textContent = 'Pedidos de clientes';
   pintarPedidos();
+});
+
+/* La lógica de esta pestaña vive en js/admin-mensajes.js (se carga después). */
+tabBtnMensajes.addEventListener('click', () => {
+  if (!permisosActuales.mensajes) return;
+  ocultarTodasLasPestanas();
+  tabBtnMensajes.classList.add('active');
+  tabMensajes.style.display = 'block';
+  tituloTab.textContent = 'Mensajes de clientes';
+  if (typeof pintarMensajes === 'function') pintarMensajes();
 });
 
 tabBtnDrop.addEventListener('click', () => {
@@ -427,7 +443,7 @@ async function pintarUsuariosPanel() {
     return;
   }
   const yo = usuarioAdminActual();
-  const ETIQUETAS_PERMISOS = { inventario: 'Inventario', pedidos: 'Pedidos', eliminarPedidos: 'Eliminar pedidos', drop: 'Drop', usuarios: 'Usuarios' };
+  const ETIQUETAS_PERMISOS = { inventario: 'Inventario', pedidos: 'Pedidos', eliminarPedidos: 'Eliminar pedidos', mensajes: 'Mensajes', drop: 'Drop', usuarios: 'Usuarios' };
   const COLORES_AVATAR = ['#1b4332', '#c9a13a', '#8a5a44', '#4a6fa5', '#a3477a', '#3b7a63'];
   const colorAvatar = nombre => COLORES_AVATAR[[...nombre].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORES_AVATAR.length];
   tbody.innerHTML = usuarios.map(u => {
@@ -476,7 +492,7 @@ document.getElementById('btnCrearUsuarioPanel').addEventListener('click', async 
   document.getElementById('nuevoUsuarioClave').value = '';
   document.getElementById('nuevoUsuarioCodigoPanel').value = '';
   document.getElementById('codigoDesarrolladorUsuario').value = '';
-  document.querySelectorAll('.chk-permiso-nuevo').forEach(chk => { chk.checked = (chk.value === 'inventario' || chk.value === 'pedidos'); });
+  document.querySelectorAll('.chk-permiso-nuevo').forEach(chk => { chk.checked = (chk.value === 'inventario' || chk.value === 'pedidos' || chk.value === 'mensajes'); });
   showToast('Usuario creado ✓ — dile a esa persona su código de acceso por fuera del panel.');
   pintarUsuariosPanel();
 });

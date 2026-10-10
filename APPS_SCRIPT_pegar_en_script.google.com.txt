@@ -1,36 +1,37 @@
 /* ============================================================
-   SCRIPT COMPLETO - MAQUINA
+   SCRIPT COMPLETO - MAQUINA (versión final)
    Reemplaza TODO el contenido de tu archivo .gs por esto.
-   Hace lo que la tienda le manda avisar:
-     1) pedido_nuevo               -> escribe la fila en Sheets
-                                       + manda correo de confirmación
-                                       (dice "pagado" o "pendiente"
-                                       según el método de pago)
-     2) codigo_panel_recuperacion  -> manda el código del panel por correo
-     3) aviso_drop_nuevo           -> manda el correo del drop a todo el
-                                       Voltage Club
-     4) pedido_eliminado           -> borra esa fila de la hoja de cálculo
-     5) voltage_club_bienvenida    -> manda un correo de bienvenida al
-                                       que se acaba de suscribir en la tienda
-     6) contacto_nuevo             -> te avisa por correo cuando alguien
-                                       llena el formulario de Contacto
-                                       (puedes responderle directo: el
-                                       correo trae su dirección en "Responder")
+
+   Qué hace según el aviso que mande la tienda:
+     pedido_nuevo               -> escribe la fila en Sheets + correo
+     pedido_eliminado           -> borra esa fila de la hoja
+     codigo_panel_recuperacion  -> manda el código del panel por correo
+     aviso_drop_nuevo           -> correo del drop a todo el Voltage Club
+     voltage_club_bienvenida    -> correo de bienvenida al suscribirse
+     contacto_nuevo             -> te avisa por correo del formulario de Contacto
+
+   Esta versión une las dos anteriores:
+     - Conserva el borrado robusto de pedidos (código como texto, candado).
+     - RECUPERA "contacto_nuevo", que la versión 2 había perdido.
+     - Usa getEffectiveUser() para el correo propio (getActiveUser puede
+       salir vacío en una web app y hacía fallar el aviso del drop).
+     - Escapa el HTML de nombres/productos en los correos.
    ============================================================ */
 
-/* ---------- CONFIGURA ESTO ---------- */
-// Pega aquí el ID de tu hoja "maquina-pedidos".
-// Lo sacas de la URL: https://docs.google.com/spreadsheets/d/ESTE_ES_EL_ID/edit
-const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
-const SHEET_TAB = "Pedidos"; // el nombre exacto de la pestaña donde están las columnas
+/* ---------- 1) CONFIGURACIÓN ---------- */
+const VERSION_SCRIPT = "2026-10-10 final-unificado";
 
-// Tu tienda en vivo, sin barra al final. Se usa para armar el link
-// de "rastrea tu pedido" que va dentro del correo de confirmación.
+const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
+const SHEET_TAB = "Pedidos";
+
+// Tu tienda en vivo, sin barra al final.
 const TIENDA_URL = "https://maquina-super.github.io/TIENDA-MAQUINA";
 
-/* ============================================================
-   1) FUNCIÓN PRINCIPAL - recibe todos los avisos de la tienda
-   ============================================================ */
+// Correo donde te llegan los mensajes de Contacto.
+// Vacío = el correo de la cuenta dueña del script.
+const DESTINO_CONTACTO = '';
+
+/* ---------- 2) doPost: recibe los avisos de la tienda ---------- */
 function doPost(e) {
   try {
     const datos = JSON.parse(e.postData.contents);
@@ -39,123 +40,152 @@ function doPost(e) {
       guardarPedidoEnSheet(datos.pedido);
       enviarCorreoConfirmacion(datos.pedido);
     }
-
-    if (datos.tipo === 'codigo_panel_recuperacion') {
-      enviarCorreoCodigoPanel(datos.correo, datos.codigo);
-    }
-
-    if (datos.tipo === 'aviso_drop_nuevo') {
-      enviarAvisoDropVoltageClub(datos.correos, datos.asunto, datos.mensaje);
-    }
-
     if (datos.tipo === 'pedido_eliminado') {
       eliminarPedidoDeSheet(datos.id);
     }
-
+    if (datos.tipo === 'codigo_panel_recuperacion') {
+      enviarCorreoCodigoPanel(datos.correo, datos.codigo);
+    }
+    if (datos.tipo === 'aviso_drop_nuevo') {
+      enviarAvisoDropVoltageClub(datos.correos, datos.asunto, datos.mensaje);
+    }
     if (datos.tipo === 'voltage_club_bienvenida') {
       enviarBienvenidaVoltageClub(datos.correo);
     }
-
     if (datos.tipo === 'contacto_nuevo') {
       enviarCorreoContacto(datos);
     }
-
-    // Este tipo lo manda la tienda pero, por ahora, este script no
-    // hace nada con él (no rompe nada si llega, simplemente no
-    // genera ni correo ni fila en Sheets):
-    //   - datos.tipo === 'problema'   (error al guardar un pedido)
-    // Si quieres que también te avise (por Telegram o correo),
-    // dímelo y lo agregamos. "pedido_estado" (cambio de estado) ya
-    // lo avisas por Telegram aparte, según me contaste.
+    // 'problema' y 'pedido_estado' no hacen nada aquí (no rompen nada).
 
     return ContentService.createTextOutput('ok');
   } catch (err) {
-    // Si algo falla, igual respondemos "ok" para no romper la tienda,
-    // pero queda registrado el error en "Ejecuciones" para revisarlo.
+    // La tienda usa "no-cors": el error solo se ve en "Ejecuciones".
     console.error(err);
     return ContentService.createTextOutput('error: ' + err.message);
   }
 }
 
-/* ============================================================
-   2) ESCRIBE LA FILA EN TU HOJA DE CÁLCULO
-   OJO: revisa el orden de columnas de tu hoja y ajústalo abajo
-   si no coincide (mira el arreglo "fila").
-   ============================================================ */
-function guardarPedidoEnSheet(pedido) {
-  if (!pedido) return;
-  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
-  if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
-
-  const detalle = pedido.detalle ||
-    (pedido.items || []).map(function (it) { return it.nombre + ' (' + it.talla + ')'; }).join(' | ');
-
-  // Dirección: todo menos el municipio, que va en su propia columna
-  const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_referencia]
-    .filter(Boolean).join(', ');
-
-  const fila = [
-    pedido.codigo_pedido || pedido.id || '',                        // A - N° Pedido
-    new Date(pedido.fecha || Date.now()),                            // B - Fecha
-    pedido.nombre_cliente || '',                                     // C - Cliente
-    pedido.email_cliente || '',                                      // D - Correo
-    pedido.telefono_cliente || '',                                   // E - Teléfono
-    detalle,                                                         // F - Productos
-    pedido.envio_municipio || '',                                    // G - Municipio
-    direccion,                                                       // H - Dirección
-    nombreMetodoPago(pedido.metodo_pago),                            // I - Método de pago
-    pedido.subtotal || 0,                                            // J - Subtotal
-    pedido.costo_envio || 0,                                         // K - Envío
-    pedido.total || 0,                                               // L - Total
-    esPagoDeUnaVez(pedido.metodo_pago) ? 'Pagado' : 'Pendiente',      // M - Estado de pago
-  ];
-
-  hoja.appendRow(fila);
+/* ---------- 3) doGet: comprobar la versión publicada ---------- */
+function doGet() {
+  return ContentService.createTextOutput('MAQUINA script activo - versión ' + VERSION_SCRIPT);
 }
 
-/* Nombre bonito del método de pago para la hoja y el correo. */
+/* ---------- 4) HELPERS ---------- */
 function nombreMetodoPago(metodo) {
   if (metodo === 'tarjeta') return 'Tarjeta';
   if (metodo === 'nequi') return 'Nequi';
   return 'Contraentrega';
 }
 
-/* true si el pago ya se hizo (tarjeta o Nequi), false si queda
-   pendiente para cuando llegue el pedido (contraentrega). */
 function esPagoDeUnaVez(metodo) {
   return metodo === 'tarjeta' || metodo === 'nequi';
 }
 
-/* ============================================================
-   3) BORRA LA FILA DE LA HOJA CUANDO SE ELIMINA UN PEDIDO
-   La tienda solo manda el "id" (el de Firestore). El código que
-   aparece en la columna A de la hoja son los últimos 6 caracteres
-   de ese id en mayúsculas (así arma "codigo_pedido" la tienda), así
-   que buscamos la fila por ese mismo valor.
-   ============================================================ */
-function eliminarPedidoDeSheet(id) {
-  if (!id) return;
-  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
-  if (!hoja) return;
+function normalizarCodigo(valor) {
+  return String(valor === null || valor === undefined ? '' : valor).trim().toUpperCase();
+}
 
-  const codigo = String(id).slice(-6).toUpperCase();
-  const datos = hoja.getDataRange().getValues();
+function sinCerosIniciales(codigo) {
+  return /^\d+$/.test(codigo) ? codigo.replace(/^0+(?=\d)/, '') : codigo;
+}
 
-  // De abajo hacia arriba, para que borrar una fila no desordene
-  // los índices de las que todavía faltan por revisar.
-  for (let i = datos.length - 1; i >= 1; i--) {
-    const codigoFila = String(datos[i][0] || '').toUpperCase();
-    if (codigoFila === codigo) {
-      hoja.deleteRow(i + 1); // +1 porque las filas de Sheets empiezan en 1, no en 0
-    }
+/* Escapa texto para meterlo seguro en HTML. */
+function esc(t) {
+  return String(t === null || t === undefined ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* Formato de dinero: 125000 -> "125.000" (no depende del idioma del servidor). */
+function dinero(n) {
+  return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/* Correo de la cuenta dueña del script (siempre disponible). */
+function correoPropio() {
+  return Session.getEffectiveUser().getEmail();
+}
+
+/* ---------- 5) PEDIDOS EN LA HOJA ---------- */
+function guardarPedidoEnSheet(pedido) {
+  if (!pedido) return;
+
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+
+    const detalle = pedido.detalle ||
+      (pedido.items || []).map(function (it) { return it.nombre + ' (' + it.talla + ')'; }).join(' | ');
+
+    const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_referencia]
+      .filter(Boolean).join(', ');
+
+    const fila = [
+      String(pedido.codigo_pedido || pedido.id || ''),                 // A - N° Pedido (texto)
+      new Date(pedido.fecha || Date.now()),                            // B - Fecha
+      pedido.nombre_cliente || '',                                     // C - Cliente
+      pedido.email_cliente || '',                                      // D - Correo
+      pedido.telefono_cliente || '',                                   // E - Teléfono
+      detalle,                                                         // F - Productos
+      pedido.envio_municipio || '',                                    // G - Municipio
+      direccion,                                                       // H - Dirección
+      nombreMetodoPago(pedido.metodo_pago),                            // I - Método de pago
+      pedido.subtotal || 0,                                            // J - Subtotal
+      pedido.costo_envio || 0,                                         // K - Envío
+      pedido.total || 0,                                               // L - Total
+      esPagoDeUnaVez(pedido.metodo_pago) ? 'Pagado' : 'Pendiente',     // M - Estado de pago
+    ];
+
+    const numeroFila = hoja.getLastRow() + 1;
+    hoja.getRange(numeroFila, 1).setNumberFormat('@'); // columna A como texto
+    hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
+  } finally {
+    candado.releaseLock();
   }
 }
 
-/* ============================================================
-   4) CORREO DE CONFIRMACIÓN DE PEDIDO AL CLIENTE
-   Si pagó de una vez (tarjeta o Nequi) dice "pago confirmado".
-   Si es contraentrega, dice "pedido confirmado, pago pendiente".
-   ============================================================ */
+function eliminarPedidoDeSheet(id) {
+  if (!id) { console.warn('pedido_eliminado llegó sin id.'); return; }
+
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
+
+    const idCompleto = normalizarCodigo(id);
+    const codigo = idCompleto.slice(-6);
+    const codigoSinCeros = sinCerosIniciales(codigo);
+
+    const ultimaFila = hoja.getLastRow();
+    if (ultimaFila < 2) { console.warn('La hoja no tiene pedidos que borrar.'); return; }
+
+    const columnaA = hoja.getRange(2, 1, ultimaFila - 1, 1).getDisplayValues();
+
+    let borradas = 0;
+    for (let i = columnaA.length - 1; i >= 0; i--) {
+      const celda = normalizarCodigo(columnaA[i][0]);
+      if (!celda) continue;
+      if (celda === codigo || celda === idCompleto || sinCerosIniciales(celda) === codigoSinCeros) {
+        hoja.deleteRow(i + 2);
+        borradas++;
+      }
+    }
+
+    if (borradas === 0) {
+      console.warn('No se halló ninguna fila para el pedido ' + codigo + ' (id ' + idCompleto + ').');
+    } else {
+      console.log('Pedido ' + codigo + ': ' + borradas + ' fila(s) borrada(s) de la hoja.');
+    }
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* ---------- 6) CORREOS ---------- */
+
+/* Confirmación de pedido al cliente (pagado o pendiente). */
 function enviarCorreoConfirmacion(pedido) {
   if (!pedido || !pedido.email_cliente) return;
 
@@ -165,19 +195,18 @@ function enviarCorreoConfirmacion(pedido) {
   const metodoTexto = nombreMetodoPago(pedido.metodo_pago);
 
   const filasItemsTexto = items.map(function (it) {
-    return it.nombre + ' — talla ' + it.talla +
-      ' — $' + Number(it.precio).toLocaleString('es-CO');
+    return it.nombre + ' — talla ' + it.talla + ' — $' + dinero(it.precio);
   }).join('\n');
 
   const filasItemsHtml = items.map(function (it) {
     const foto = it.foto
-      ? '<img src="' + it.foto + '" width="64" height="64" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;" alt="' + it.nombre + '">'
+      ? '<img src="' + esc(it.foto) + '" width="64" height="64" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;" alt="' + esc(it.nombre) + '">'
       : '';
     return '<tr>' +
       '<td style="padding:8px 0;">' + foto + '</td>' +
       '<td style="padding:8px 0 8px 12px;font-family:Arial,sans-serif;font-size:14px;color:#151512;">' +
-        '<strong>' + it.nombre + '</strong><br>' +
-        '<span style="color:#666;">Talla ' + it.talla + ' — $' + Number(it.precio).toLocaleString('es-CO') + '</span>' +
+        '<strong>' + esc(it.nombre) + '</strong><br>' +
+        '<span style="color:#666;">Talla ' + esc(it.talla) + ' — $' + dinero(it.precio) + '</span>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -185,11 +214,8 @@ function enviarCorreoConfirmacion(pedido) {
   const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_municipio]
     .filter(Boolean).join(', ');
 
-  // Link para que el cliente rastree su pedido cuando quiera (le
-  // precarga el número, solo le falta poner su teléfono ahí mismo).
   const linkSeguimiento = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(pedido.id || '');
 
-  // Encabezado y línea de estado, distintos según si ya pagó o no.
   const encabezado = yaPago ? '✅ Pago confirmado' : '📦 Pedido confirmado';
   const asunto = yaPago
     ? 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo
@@ -197,19 +223,19 @@ function enviarCorreoConfirmacion(pedido) {
   const lineaEstadoTexto = yaPago
     ? 'Tu pago por ' + metodoTexto + ' se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
     : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: pagas $' +
-      Number(pedido.total || 0).toLocaleString('es-CO') + ' contraentrega, cuando te llegue.';
+      dinero(pedido.total) + ' contraentrega, cuando te llegue.';
   const lineaEstadoHtml = yaPago
     ? 'Tu pago por <strong>' + metodoTexto + '</strong> se realizó <strong>correctamente</strong> y ya recibimos tu pedido ' +
-      '<strong>#' + codigo + '</strong> en MAQUINA. Esto fue lo que compraste:'
-    : 'Ya recibimos tu pedido <strong>#' + codigo + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: pagas contraentrega, cuando te llegue. Esto fue lo que pediste:';
+      '<strong>#' + esc(codigo) + '</strong> en MAQUINA. Esto fue lo que compraste:'
+    : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: pagas contraentrega, cuando te llegue. Esto fue lo que pediste:';
 
   const cuerpoTexto =
     '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
     lineaEstadoTexto + '\n\n' +
     filasItemsTexto + '\n\n' +
-    'Subtotal: $' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '\n' +
-    'Envío: $' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '\n' +
-    'Total: $' + Number(pedido.total || 0).toLocaleString('es-CO') + '\n' +
+    'Subtotal: $' + dinero(pedido.subtotal) + '\n' +
+    'Envío: $' + dinero(pedido.costo_envio) + '\n' +
+    'Total: $' + dinero(pedido.total) + '\n' +
     'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : 'Pendiente (contraentrega)') + '\n\n' +
     'Dirección de entrega: ' + direccion + '\n' +
     'Método de pago: ' + metodoTexto + '\n\n' +
@@ -223,20 +249,20 @@ function enviarCorreoConfirmacion(pedido) {
         '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">' + encabezado + '</div>' +
       '</div>' +
       '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
-        '<p style="font-size:15px;color:#151512;">¡Hola <strong>' + (pedido.nombre_cliente || '') + '</strong>! ⚡</p>' +
+        '<p style="font-size:15px;color:#151512;">¡Hola <strong>' + esc(pedido.nombre_cliente) + '</strong>! ⚡</p>' +
         '<p style="font-size:14px;color:#333;">' + lineaEstadoHtml + '</p>' +
         '<table style="width:100%;border-collapse:collapse;margin:14px 0;">' + filasItemsHtml + '</table>' +
         '<table style="width:100%;font-size:14px;color:#151512;border-top:1px solid #eee;padding-top:10px;">' +
-          '<tr><td>Subtotal</td><td style="text-align:right;">$' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '</td></tr>' +
-          '<tr><td>Envío</td><td style="text-align:right;">$' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '</td></tr>' +
-          '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + Number(pedido.total || 0).toLocaleString('es-CO') + '</td></tr>' +
+          '<tr><td>Subtotal</td><td style="text-align:right;">$' + dinero(pedido.subtotal) + '</td></tr>' +
+          '<tr><td>Envío</td><td style="text-align:right;">$' + dinero(pedido.costo_envio) + '</td></tr>' +
+          '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + dinero(pedido.total) + '</td></tr>' +
         '</table>' +
         '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#2f8a1f' : '#b45309') + ';margin-top:6px;">' +
           (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 Pendiente — se paga contraentrega') +
         '</p>' +
-        '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + direccion + '<br>' +
+        '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
         '💳 Método de pago: ' + metodoTexto + '</p>' +
-        '<a href="' + linkSeguimiento + '" style="display:block;text-align:center;margin:14px 0;padding:12px;border-radius:10px;background:#151512;color:#fff;text-decoration:none;font-size:13px;font-weight:700;">📦 Rastrea tu pedido aquí</a>' +
+        '<a href="' + esc(linkSeguimiento) + '" style="display:block;text-align:center;margin:14px 0;padding:12px;border-radius:10px;background:#151512;color:#fff;text-decoration:none;font-size:13px;font-weight:700;">📦 Rastrea tu pedido aquí</a>' +
         '<p style="font-size:13px;color:#666;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp: ' +
         '<a href="https://wa.me/573239523623">https://wa.me/573239523623</a></p>' +
         '<p style="font-size:14px;color:#151512;margin-top:16px;">Gracias por tu compra ⚡<br>— MAQUINA</p>' +
@@ -252,9 +278,7 @@ function enviarCorreoConfirmacion(pedido) {
   });
 }
 
-/* ============================================================
-   5) CORREO DE "OLVIDÉ MI CÓDIGO DE ACCESO AL PANEL"
-   ============================================================ */
+/* Código de acceso al panel. */
 function enviarCorreoCodigoPanel(correo, codigo) {
   if (!correo || !codigo) return;
   MailApp.sendEmail({
@@ -272,31 +296,13 @@ function enviarCorreoCodigoPanel(correo, codigo) {
   });
 }
 
-/* ============================================================
-   6) AVISO DE DROP NUEVO AL VOLTAGE CLUB
-   ------------------------------------------------------------
-   Antes mandaba UN solo correo con todos los suscriptores en bcc.
-   El problema: Gmail (cuenta gratis) cuenta cada destinatario en
-   bcc como un envío aparte para la cuota diaria de MailApp (~100
-   al día en total, sumando también los correos de pedidos y de
-   códigos del panel) — y si la lista de suscriptores + esos otros
-   correos se pasaba de la cuota, MailApp.sendEmail lanzaba un
-   error y el correo NO salía para nadie. Como el aviso se manda
-   con fetch(..., {mode:"no-cors"}) desde la tienda, el panel
-   nunca se entera de que falló: por eso se veía "Enviando..." en
-   el admin pero no le llegaba a nadie.
-   Ahora se manda en tandas de MAX_POR_TANDA correos: si una tanda
-   falla (por cuota u otra cosa), las demás igual se intentan, así
-   que en vez de "todo o nada" quedan mandados los que alcanzaron
-   antes de toparse con la cuota. Revisa "Ejecuciones" en el editor
-   de Apps Script para ver cuántas tandas salieron bien.
-   ============================================================ */
+/* Aviso de drop al Voltage Club, en tandas (por la cuota diaria de Gmail). */
 function enviarAvisoDropVoltageClub(correos, asunto, mensaje) {
   if (!correos || !correos.length) return;
   if (!asunto || !mensaje) return;
 
   const MAX_POR_TANDA = 45;
-  const propio = Session.getActiveUser().getEmail();
+  const propio = correoPropio();
   let enviados = 0;
   for (let i = 0; i < correos.length; i += MAX_POR_TANDA) {
     const tanda = correos.slice(i, i + MAX_POR_TANDA);
@@ -310,22 +316,13 @@ function enviarAvisoDropVoltageClub(correos, asunto, mensaje) {
       });
       enviados += tanda.length;
     } catch (err) {
-      // No paramos las demás tandas por una que falle (ej. se
-      // acabó la cuota diaria a mitad de camino) — solo lo
-      // registramos para poder revisarlo en "Ejecuciones".
       console.error('Tanda de aviso de drop falló (' + tanda.length + ' correos): ' + err.message);
     }
   }
   console.log('Aviso de drop: ' + enviados + ' de ' + correos.length + ' correos enviados.');
 }
 
-/* ============================================================
-   7) CORREO DE BIENVENIDA AL VOLTAGE CLUB
-   Se manda directo al correo que la persona acaba de escribir en
-   la tienda (no es bcc, es un correo individual solo para ella),
-   confirmándole que quedó anotada para recibir el aviso de los
-   próximos drops.
-   ============================================================ */
+/* Bienvenida al Voltage Club. */
 function enviarBienvenidaVoltageClub(correo) {
   if (!correo) return;
 
@@ -361,29 +358,19 @@ function enviarBienvenidaVoltageClub(correo) {
   });
 }
 
-/* ============================================================
-   6) AVISO DE MENSAJE NUEVO DEL FORMULARIO DE CONTACTO
-   Llega al correo de la cuenta de Google dueña de este script.
-   Si quieres que llegue a otro correo, cambia DESTINO_CONTACTO.
-   Al darle "Responder" le contestas directo al cliente.
-   ============================================================ */
-const DESTINO_CONTACTO = ''; // vacío = el correo de la cuenta dueña del script
-
+/* Aviso de mensaje nuevo del formulario de Contacto.
+   Al darle "Responder" le contestas directo al cliente. */
 function enviarCorreoContacto(d) {
   if (!d || !d.correo || !d.mensaje) return;
-  const destino = DESTINO_CONTACTO || Session.getEffectiveUser().getEmail();
-  const esc = function (t) {
-    return String(t == null ? '' : t)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  };
+  const destino = DESTINO_CONTACTO || correoPropio();
 
   const texto =
     'Nuevo mensaje desde el formulario de Contacto\n\n' +
     'Código:   ' + (d.codigo || '') + '\n' +
-    'Nombre:   ' + d.nombre + '\n' +
+    'Nombre:   ' + (d.nombre || '') + '\n' +
     'Correo:   ' + d.correo + '\n' +
-    'Teléfono: ' + d.telefono + '\n' +
-    'Asunto:   ' + d.asunto + '\n\n' +
+    'Teléfono: ' + (d.telefono || '') + '\n' +
+    'Asunto:   ' + (d.asunto || '') + '\n\n' +
     d.mensaje;
 
   const html =
@@ -404,9 +391,42 @@ function enviarCorreoContacto(d) {
   MailApp.sendEmail({
     to: destino,
     replyTo: d.correo,
-    subject: 'MAQUINA — Contacto: ' + d.asunto + ' (' + d.nombre + ')',
+    subject: 'MAQUINA — Contacto: ' + (d.asunto || '') + ' (' + (d.nombre || '') + ')',
     body: texto,
     htmlBody: html,
     name: 'MAQUINA',
+  });
+}
+
+/* ---------- 7) DIAGNÓSTICO (se ejecuta a mano en el editor) ---------- */
+function diagnosticoColumnaA() {
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) { console.log('La hoja no tiene pedidos.'); return; }
+  const valores = hoja.getRange(2, 1, ultima - 1, 1).getValues();
+  let numeros = 0;
+  valores.forEach(function (f, i) {
+    if (typeof f[0] === 'number') {
+      numeros++;
+      console.log('Fila ' + (i + 2) + ': el código se guardó como NÚMERO (' + f[0] + ').');
+    }
+  });
+  console.log('Filas revisadas: ' + valores.length + ' | códigos guardados como número: ' + numeros);
+}
+
+/* Ejecútala UNA vez: marca toda la columna A como texto. */
+function formatearColumnaAComoTexto() {
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
+  hoja.getRange(2, 1, Math.max(hoja.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+  console.log('Columna A marcada como texto.');
+}
+
+/* Prueba rápida del correo de contacto (ejecútala a mano). */
+function probarContacto() {
+  enviarCorreoContacto({
+    codigo: 'TEST01', nombre: 'Prueba', correo: correoPropio(),
+    telefono: '3000000000', asunto: 'Prueba', mensaje: 'Hola, esto es una prueba.'
   });
 }

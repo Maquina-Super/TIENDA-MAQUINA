@@ -849,6 +849,78 @@ async function eliminarPedidoAdmin(id) {
 }
 
 /* ============================================================
+   MENSAJES DE CLIENTES (pestaña "Mensajes" del panel)
+   ------------------------------------------------------------
+   Son los mismos documentos que crea enviarMensajeContacto() en la
+   colección "mensajes_contacto" de Firestore (no hay otra copia ni
+   otro sistema). El panel solo agrega campos de GESTIÓN al mismo
+   documento; lo que escribió el cliente nunca se modifica (las
+   reglas lo impiden, ver gestionContactoValida() en firestore.rules):
+     estado            -> 'nuevo' | 'en_revision' | 'respondido'
+                          (si el campo no existe = 'nuevo')
+     leido             -> true/false (si no existe = sin leer)
+     estado_fecha      -> ISO de la última gestión
+     estado_por        -> quién la hizo (UID del panel)
+     historial_estados -> lista de { estado/leido, usuario, fecha }
+   Solo los administradores pueden leerlos (reglas de Firestore).
+   ============================================================ */
+const ESTADOS_CONTACTO = {
+  nuevo:       { label: 'Nuevo',       emoji: '🆕' },
+  en_revision: { label: 'En revisión', emoji: '👀' },
+  respondido:  { label: 'Respondido',  emoji: '✅' },
+};
+function estadoContacto(m) {
+  return (m && m.estado && ESTADOS_CONTACTO[m.estado]) ? m.estado : 'nuevo';
+}
+
+/** Trae los mensajes de contacto, más recientes primero. Devuelve
+    { ok:true, mensajes:[...] } o { ok:false, msg } para que el panel
+    distinga "no hay mensajes" de "no se pudo leer" (ej. sin permisos). */
+async function obtenerMensajesContactoAdmin() {
+  try {
+    const snap = await fbDb.collection('mensajes_contacto').orderBy('fecha', 'desc').limit(1000).get();
+    return { ok: true, mensajes: snap.docs.map(d => ({ id: d.id, ...d.data() })) };
+  } catch (e) {
+    console.error('Error leyendo mensajes de contacto:', e);
+    const sinPermiso = e && e.code === 'permission-denied';
+    return { ok: false, msg: sinPermiso
+      ? 'Tu usuario no tiene permiso en Firestore para leer los mensajes. Publica las reglas nuevas (firestore.rules) y revisa que tu cuenta sea administradora.'
+      : 'No se pudieron cargar los mensajes. Revisa tu conexión e inténtalo de nuevo.' };
+  }
+}
+
+/** Guarda la gestión de un mensaje. "cambios" puede traer:
+      estado: 'nuevo' | 'en_revision' | 'respondido'
+      leido:  true | false
+    Deja registro de quién y cuándo (historial_estados). */
+async function actualizarGestionMensajeContacto(id, cambios) {
+  const usuario = usuarioAdminActual() || 'desconocido';
+  const ahora = new Date().toISOString();
+  const datos = {};
+  const entrada = { usuario, correo: correoAdminActual() || '', fecha: ahora };
+  if (cambios.estado !== undefined) {
+    if (!ESTADOS_CONTACTO[cambios.estado]) return { ok: false, msg: 'Estado inválido.' };
+    datos.estado = cambios.estado;
+    entrada.estado = cambios.estado;
+  }
+  if (cambios.leido !== undefined) {
+    datos.leido = !!cambios.leido;
+    entrada.leido = !!cambios.leido;
+  }
+  if (!Object.keys(datos).length) return { ok: true, datos: {} };
+  datos.estado_fecha = ahora;
+  datos.estado_por = usuario;
+  datos.historial_estados = firebase.firestore.FieldValue.arrayUnion(entrada);
+  try {
+    await fbDb.collection('mensajes_contacto').doc(id).update(datos);
+    return { ok: true, datos: { ...datos, historial_estados: undefined }, entrada };
+  } catch (e) {
+    console.error('No se pudo actualizar el mensaje de contacto:', e);
+    return { ok: false, msg: (e && e.code === 'permission-denied') ? 'No tienes permiso para cambiar este mensaje.' : 'No hay conexión a internet.' };
+  }
+}
+
+/* ============================================================
    RESEÑAS REALES DE CLIENTES
    ------------------------------------------------------------
    Antes, si un producto no tenía "rating"/"resenas" cargados a
@@ -1474,12 +1546,15 @@ async function verificarAccesoTabUsuarios(clave) {
      pedidos         -> ver la pestaña Pedidos
      eliminarPedidos -> además de verlos, puede borrar pedidos
                         (pide también su propia contraseña al hacerlo)
+     mensajes        -> ver y gestionar la pestaña Mensajes (formulario
+                        de Contacto). Si un usuario viejo no tiene este
+                        campo guardado, hereda lo que tenga en "pedidos"
      drop            -> ver y editar la pestaña Drop
      usuarios        -> ver la pestaña Usuarios (crear/gestionar
                         a otras personas del panel)
    Quien crea o edita a otro usuario elige estas casillas a mano;
    nadie se las da a sí mismo. */
-const PERMISOS_DISPONIBLES = ['inventario', 'pedidos', 'eliminarPedidos', 'drop', 'usuarios'];
+const PERMISOS_DISPONIBLES = ['inventario', 'pedidos', 'eliminarPedidos', 'mensajes', 'drop', 'usuarios'];
 
 function permisosTodosActivos() {
   const p = {};
@@ -1503,6 +1578,11 @@ function normalizarPermisos(datosUsuario) {
   const p = datosUsuario.permisos;
   const out = {};
   PERMISOS_DISPONIBLES.forEach(k => { out[k] = !!p[k]; });
+  // Usuarios creados ANTES de que existiera "mensajes": heredan el
+  // permiso de Pedidos (quien atiende pedidos atiende a los clientes),
+  // para que nadie pierda ni gane acceso por sorpresa. Se puede
+  // cambiar a mano desde Usuarios → Editar permisos.
+  if (!('mensajes' in p)) out.mensajes = !!p.pedidos;
   return out;
 }
 

@@ -62,3 +62,57 @@
   .ax-row .ax-bar{grid-column:1 / -1;order:3;}
   .ax-per{padding:8px 12px;}
 }
+
+/* ============================================================
+   Pestaña "Mensajes" (js/admin-mensajes.js)
+   ============================================================ */
+#mensajesBadge{margin-left:auto;opacity:1;font-family:var(--ap-font-mono,monospace);font-size:11px;}
+#mensajesBadge:not(:empty){background:var(--adm-lime);color:var(--adm-lime-ink);padding:1px 7px;border-radius:999px;font-weight:700;}
+
+.msg-sub{color:var(--adm-text-dim);font-size:12.5px;overflow-wrap:anywhere;}
+.msg-preview{color:var(--adm-text-dim);display:block;max-width:360px;overflow-wrap:anywhere;}
+.msg-fila{cursor:pointer;}
+.msg-fila:hover td{background:rgba(168,255,61,.04);}
+.msg-sin-leer td:nth-child(3) b,.msg-sin-leer td:nth-child(4){color:var(--adm-text);font-weight:700;}
+.msg-punto{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--adm-lime);box-shadow:0 0 8px rgba(168,255,61,.7);margin-right:8px;vertical-align:middle;}
+
+.estado-select-msg-nuevo{background:rgba(108,184,255,.16);color:var(--adm-blue);border-color:rgba(108,184,255,.4);}
+.estado-select-msg-en_revision{background:rgba(255,181,69,.16);color:var(--adm-amber);border-color:rgba(255,181,69,.4);}
+.estado-select-msg-respondido{background:rgba(168,255,61,.14);color:var(--adm-green);border-color:rgba(168,255,61,.4);}
+
+.msg-modal{max-height:92vh;overflow-y:auto;}
+.msg-det-cab{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.msg-pill{display:inline-block;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--adm-line);}
+.msg-pill-nuevo{color:var(--adm-blue);border-color:rgba(108,184,255,.4);background:rgba(108,184,255,.12);}
+.msg-pill-en_revision{color:var(--adm-amber);border-color:rgba(255,181,69,.4);background:rgba(255,181,69,.12);}
+.msg-pill-respondido{color:var(--adm-green);border-color:rgba(168,255,61,.4);background:rgba(168,255,61,.1);}
+.msg-pill-sinleer{color:var(--adm-lime);}
+.msg-pill-leido{color:var(--adm-text-dim);}
+.msg-det-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;margin:0 0 16px;}
+.msg-det-grid > div{min-width:0;}
+.msg-det-ancho{grid-column:1 / -1;}
+.msg-det-grid dt,.msg-det-texto-etq{font-family:var(--ap-font-mono,monospace);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--adm-text-dim);margin-bottom:4px;}
+.msg-det-grid dd{margin:0;color:var(--adm-text);overflow-wrap:anywhere;}
+.msg-det-texto{background:var(--adm-surface-2,#171b15);border:1px solid var(--adm-line);border-radius:10px;padding:14px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--adm-text);max-height:260px;overflow-y:auto;}
+.msg-det-acciones,.msg-det-gestion{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:16px 0 8px;}
+.msg-det-acciones .admin-btn,.msg-det-gestion .admin-btn{text-decoration:none;}
+.msg-det-gestion{padding-top:14px;border-top:1px solid var(--adm-line);}
+.msg-det-gestion .admin-drop-label{min-width:190px;}
+.msg-det-historial{max-height:150px;overflow-y:auto;}
+@media (max-width:600px){
+  .msg-det-grid{grid-template-columns:1fr;}
+  .msg-preview{max-width:none;}
+}
+
+/* ajustes de pulido de la pestaña Mensajes */
+.admin-filtros-pedidos #buscarMensajeAdmin{flex:1;min-width:220px;}
+.msg-fila td[data-label="Estado"]{white-space:nowrap;}
+.select-estado-mensaje{width:auto;display:inline-block;vertical-align:middle;}
+.msg-fila td[data-label="Cliente"]{min-width:210px;}
+.msg-sub{overflow-wrap:break-word;word-break:normal;}
+.msg-btn-ok{background:transparent !important;color:var(--adm-lime) !important;border:1px solid var(--adm-lime) !important;}
+.msg-btn-ok:hover:not(:disabled){background:rgba(168,255,61,.12) !important;}
+.msg-btn-ok:disabled{opacity:.45;cursor:default;}
+@media (max-width:600px){
+  .admin-filtros-pedidos #buscarMensajeAdmin{min-width:0;width:100%;flex-basis:100%;}
+}

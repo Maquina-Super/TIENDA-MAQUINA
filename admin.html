@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="css/estilos.css">
 <link rel="stylesheet" href="css/admin-panel.css">
-<link rel="stylesheet" href="css/admin-extras.css">
+<link rel="stylesheet" href="css/admin-extras.css?v=msg1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   #adminLoginView{ background:#060706; }
@@ -412,6 +412,7 @@
         <button type="button" class="admin-tab-btn active" id="tabBtnResumen"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span>Resumen</span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnInventario"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventario</span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnPedidos"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg></span><span>Pedidos</span> <span id="pedidosBadge"></span></button>
+        <button type="button" class="admin-tab-btn" id="tabBtnMensajes"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span>Mensajes</span> <span id="mensajesBadge"></span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnDrop"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg></span><span>Drop</span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnUsuarios"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.7 2.8 2.4 3 5.2"/></svg></span><span>Usuarios</span></button>
       </nav>
@@ -622,6 +623,45 @@
       </div>
     </div>
 
+    <div id="tabMensajes" style="display:none;">
+      <div class="admin-stats admin-stats-color" id="mensajesStats"></div>
+      <div class="admin-card">
+        <p class="admin-foto-hint" style="margin-bottom:12px;">💡 Estos son los mensajes que los clientes envían desde el formulario de Contacto de la tienda. Quedan guardados en la nube (Firebase), no en este navegador, y solo los ven los administradores autorizados.</p>
+        <div class="admin-filtros-pedidos">
+          <input type="text" id="buscarMensajeAdmin" class="admin-input" placeholder="🔍 Buscar por nombre, correo, teléfono, asunto o mensaje…" aria-label="Buscar mensajes">
+          <select id="filtroEstadoMensaje" class="admin-input" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option value="sin_leer">● Sin leer</option>
+            <option value="nuevo">🆕 Nuevo</option>
+            <option value="en_revision">👀 En revisión</option>
+            <option value="respondido">✅ Respondido</option>
+          </select>
+          <label class="admin-filtro-fecha">Desde<input type="date" id="filtroMensajeDesde" class="admin-input"></label>
+          <label class="admin-filtro-fecha">Hasta<input type="date" id="filtroMensajeHasta" class="admin-input"></label>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btnLimpiarFiltrosMensajes">Limpiar filtros</button>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btnRecargarMensajes">↻ Actualizar</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="tablaMensajes">
+            <thead>
+              <tr>
+                <th>Estado</th>
+                <th class="th-ordenable" data-campo="fecha">Recibido</th>
+                <th>Cliente</th>
+                <th>Asunto</th>
+                <th>Mensaje</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tablaMensajesBody">
+              <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Cargando mensajes…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="admin-pagination" id="paginacionMensajes"></div>
+      </div>
+    </div>
+
     <div id="tabDrop" style="display:none;">
       <div class="admin-stats admin-stats-color" id="dropCountdownStats"></div>
       <div class="admin-card">
@@ -673,6 +713,11 @@
             <input type="checkbox" class="chk-permiso-nuevo" value="eliminarPedidos">
             <span class="permiso-icono">🗑️</span>
             <span class="permiso-texto"><b>Eliminar pedidos</b><small>Además de verlos, puede borrarlos</small></span>
+          </label>
+          <label class="admin-permiso-item">
+            <input type="checkbox" class="chk-permiso-nuevo" value="mensajes" checked>
+            <span class="permiso-icono">✉️</span>
+            <span class="permiso-texto"><b>Mensajes</b><small>Ver y responder los mensajes del formulario de Contacto</small></span>
           </label>
           <label class="admin-permiso-item">
             <input type="checkbox" class="chk-permiso-nuevo" value="drop">
@@ -745,6 +790,11 @@
         <span class="permiso-texto"><b>Eliminar pedidos</b><small>Además de verlos, puede borrarlos</small></span>
       </label>
       <label class="admin-permiso-item">
+        <input type="checkbox" class="chk-permiso-editar" value="mensajes">
+        <span class="permiso-icono">✉️</span>
+        <span class="permiso-texto"><b>Mensajes</b><small>Ver y responder los mensajes del formulario de Contacto</small></span>
+      </label>
+      <label class="admin-permiso-item">
         <input type="checkbox" class="chk-permiso-editar" value="drop">
         <span class="permiso-icono">⚡</span>
         <span class="permiso-texto"><b>Drop</b><small>Ver y editar el próximo lanzamiento</small></span>
@@ -791,6 +841,19 @@
 </div>
 
 <!-- ======================= MODAL HISTORIAL DE PEDIDO ======================= -->
+<!-- ======================= MODAL DETALLE DE MENSAJE ======================= -->
+<div class="admin-modal-overlay" id="modalMensajeContacto">
+  <div class="admin-modal admin-modal-wide msg-modal" role="dialog" aria-modal="true" aria-labelledby="msgModalTitulo">
+    <h3 id="msgModalTitulo">Mensaje de cliente</h3>
+    <div id="msgModalCuerpo"></div>
+    <div class="admin-add-actions">
+      <button type="button" class="admin-btn admin-btn-ghost" id="btnMsgAnterior" title="Mensaje anterior (←)">‹</button>
+      <button type="button" class="admin-btn admin-btn-ghost" id="btnMsgSiguiente" title="Mensaje siguiente (→)">›</button>
+      <button type="button" class="admin-btn admin-btn-ghost" id="btnCerrarModalMensaje">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="admin-modal-overlay" id="modalHistorialPedido">
   <div class="admin-modal admin-modal-wide">
     <h3>Historial del pedido</h3>
@@ -845,9 +908,10 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
-<script src="js/store.js"></script>
-<script src="js/admin.js"></script>
-<script src="js/admin-ui.js"></script>
+<script src="js/store.js?v=msg1"></script>
+<script src="js/admin.js?v=msg1"></script>
+<script src="js/admin-ui.js?v=msg1"></script>
+<script src="js/admin-mensajes.js?v=msg1"></script>
 <script src="js/admin-extras.js"></script>
 <script src="js/login-orbit.js"></script>
 

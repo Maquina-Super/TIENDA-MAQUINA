@@ -25,6 +25,25 @@ const fs = require('fs');
   await t('un visitante NO puede leer un mensaje', assertFails(col().doc('m1').get()));
   await t('un visitante NO puede listar mensajes', assertFails(col().get()));
   await t('un visitante NO puede borrar', assertFails(col().doc('m1').delete()));
+  // ---- Gestión desde el panel (admin) ----
+  const admin = env.authenticatedContext('8CBfiOxDeda0MmtTmSlXYIkfbx82').firestore();   // admin de respaldo
+  const otro  = env.authenticatedContext('uid-cualquiera').firestore();                  // usuario logueado que NO es admin
+  const acol = () => admin.collection('mensajes_contacto');
+  const ahora = new Date().toISOString();
+  await t('admin SÍ puede listar los mensajes', assertSucceeds(acol().orderBy('fecha','desc').limit(1000).get()));
+  await t('admin SÍ puede leer un mensaje', assertSucceeds(acol().doc('m1').get()));
+  await t('un usuario logueado que NO es admin NO puede listar', assertFails(otro.collection('mensajes_contacto').get()));
+  await t('admin: marcar leído + estado "en_revision" + historial', assertSucceeds(acol().doc('m1').update({ leido:true, estado:'en_revision', estado_fecha:ahora, estado_por:'8CBf', historial_estados:[{estado:'en_revision', usuario:'8CBf', fecha:ahora}] })));
+  await t('admin: estado "respondido"', assertSucceeds(acol().doc('m1').update({ estado:'respondido', leido:true })));
+  await t('admin: estado inventado se rechaza', assertFails(acol().doc('m1').update({ estado:'borrado' })));
+  await t('admin: "leido" que no es booleano se rechaza', assertFails(acol().doc('m1').update({ leido:'si' })));
+  await t('admin NO puede cambiar lo que escribió el cliente (mensaje)', assertFails(acol().doc('m1').update({ mensaje:'Texto cambiado por un admin' })));
+  await t('admin NO puede cambiar el correo del cliente', assertFails(acol().doc('m1').update({ correo:'otro@x.com' })));
+  await t('admin NO puede agregar campos raros', assertFails(acol().doc('m1').update({ superadmin:true })));
+  await t('un visitante NO puede cambiar el estado', assertFails(col().doc('m1').update({ estado:'respondido' })));
+  await t('un usuario logueado que NO es admin NO puede cambiar el estado', assertFails(otro.collection('mensajes_contacto').doc('m1').update({ estado:'respondido' })));
+  await t('admin SÍ puede borrar', assertSucceeds(acol().doc('m2').delete()));
+
   // regresión: las reglas de otras colecciones siguen igual
   await t('(regresión) voltage_club sigue abierto para crear', assertSucceeds(db.collection('voltage_club').doc('a@b.com').set({correo:'a@b.com',fecha:1})));
   await t('(regresión) voltage_club sigue cerrado para leer', assertFails(db.collection('voltage_club').get()));

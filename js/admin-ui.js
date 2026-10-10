@@ -38,6 +38,7 @@
     tabBtnResumen: ['resumen', 'Ventas, pedidos recientes, Voltage Club y costos de envío en un vistazo.'],
     tabBtnInventario: ['inventario', 'Consulta, busca, filtra y edita tus productos, precios y existencias.'],
     tabBtnPedidos: ['pedidos', 'Revisa y gestiona los pedidos de tus clientes.'],
+    tabBtnMensajes: ['mensajes', 'Lee, busca y responde los mensajes del formulario de Contacto de la tienda.'],
     tabBtnDrop: ['drop', 'Configura la cuenta regresiva y los productos del próximo lanzamiento.'],
     tabBtnUsuarios: ['usuarios', 'Administra quién puede entrar al panel y qué puede hacer.'],
   };
