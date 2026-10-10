@@ -754,7 +754,7 @@ function aplicarFiltrosPedidos() {
   pedidosFiltradosActuales = pedidos; // lista completa filtrada (sin paginar) — la usa el CSV
 
   const tbody = document.getElementById('tablaPedidosBody');
-  const totalVendido = pedidos.reduce((s, p) => s + (Number(p.total) || 0), 0);
+  const totalVendido = pedidos.filter(p => estadoPedido(p) !== 'cancelado').reduce((s, p) => s + (Number(p.total) || 0), 0); // los cancelados no cuentan como venta
   const pendientesFiltrados = pedidos.filter(p => estadoPedido(p) === 'pendiente').length;
   document.getElementById('pedidosStats').innerHTML = `
     <div class="admin-stat admin-stat-forest"><b>${pedidos.length}</b><span>Pedidos</span></div>
@@ -1098,7 +1098,7 @@ async function pintarResumen() {
   pedidosCache = pedidos; // así la pestaña Pedidos no tiene que volver a pedirlos si el admin la abre después
   numerosPedidoCache = mapaNumerosPedido(pedidos);
 
-  const totalVendido = pedidos.reduce((s, p) => s + (Number(p.total) || 0), 0);
+  const totalVendido = pedidos.filter(p => estadoPedido(p) !== 'cancelado').reduce((s, p) => s + (Number(p.total) || 0), 0); // los cancelados no cuentan como venta
   const pendientes = pedidos.filter(p => estadoPedido(p) === 'pendiente').length;
 
   if (permisosActuales.pedidos) {
@@ -1133,7 +1133,7 @@ async function pintarResumen() {
   }
   const ventasPorDia = dias.map(d => ({
     ...d,
-    total: pedidos.filter(p => p.fecha && p.fecha.slice(0, 10) === d.clave).reduce((s, p) => s + (Number(p.total) || 0), 0),
+    total: pedidos.filter(p => p.fecha && p.fecha.slice(0, 10) === d.clave && estadoPedido(p) !== 'cancelado').reduce((s, p) => s + (Number(p.total) || 0), 0),
   }));
   const maxVenta = Math.max(1, ...ventasPorDia.map(d => d.total));
   document.getElementById('resumenChart').innerHTML = ventasPorDia.map(d => `

@@ -298,8 +298,10 @@ function renderFooter() {
         </div>
 
         <div class="footer-col">
-          <h4>LEGAL</h4>
+          <h4>AYUDA Y LEGAL</h4>
           <ul>
+            <li><a href="seguimiento.html">Rastrear mi pedido</a></li>
+            <li><a href="servicios.html#faq">Preguntas frecuentes</a></li>
             <li><a href="legal.html#cambios-devoluciones">Cambios y devoluciones</a></li>
             <li><a href="legal.html#garantia">Garantía</a></li>
             <li><a href="legal.html#terminos">Términos y condiciones</a></li>
