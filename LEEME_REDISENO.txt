@@ -82,6 +82,7 @@ beneficios bajo el banner, 6 categorias en una fila, promo con una
 sola imagen). No toca productos, carrito, login ni Firebase.
 Para volver al diseno anterior: quita ese <link> y el class
 "pg-inicio" del <body> en index.html.
+<<<<<<< HEAD
 
 
 ==========================================================
@@ -98,3 +99,5 @@ Interruptores al inicio del <script> de carrito.html:
 Contraentrega funciona siempre. Para volver al diseno anterior quita
 los <link> maquina-ui.css, inicio.css y carrito-pro.css de carrito.html.
 Copia del archivo original: carrito.original.html (en esta entrega).
+=======
+>>>>>>> 28fac29d051b82fd13855fd713d5b0a1bbed9bb8

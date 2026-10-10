@@ -5,8 +5,13 @@
    la marca (mismos colores, fuentes, fotos y textos): solo
    ordena, reduce ruido visual y unifica espacios y tamaños.
 
+<<<<<<< HEAD
    · Bloque A (sin prefijo): encabezado. Si quieres el
      mismo encabezado en otras páginas, basta con añadir
+=======
+   · Bloque A (sin prefijo): encabezado y pie. Si quieres el
+     mismo encabezado/pie en otras páginas, basta con añadir
+>>>>>>> 28fac29d051b82fd13855fd713d5b0a1bbed9bb8
      <link rel="stylesheet" href="css/inicio.css"> en ellas
      (el bloque B solo actúa en la portada: body.pg-inicio).
    · Bloque B (.pg-inicio): contenido de la portada.
@@ -41,7 +46,24 @@
   .topbar{font-size:9.5px;letter-spacing:.08em;line-height:1.4;}
 }
 
+<<<<<<< HEAD
 /* El pie de página NO se modifica: queda con su estilo original en todas las páginas. */
+=======
+/* pie: una sola jerarquía, sin chips de colores */
+.footer-contacto{border-top:1px solid var(--line);}
+.footer-inner{padding-top:clamp(40px,5vw,64px);padding-bottom:clamp(32px,4vw,48px);gap:clamp(28px,4vw,56px);}
+.footer-col h4{font-size:11px;letter-spacing:.16em;color:var(--ink);margin-bottom:16px;}
+.footer-col li,.footer-col a{font-size:13.5px;color:var(--gray);}
+.footer-col a:hover{color:var(--acento);}
+.footer-slogan{color:var(--gray);font-size:13.5px;max-width:30ch;}
+.social-pill.ig,.social-pill.tk,.social-pill.fb{
+  background:transparent !important;color:var(--gray) !important;
+  border:1px solid var(--line-strong) !important;box-shadow:none !important;
+}
+.social-pill.ig:hover,.social-pill.tk:hover,.social-pill.fb:hover{color:var(--acento) !important;border-color:var(--acento) !important;}
+.footer-bottom{border-top:1px solid var(--line);padding-top:18px;padding-bottom:18px;font-size:12px;}
+.footer-bottom .hand{font-size:15px;}
+>>>>>>> 28fac29d051b82fd13855fd713d5b0a1bbed9bb8
 
 /* ============================================================
    B. CONTENIDO DE LA PORTADA
@@ -166,6 +188,12 @@
 .pg-inicio .club-form .btn{border-radius:12px;padding:13px 24px;}
 .pg-inicio .club-msg{font-family:inherit;font-size:13px;}
 
+<<<<<<< HEAD
+=======
+/* el pie repite la invitación al club: en la portada ya está arriba */
+.pg-inicio .footer-cta{display:none;}
+
+>>>>>>> 28fac29d051b82fd13855fd713d5b0a1bbed9bb8
 /* ============================================================
    RESPONSIVO
    ============================================================ */
