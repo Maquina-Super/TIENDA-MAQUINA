@@ -1197,14 +1197,25 @@ function pintarStats() {
     if (!p.stockTallas || !Object.keys(p.stockTallas).length) return s;
     return s + p.tallas.filter(t => tallaAgotada(p, t)).length;
   }, 0);
+  /* Cada producto cuenta UNA sola vez (no por talla/color) y cae en un solo grupo:
+     no disponible (desactivado) / agotado / pocas existencias / disponible. */
+  const noDisponibles = productos.filter(p => !p.activo).length;
+  const activos = productos.filter(p => p.activo);
+  const agotadosAct = activos.filter(p => nivelStockProducto(p) === 'agotado').length;
+  const bajoAct = activos.filter(p => nivelStockProducto(p) === 'bajo').length;
+  const disponibles = activos.filter(p => nivelStockProducto(p) === 'ok').length;
+  const detalle = [
+    `${totalUnidades} unidades en stock`,
+    noDisponibles > 0 ? `${noDisponibles} desactivado${noDisponibles > 1 ? 's' : ''}` : '',
+    tallasAgotadas > 0 ? `${tallasAgotadas} talla${tallasAgotadas > 1 ? 's' : ''} agotada${tallasAgotadas > 1 ? 's' : ''}` : '',
+    coloresAgotados > 0 ? `${coloresAgotados} color${coloresAgotados > 1 ? 'es' : ''} agotado${coloresAgotados > 1 ? 's' : ''}` : '',
+  ].filter(Boolean);
   document.getElementById('adminStats').innerHTML = `
-    <div class="admin-stat"><b>${totalProductos}</b><span>Productos</span></div>
-    <div class="admin-stat"><b>${totalUnidades}</b><span>Unidades en stock</span></div>
-    <div class="admin-stat admin-stat-warn"><b>${agotados}</b><span>Agotados</span></div>
-    <div class="admin-stat admin-stat-warn"><b>${tallasAgotadas}</b><span>Tallas agotadas</span></div>
-    ${stockBajo > 0 ? `<div class="admin-stat admin-stat-low"><b>${stockBajo}</b><span>Con poco stock (≤ ${STOCK_BAJO_UMBRAL})</span></div>` : ''}
-    ${coloresAgotados > 0 ? `<div class="admin-stat admin-stat-warn"><b>${coloresAgotados}</b><span>Colores agotados</span></div>` : ''}
-    
+    <div class="admin-stat ap-kpi ap-kpi-total"><span class="ap-kpi-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><div><b>${totalProductos}</b><span>Total de productos</span></div></div>
+    <div class="admin-stat ap-kpi ap-kpi-ok"><span class="ap-kpi-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg></span><div><b>${disponibles}</b><span>Disponibles</span></div></div>
+    <div class="admin-stat ap-kpi ap-kpi-low"><span class="ap-kpi-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.5"/></svg></span><div><b>${bajoAct}</b><span>Pocas existencias (≤ ${STOCK_BAJO_UMBRAL})</span></div></div>
+    <div class="admin-stat ap-kpi ap-kpi-out"><span class="ap-kpi-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg></span><div><b>${agotadosAct}</b><span>Agotados</span></div></div>
+    <p class="ap-kpi-detalle">${detalle.map(_escAdm).join(' · ')}</p>
   `;
 }
 
@@ -1254,17 +1265,45 @@ document.querySelector('#tablaProductos thead').addEventListener('click', (e) =>
     esquema de "pintar todo y luego ocultar filas con CSS", que no
     era compatible con paginar (no tiene sentido paginar filas que
     ya están escondidas). */
+/** Llena el selector de categorías con las categorías REALES del catálogo
+    (conserva la selección actual si todavía existe). */
+function poblarFiltroCategorias() {
+  const sel = document.getElementById('filtroCategoriaProducto');
+  if (!sel) return;
+  const actual = sel.value;
+  const cats = [...new Set(obtenerProductosAdmin().map(p => (p.categoria || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  sel.innerHTML = '<option value="">Todas las categorías</option>' +
+    cats.map(c => `<option value="${_escAdm(c)}">${_escAdm(c)}</option>`).join('');
+  sel.value = cats.includes(actual) ? actual : '';
+}
+
+function coincideEstadoProducto(p, estado) {
+  if (!estado) return true;
+  if (estado === 'oculto') return !p.activo || !!(p.ocultoHastaDrop && estaOcultoPorDrop(p));
+  if (!p.activo) return false;
+  return nivelStockProducto(p) === (estado === 'disponible' ? 'ok' : estado);
+}
+
 function renderInventario() {
   const texto = inputBuscarProducto.value.trim().toLowerCase();
-  let productos = aplicarOrdenProductos(obtenerProductosAdmin());
+  const estado = document.getElementById('filtroEstadoProducto').value;
+  const categoria = document.getElementById('filtroCategoriaProducto').value;
+  const todos = obtenerProductosAdmin();
+  let productos = aplicarOrdenProductos(todos);
   if (texto) {
     productos = productos.filter(p =>
       (p.nombre || '').toLowerCase().includes(texto) || (p.categoria || '').toLowerCase().includes(texto));
   }
+  if (categoria) productos = productos.filter(p => (p.categoria || '').trim() === categoria);
+  if (estado) productos = productos.filter(p => coincideEstadoProducto(p, estado));
+  const hayFiltro = !!(texto || estado || categoria);
   const totalPaginas = Math.max(1, Math.ceil(productos.length / PRODUCTOS_POR_PAGINA));
   if (paginaProductos > totalPaginas) paginaProductos = totalPaginas;
   const inicio = (paginaProductos - 1) * PRODUCTOS_POR_PAGINA;
-  pintarTabla(productos.slice(inicio, inicio + PRODUCTOS_POR_PAGINA), !productos.length, !!texto);
+  pintarTabla(productos.slice(inicio, inicio + PRODUCTOS_POR_PAGINA), !productos.length, hayFiltro);
+  const cont = document.getElementById('apContadorResultados');
+  if (cont) cont.textContent = todos.length ? (hayFiltro ? `${productos.length} de ${todos.length} productos` : `${todos.length} productos`) : '';
   pintarPaginacion(document.getElementById('paginacionProductos'), paginaProductos, totalPaginas, productos.length, (nuevaPagina) => {
     paginaProductos = nuevaPagina;
     renderInventario();
@@ -1288,7 +1327,7 @@ function pintarTabla(productosPagina, sinResultados, hayFiltro) {
     return;
   }
   if (!productos.length) {
-    tbody.innerHTML = `<tr class="fila-vacia"><td colspan="10" style="text-align:center;padding:30px;color:var(--adm-text-dim);">${hayFiltro ? 'Ningún producto coincide con la búsqueda.' : 'No hay productos en esta página.'}</td></tr>`;
+    tbody.innerHTML = `<tr class="fila-vacia"><td colspan="10" style="text-align:center;padding:30px;color:var(--adm-text-dim);">${hayFiltro ? 'Ningún producto coincide con la búsqueda o los filtros.' : 'No hay productos en esta página.'}</td></tr>`;
     return;
   }
   tbody.innerHTML = productos.map(p => {
@@ -1365,8 +1404,8 @@ function pintarTabla(productosPagina, sinResultados, hayFiltro) {
         <td data-label="Stock" class="td-stock"><b class="mono">${stockTotal}</b> <span class="td-stock-de">${stockDe}</span></td>
         <td data-label="Estado" class="td-estado">${estadoPill}${oculto}</td>
         <td data-label="Acciones" class="td-acciones">
-          <button type="button" class="admin-btn admin-btn-xs btn-editar-fila" aria-label="Editar ${_escAdm(p.nombre)}"><span aria-hidden="true">✏️</span> Editar</button>
-          <button type="button" class="admin-btn admin-btn-xs btn-borrar-fila" aria-label="Eliminar ${_escAdm(p.nombre)}"><span aria-hidden="true">🗑</span> Eliminar</button>
+          <button type="button" class="admin-btn admin-btn-xs btn-editar-fila" aria-label="Editar ${_escAdm(p.nombre)}"><span class="ap-bi"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></span><span class="lbl">Editar</span></button>
+          <button type="button" class="admin-btn admin-btn-xs btn-borrar-fila" aria-label="Eliminar ${_escAdm(p.nombre)}"><span class="ap-bi"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></span><span class="lbl">Eliminar</span></button>
         </td>
       </tr>`;
   }).join('');
@@ -1688,6 +1727,7 @@ document.addEventListener('keydown', (e) => {
 
 function pintarTodo() {
   pintarStats();
+  poblarFiltroCategorias();
   renderInventario();
   if (tabResumen.style.display !== 'none') pintarResumen();
 }
@@ -1695,6 +1735,16 @@ function pintarTodo() {
 /* ---------- buscador del inventario (ahora se aplica junto con la paginación en renderInventario) ---------- */
 const inputBuscarProducto = document.getElementById('buscarProductoAdmin');
 inputBuscarProducto.addEventListener('input', () => { paginaProductos = 1; renderInventario(); });
+['filtroEstadoProducto', 'filtroCategoriaProducto'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { paginaProductos = 1; renderInventario(); });
+});
+document.getElementById('btnLimpiarFiltrosProductos').addEventListener('click', () => {
+  inputBuscarProducto.value = '';
+  document.getElementById('filtroEstadoProducto').value = '';
+  document.getElementById('filtroCategoriaProducto').value = '';
+  paginaProductos = 1;
+  renderInventario();
+});
 
 /* ---------- agregar producto nuevo ---------- */
 const cardNuevo = document.getElementById('cardNuevoProducto');

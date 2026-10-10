@@ -1,0 +1,499 @@
+/* ==========================================================================
+   MAQUINA — admin-panel.css
+   Rediseño visual del panel del vendedor (admin.html).
+   --------------------------------------------------------------------------
+   · Se carga DESPUÉS de css/estilos.css y solo la usa admin.html.
+   · No cambia ningún ID, clase usada por JS ni lógica: solo apariencia.
+   · Paleta: negro / gris carbón + verde neón (#a8ff3d, el mismo del login).
+   ========================================================================== */
+
+/* ---------- 1. Paleta (sobrescribe las variables --adm-* de estilos.css) ---------- */
+:root{
+  --adm-bg:#070807;
+  --adm-bg-2:#0c0e0b;
+  --adm-surface:#111410;
+  --adm-surface-2:#171b15;
+  --adm-line:#232820;
+  --adm-line-soft:rgba(168,255,61,.06);
+  --adm-text:#eef2ea;
+  --adm-text-dim:#8f9a8b;
+  --adm-lime:#a8ff3d;
+  --adm-lime-ink:#0a1204;
+  --adm-violet:#a8ff3d;          /* antes violeta: ahora el foco/hover usa el verde de marca */
+  --adm-blue:#6cb8ff;
+  --adm-pink:#ff6fae;
+  --adm-amber:#ffb545;
+  --adm-red:#ff5c6c;
+  --adm-green:#a8ff3d;
+
+  --ap-sidebar-w:244px;
+  --ap-radius:14px;
+  --ap-radius-sm:10px;
+  --ap-gap:20px;
+  --ap-font-display:'Barlow Condensed','Anton',system-ui,sans-serif;
+  --ap-font-mono:'JetBrains Mono','Space Mono',ui-monospace,monospace;
+}
+
+/* ---------- 2. Iconos SVG ---------- */
+.ap-i{
+  width:1.15em;height:1.15em;flex:0 0 auto;display:inline-block;vertical-align:-.2em;
+  fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+
+/* ---------- 3. Estructura general ---------- */
+.admin-page{
+  background:
+    radial-gradient(800px 420px at 100% -5%, rgba(168,255,61,.07), transparent 60%),
+    var(--adm-bg);
+  min-height:100vh;
+}
+.admin-page ::selection{background:var(--adm-lime);color:var(--adm-lime-ink);}
+.admin-page *:focus-visible{outline:2px solid var(--adm-lime);outline-offset:2px;}
+
+#adminDashView .ap-shell{
+  display:grid;
+  grid-template-columns:var(--ap-sidebar-w) minmax(0,1fr);
+  min-height:100vh;
+}
+#adminDashView .ap-content{min-width:0;display:flex;flex-direction:column;}
+#adminDashView .admin-main{
+  width:100%;max-width:1560px;margin:0 auto;padding:32px 32px 80px;
+}
+
+/* ---------- 4. Barra lateral ---------- */
+.ap-sidebar{
+  position:sticky;top:0;align-self:start;height:100vh;height:100dvh;
+  display:flex;flex-direction:column;gap:6px;
+  padding:22px 14px 16px;
+  background:linear-gradient(180deg,#0b0d0a 0%,#080908 100%);
+  border-right:1px solid var(--adm-line);
+  overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--adm-line) transparent;
+  z-index:60;
+}
+.ap-brand,.ap-brand-sm{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--adm-text);}
+.ap-brand{padding:4px 10px 18px;margin-bottom:6px;border-bottom:1px solid var(--adm-line);}
+.ap-brand .logo-mark,.ap-brand-sm .logo-mark{color:var(--adm-lime);font-size:22px;text-shadow:0 0 18px rgba(168,255,61,.5);}
+.ap-brand .logo-text,.ap-brand-sm .logo-text{
+  font-family:var(--ap-font-display);font-weight:700;font-size:26px;letter-spacing:.04em;color:var(--adm-text);line-height:1;
+}
+.ap-brand .logo-text em,.ap-brand-sm .logo-text em{color:var(--adm-lime);font-style:normal;text-decoration:none;border:0;background:none;box-shadow:none;}
+.ap-brand,.ap-brand:hover,.ap-brand-sm,.ap-brand-sm:hover{text-decoration:none;}
+.ap-brand .logo-text::after,.ap-brand-sm .logo-text::after,.ap-brand .logo-text em::after,.ap-brand-sm .logo-text em::after{content:none;display:none;}
+
+.ap-nav-label{
+  font-family:var(--ap-font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--adm-text-dim);opacity:.8;padding:10px 12px 6px;
+}
+
+/* las pestañas (mismos botones/IDs de siempre) pasan a ser el menú lateral */
+#adminDashView .admin-tabs.ap-nav{
+  display:flex;flex-direction:column;flex-wrap:nowrap;gap:3px;margin:0;padding:0;border:0;overflow:visible;
+}
+#adminDashView .admin-tab-btn{
+  position:relative;display:flex;align-items:center;gap:12px;width:100%;
+  margin:0;padding:11px 12px;border:0;border-radius:var(--ap-radius-sm);
+  background:transparent;color:#b5bfb1;text-align:left;
+  font-family:var(--ap-font-display);font-weight:600;font-size:17px;letter-spacing:.04em;text-transform:uppercase;
+  box-shadow:none;transition:background .15s ease,color .15s ease;
+}
+#adminDashView .admin-tab-btn .ap-ico{display:inline-flex;font-size:19px;color:var(--adm-text-dim);transition:color .15s ease;}
+#adminDashView .admin-tab-btn:hover{background:rgba(255,255,255,.04);color:var(--adm-text);}
+#adminDashView .admin-tab-btn:hover .ap-ico{color:var(--adm-lime);}
+#adminDashView .admin-tab-btn.active{
+  background:linear-gradient(90deg,rgba(168,255,61,.16),rgba(168,255,61,.04));
+  color:var(--adm-lime);box-shadow:inset 0 0 0 1px rgba(168,255,61,.22);
+}
+#adminDashView .admin-tab-btn.active::before{
+  content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--adm-lime);
+  box-shadow:0 0 12px rgba(168,255,61,.7);
+}
+#adminDashView .admin-tab-btn.active .ap-ico{color:var(--adm-lime);}
+#pedidosBadge{margin-left:auto;opacity:1;font-family:var(--ap-font-mono);font-size:11px;}
+#pedidosBadge:not(:empty){
+  background:var(--adm-lime);color:var(--adm-lime-ink);padding:1px 7px;border-radius:999px;font-weight:700;
+}
+
+.ap-side-foot{
+  margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid var(--adm-line);
+}
+.ap-side-foot .admin-foto-hint{overflow-wrap:anywhere;padding:0 4px 4px;line-height:1.4;}
+.ap-side-foot .admin-btn{width:100%;justify-content:center;text-align:center;text-decoration:none;font-size:14px;letter-spacing:.03em;padding:10px 8px;white-space:normal;}
+
+/* ---------- 5. Barra superior móvil + menú desplegable ---------- */
+.ap-mobilebar{display:none;}
+.ap-backdrop{display:none;}
+
+/* ---------- 6. Botones ---------- */
+.admin-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 18px;border-radius:var(--ap-radius-sm);
+  font-family:var(--ap-font-display);font-weight:700;font-size:15px;letter-spacing:.05em;text-transform:uppercase;
+  border:1px solid transparent;cursor:pointer;
+  transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease;
+}
+.admin-btn:active{transform:translateY(1px);}
+.admin-btn-primary{
+  background:var(--adm-lime);color:var(--adm-lime-ink);border-color:var(--adm-lime);
+  box-shadow:0 0 0 0 rgba(168,255,61,0);
+}
+.admin-btn-primary:hover{transform:none;background:#bdff66;box-shadow:0 6px 24px rgba(168,255,61,.28);}
+.admin-btn-ghost{background:transparent;color:var(--adm-text);border-color:var(--adm-line);}
+.admin-btn-ghost:hover{background:rgba(168,255,61,.07);border-color:rgba(168,255,61,.55);color:var(--adm-lime);}
+.admin-btn-dark{background:transparent;color:#ff8a96;border-color:rgba(255,92,108,.4);}
+.admin-btn-dark:hover{background:#ff5c6c;border-color:#ff5c6c;color:#fff;opacity:1;transform:none;}
+.admin-btn-xs{padding:7px 12px;font-size:13px;margin-right:0;}
+.admin-btn:disabled{opacity:.45;}
+
+#btnMostrarNuevo{min-height:46px;padding:12px 24px;font-size:16px;}
+
+/* "+ Agregar producto" solo tiene sentido dentro de Inventario */
+#adminDashView:not([data-tab="inventario"]) #btnMostrarNuevo{display:none !important;}
+
+/* ---------- 7. Encabezado de página ---------- */
+#adminDashView .admin-title-row{
+  align-items:center;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--adm-line);
+}
+#adminDashView .admin-page .section-eyebrow,
+#adminDashView .section-eyebrow{
+  font-family:var(--ap-font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--adm-lime);margin-bottom:6px;
+}
+#adminDashView .admin-title-row h2{
+  font-family:var(--ap-font-display);font-weight:700;text-transform:uppercase;letter-spacing:.02em;
+  font-size:clamp(34px,4.4vw,52px);line-height:1;color:var(--adm-text);margin:0;
+}
+.ap-sub{margin:10px 0 0;font-size:14.5px;color:var(--adm-text-dim);max-width:640px;line-height:1.5;}
+.ap-sub:empty{display:none;}
+
+/* ---------- 8. Tarjetas ---------- */
+.admin-card{
+  background:var(--adm-surface);border:1px solid var(--adm-line);border-radius:var(--ap-radius);
+  padding:22px;margin-bottom:var(--ap-gap);box-shadow:none;
+}
+.admin-card h3{
+  font-family:var(--ap-font-display);font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--adm-text);margin-bottom:16px;
+}
+
+/* ---------- 9. Indicadores (KPIs) ---------- */
+#adminStats{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:var(--ap-gap);
+}
+#adminStats .ap-kpi{
+  display:flex;align-items:center;gap:16px;padding:18px 20px;min-width:0;
+  background:var(--adm-surface);border:1px solid var(--adm-line);border-radius:var(--ap-radius);
+  border-left:1px solid var(--adm-line);transition:border-color .15s ease,transform .15s ease;
+}
+#adminStats .ap-kpi:hover{border-color:rgba(168,255,61,.35);}
+#adminStats .ap-kpi .ap-kpi-ico{
+  display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;margin:0;border-radius:12px;font-size:23px;line-height:1;
+  background:rgba(255,255,255,.05);color:var(--adm-text);text-transform:none;letter-spacing:0;
+}
+#adminStats .ap-kpi .ap-kpi-ico .ap-i{width:24px;height:24px;vertical-align:baseline;}
+#adminStats .ap-kpi > div{min-width:0;}
+#adminStats .ap-kpi b{
+  display:block;font-family:var(--ap-font-display);font-weight:700;font-size:38px;line-height:1;color:var(--adm-text);
+}
+#adminStats .ap-kpi span:not(.ap-kpi-ico){
+  display:block;margin-top:6px;font-size:11px;font-family:var(--ap-font-mono);letter-spacing:.07em;text-transform:uppercase;
+  color:var(--adm-text-dim);line-height:1.35;
+}
+#adminStats .ap-kpi.ap-kpi-ok .ap-kpi-ico{background:rgba(168,255,61,.12);color:var(--adm-lime);}
+#adminStats .ap-kpi-ok b{color:var(--adm-lime);}
+#adminStats .ap-kpi.ap-kpi-low .ap-kpi-ico{background:rgba(255,181,69,.13);color:var(--adm-amber);}
+#adminStats .ap-kpi-low b{color:var(--adm-amber);}
+#adminStats .ap-kpi.ap-kpi-out .ap-kpi-ico{background:rgba(255,92,108,.13);color:var(--adm-red);}
+#adminStats .ap-kpi-out b{color:var(--adm-red);}
+.ap-kpi-detalle{
+  grid-column:1/-1;margin:0;font-family:var(--ap-font-mono);font-size:11.5px;color:var(--adm-text-dim);letter-spacing:.04em;
+}
+
+/* Estadísticas de otras pestañas (Resumen, Pedidos, Usuarios): mismo lenguaje visual */
+.admin-stat{
+  background:var(--adm-surface);border:1px solid var(--adm-line);border-radius:var(--ap-radius);padding:16px 18px;
+}
+.admin-stat b{font-family:var(--ap-font-display);font-weight:700;font-size:32px;color:var(--adm-text);}
+.admin-stat span{font-family:var(--ap-font-mono);font-size:11px;letter-spacing:.06em;}
+.admin-stats-color .admin-stat{border-left-width:3px;}
+.admin-stat-forest,.admin-stat-acento,.admin-stat-butter,.admin-stat-sage{background:var(--adm-surface) !important;}
+.admin-stat-acento{border-left-color:var(--adm-lime) !important;}
+.admin-stat-forest{border-left-color:var(--adm-blue) !important;}
+.admin-stat-butter{border-left-color:var(--adm-amber) !important;}
+.admin-stat-sage{border-left-color:var(--adm-pink) !important;}
+.admin-stat-warn b{color:var(--adm-red);}
+.admin-stat-low{background:var(--adm-surface);}
+
+/* ---------- 10. Barra de herramientas de inventario ---------- */
+#adminDashView .ap-inv-card.admin-card{padding:0;overflow:hidden;}
+.ap-inv-card > .admin-inv-hint{
+  margin:0;padding:14px 22px;background:rgba(168,255,61,.04);border-bottom:1px solid var(--adm-line);max-width:none;font-size:12.5px;
+}
+.ap-toolbar{
+  display:grid;grid-template-columns:minmax(220px,1fr) 190px 190px auto;gap:12px;align-items:center;padding:18px 22px 6px;
+}
+.ap-search{position:relative;min-width:0;}
+.ap-search-ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--adm-text-dim);display:inline-flex;pointer-events:none;font-size:17px;}
+.admin-input,
+.admin-page input[type="text"],.admin-page input[type="search"],.admin-page input[type="number"],
+.admin-page input[type="email"],.admin-page input[type="password"],.admin-page input[type="date"],
+.admin-page input[type="datetime-local"],.admin-page select,.admin-page textarea{
+  background:var(--adm-bg-2);border:1px solid var(--adm-line);color:var(--adm-text);border-radius:var(--ap-radius-sm);
+  font-family:'Work Sans',system-ui,sans-serif;transition:border-color .15s ease,box-shadow .15s ease;
+}
+.admin-page input:focus,.admin-page select:focus,.admin-page textarea:focus{
+  outline:none;border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(168,255,61,.14);
+}
+.admin-page input::placeholder,.admin-page textarea::placeholder{color:#5f6b5b;}
+#adminDashView .admin-buscar{
+  display:block;width:100%;max-width:none;margin:0;padding:12px 16px 12px 42px;border-radius:var(--ap-radius-sm);font-size:14px;
+}
+.ap-select{width:100%;padding:12px 12px;font-size:14px;cursor:pointer;}
+#btnLimpiarFiltrosProductos{min-height:46px;}
+.ap-result-count{
+  margin:0;padding:6px 22px 14px;font-family:var(--ap-font-mono);font-size:11.5px;letter-spacing:.05em;color:var(--adm-text-dim);
+}
+.ap-result-count:empty{padding:0 0 8px;}
+
+/* ---------- 11. Tablas ---------- */
+.admin-table-wrap{border-radius:0;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--adm-line) transparent;}
+.ap-inv-card .admin-table-wrap{border-top:1px solid var(--adm-line);}
+.admin-table th,
+#tablaProductos thead th{
+  background:#0d100c;color:var(--adm-text-dim);font-family:var(--ap-font-mono);font-size:10.5px;letter-spacing:.12em;
+  text-transform:uppercase;border-bottom:1px solid var(--adm-line);padding:13px 12px;position:static;
+}
+.admin-table th.th-ordenable:hover{color:var(--adm-lime);}
+.admin-table td{border-bottom:1px solid var(--adm-line);color:var(--adm-text);}
+.admin-table tbody tr:hover,#tablaProductos tbody tr:hover{background:rgba(168,255,61,.045);}
+#tablaProductos tbody td{padding:14px 12px;}
+#tablaProductos tbody tr:last-child td{border-bottom:0;}
+#tablaProductos tr.fila-inactiva td:not(.td-acciones):not(.td-estado){opacity:.5;}
+
+.admin-prod-thumbwrap{
+  width:56px;height:56px;border-radius:12px;background:#0b0d0a;border:1px solid var(--adm-line);
+}
+.admin-prod-thumb{object-fit:cover;}
+.admin-prod-name{font-family:'Work Sans',system-ui,sans-serif;font-weight:700;font-size:14px;color:var(--adm-text);}
+.admin-prod-nombre{min-width:180px;}
+.pill-newdrop{
+  background:var(--adm-lime);color:var(--adm-lime-ink);font-family:var(--ap-font-mono);font-size:9.5px;border-radius:6px;padding:2px 7px;
+}
+.td-cat{color:#c3cdbf;}
+.td-precio,.admin-precio-final{font-family:var(--ap-font-mono);}
+#tablaProductos .admin-precio-final{color:var(--adm-text);font-weight:700;}
+.td-stock b{font-family:var(--ap-font-display);font-size:22px;font-weight:700;}
+.pt-chip{background:var(--adm-bg-2);border-color:var(--adm-line);border-radius:6px;}
+.pt-chip b{color:var(--adm-lime);}
+.desc-pill{background:rgba(255,111,174,.14);color:var(--adm-pink);border-radius:6px;}
+.tf-mini{border-radius:8px;background:#0b0d0a;border-color:var(--adm-line);}
+
+/* estados */
+.estado-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+  font-family:var(--ap-font-mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid transparent;
+}
+.estado-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+.estado-pill.ok{background:rgba(168,255,61,.12);color:var(--adm-lime);border-color:rgba(168,255,61,.25);}
+.estado-pill.low{background:rgba(255,181,69,.12);color:var(--adm-amber);border-color:rgba(255,181,69,.3);}
+.estado-pill.out{background:rgba(255,92,108,.12);color:var(--adm-red);border-color:rgba(255,92,108,.3);}
+.estado-pill-pendiente{background:rgba(255,181,69,.14);color:var(--adm-amber);}
+.estado-pill-confirmado{background:rgba(108,184,255,.14);color:var(--adm-blue);}
+.estado-pill-enviado{background:rgba(190,160,255,.14);color:#c9b6ff;}
+.estado-pill-entregado{background:rgba(168,255,61,.14);color:var(--adm-lime);}
+.estado-pill-cancelado{background:rgba(255,92,108,.14);color:var(--adm-red);}
+
+/* acciones de fila (siguen siendo .btn-editar-fila / .btn-borrar-fila) */
+#adminDashView #tablaProductos .td-acciones{white-space:nowrap;}
+#adminDashView #tablaProductos .td-acciones .admin-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-width:40px;height:40px;padding:0 14px;margin:0 6px 0 0;font-size:13px;
+  background:transparent;border:1px solid var(--adm-line);color:var(--adm-text);border-radius:var(--ap-radius-sm);
+}
+#adminDashView #tablaProductos .td-acciones .ap-bi{display:inline-flex;font-size:16px;}
+#adminDashView #tablaProductos .td-acciones .btn-editar-fila{border-color:rgba(168,255,61,.4);color:var(--adm-lime);}
+#adminDashView #tablaProductos .td-acciones .btn-editar-fila:hover{background:var(--adm-lime);color:var(--adm-lime-ink);border-color:var(--adm-lime);}
+#adminDashView #tablaProductos .td-acciones .btn-borrar-fila{border-color:rgba(255,92,108,.4);color:#ff8a96;margin-right:0;}
+#adminDashView #tablaProductos .td-acciones .btn-borrar-fila:hover{background:#ff5c6c;border-color:#ff5c6c;color:#fff;}
+
+/* Con la barra lateral ocupando espacio, se muestran TODAS las columnas (antes se
+   escondían Fotos y Precio por talla en laptop). Si no caben, la tabla se desliza. */
+@media (min-width:981px){
+  #tablaProductos th:nth-child(2),#tablaProductos td.td-fotos,
+  #tablaProductos th:nth-child(5),#tablaProductos td.td-tallas{display:table-cell;}
+  #tablaProductos thead th,#tablaProductos tbody td{padding-left:9px;padding-right:9px;}
+  .pt-fila{max-width:140px;}
+  /* si aun así no cabe, las acciones quedan fijas a la derecha al deslizar */
+  #tablaProductos th:last-child,#tablaProductos td.td-acciones{position:sticky;right:0;z-index:2;background:var(--adm-surface);box-shadow:-10px 0 14px -10px rgba(0,0,0,.7);}
+  #tablaProductos thead th:last-child{background:#0d100c;}
+}
+/* laptop: la columna de miniaturas por color se oculta (la foto ya va junto al nombre) */
+@media (min-width:981px) and (max-width:1599px){
+  #tablaProductos th:nth-child(2),#tablaProductos td.td-fotos{display:none;}
+}
+/* acciones solo con icono hasta pantallas grandes */
+@media (min-width:981px) and (max-width:1699px){
+  #adminDashView #tablaProductos .td-acciones .lbl{display:none;}
+  #adminDashView #tablaProductos .td-acciones .admin-btn{padding:0;width:40px;}
+}
+
+/* ---------- 12. Paginación ---------- */
+.admin-pagination{padding:16px 22px 20px;gap:14px;}
+.admin-pagination-info{font-family:var(--ap-font-mono);color:var(--adm-text-dim);}
+.admin-pagination-info b{color:var(--adm-lime);}
+
+/* ---------- 13. Formulario "Agregar producto" ---------- */
+.admin-add-card{border-color:rgba(168,255,61,.28);background:linear-gradient(180deg,#12160f,#0e110c);}
+.admin-add-grid input,.admin-add-grid select{padding:13px 14px;font-size:14px;}
+.admin-foto-picker{
+  border:1.5px dashed rgba(168,255,61,.35);border-radius:var(--ap-radius-sm);background:rgba(168,255,61,.03);color:var(--adm-text-dim);
+}
+.admin-foto-picker:hover{border-color:var(--adm-lime);color:var(--adm-lime);}
+.admin-add-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.pe-check{
+  display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin-top:10px;
+  background:var(--adm-bg-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);cursor:pointer;
+}
+.pe-check:hover{border-color:rgba(168,255,61,.4);}
+.admin-page input[type="checkbox"]{accent-color:var(--adm-lime);}
+
+/* ---------- 14. Modales ---------- */
+.admin-modal-overlay{background:rgba(2,3,2,.78);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.admin-modal{
+  background:var(--adm-surface);border:1px solid var(--adm-line);border-radius:16px;
+  box-shadow:0 30px 80px rgba(0,0,0,.7);color:var(--adm-text);
+}
+.admin-modal h3{font-family:var(--ap-font-display);font-weight:700;font-size:24px;letter-spacing:.04em;text-transform:uppercase;}
+.pe-modal{
+  background:linear-gradient(180deg,#12150f,#0b0d0a);border:1px solid rgba(168,255,61,.28);border-radius:18px;
+  box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 60px rgba(168,255,61,.07);
+}
+.pe-head{border-bottom:1px solid var(--adm-line);}
+.pe-head h3{font-family:var(--ap-font-display);font-weight:700;font-size:28px;letter-spacing:.03em;text-transform:uppercase;}
+.pe-eyebrow{font-family:var(--ap-font-mono);color:var(--adm-lime);}
+.pe-x{border-radius:10px;}
+.pe-x:hover{color:var(--adm-lime);border-color:var(--adm-lime);}
+.pe-input{background:var(--adm-bg-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);color:var(--adm-text);}
+.pe-input:focus{border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(168,255,61,.14);outline:none;}
+.pe-det{border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);background:rgba(255,255,255,.02);}
+.pe-foot{border-top:1px solid var(--adm-line);}
+.pe-foot .admin-btn,.pe-confirm-btns .admin-btn{font-family:var(--ap-font-display);font-size:16px;letter-spacing:.06em;}
+.pe-confirm{background:var(--adm-surface);border:1px solid rgba(255,92,108,.35);border-radius:16px;}
+
+/* ---------- 15. Avisos (toast) ---------- */
+.toast{
+  background:#10140d;color:var(--adm-text);border:1px solid rgba(168,255,61,.45);border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.6);
+}
+.toast .dot{background:var(--adm-lime);}
+.toast.error{border-color:rgba(255,92,108,.6);}
+.toast.error .dot{background:var(--adm-red);}
+
+/* ---------- 16. Otras pestañas (Resumen / Pedidos / Drop / Usuarios) ---------- */
+.admin-resumen-grid{gap:var(--ap-gap);}
+.admin-filtros-pedidos{gap:10px;}
+.admin-permiso-item{background:var(--adm-bg-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);}
+.admin-permiso-item:hover{border-color:rgba(168,255,61,.4);}
+.admin-permiso-pill{background:rgba(168,255,61,.12);color:var(--adm-lime);}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+/* ---- laptop (≤1439): un poco más compacto ---- */
+@media (max-width:1439px){
+  :root{--ap-sidebar-w:220px;}
+  #adminDashView .admin-main{padding:28px 24px 70px;}
+  #adminStats .ap-kpi{padding:16px;gap:12px;}
+  #adminStats .ap-kpi b{font-size:34px;}
+  .ap-toolbar{grid-template-columns:minmax(180px,1fr) 180px 200px auto;}
+}
+
+/* ---- tablet y menor (≤980): la barra lateral pasa a menú deslizable ---- */
+@media (max-width:980px){
+  #adminDashView .ap-shell{display:block;}
+
+  .ap-mobilebar{
+    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;
+    padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top,0px));
+    background:rgba(8,9,8,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--adm-line);
+  }
+  .ap-burger{
+    width:44px;height:44px;border-radius:10px;border:1px solid var(--adm-line);background:var(--adm-surface);
+    color:var(--adm-text);font-size:20px;line-height:1;cursor:pointer;
+  }
+  .ap-burger:hover{border-color:var(--adm-lime);color:var(--adm-lime);}
+
+  .ap-sidebar{
+    position:fixed;left:0;top:0;bottom:0;align-self:auto;height:100vh;height:100dvh;width:min(300px,86vw);
+    transform:translateX(-102%);transition:transform .22s ease;box-shadow:none;
+    padding-top:calc(22px + env(safe-area-inset-top,0px));
+  }
+  .ap-menu-open .ap-sidebar{transform:none;box-shadow:24px 0 60px rgba(0,0,0,.6);}
+  .ap-backdrop{
+    display:block;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.6);
+    opacity:0;pointer-events:none;transition:opacity .2s ease;
+  }
+  .ap-menu-open .ap-backdrop{opacity:1;pointer-events:auto;}
+  #adminDashView .admin-tab-btn.active::before{left:0;}
+
+  #adminDashView .admin-main{padding:22px 16px 70px;}
+  #adminDashView .admin-title-row{align-items:stretch;flex-direction:column;gap:16px;}
+  #adminDashView .admin-title-row > .admin-btn{width:100%;min-height:48px;}
+
+  #adminStats{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+  #adminStats .ap-kpi{flex-direction:column;align-items:flex-start;gap:10px;padding:14px;}
+  #adminStats .ap-kpi .ap-kpi-ico{flex-basis:40px;width:40px;height:40px;}
+  #adminStats .ap-kpi .ap-kpi-ico .ap-i{width:21px;height:21px;}
+  #adminStats .ap-kpi b{font-size:30px;}
+
+  .ap-toolbar{grid-template-columns:1fr 1fr;padding:16px 16px 4px;}
+  .ap-search{grid-column:1/-1;}
+  #btnLimpiarFiltrosProductos{grid-column:1/-1;min-height:46px;}
+  .ap-inv-card > .admin-inv-hint{padding:12px 16px;}
+  .ap-result-count{padding:6px 16px 12px;}
+  .admin-input,.admin-page input,.admin-page select,.admin-page textarea{font-size:16px;} /* evita el zoom automático de iOS */
+
+  /* tabla de productos → una tarjeta por producto (la estructura ya la define estilos.css) */
+  #tablaProductos{min-width:0;}
+  .ap-inv-card .admin-table-wrap{border-top:0;padding:4px 14px 0;}
+  #tablaProductos tbody{padding-bottom:6px;}
+  #tablaProductos tbody tr{
+    background:var(--adm-surface-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius);
+  }
+  #tablaProductos tbody tr:hover{background:var(--adm-surface-2);}
+  #tablaProductos td{border-top:1px dashed var(--adm-line);}
+  #tablaProductos td::before{font-family:var(--ap-font-mono);}
+  #tablaProductos .admin-prod-name{font-family:var(--ap-font-display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;}
+  #tablaProductos .admin-prod-thumbwrap{background:#0a0c09;}
+  #tablaProductos .td-stock b{font-size:20px;}
+  /* acciones con texto visible y botones grandes */
+  #adminDashView #tablaProductos .td-acciones .lbl{display:inline;}
+  #adminDashView #tablaProductos .td-acciones .admin-btn{width:100%;height:auto;min-height:48px;margin:0;padding:12px;font-size:15px;}
+  .admin-pagination{padding:14px 16px 18px;}
+}
+
+/* ---- celular (≤600): indicadores de 2 en 2 ---- */
+@media (max-width:600px){
+  #adminStats{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* ---- celular pequeño (≤420) ---- */
+@media (max-width:420px){
+  #adminDashView .admin-main{padding:18px 12px 60px;}
+  #adminDashView .admin-title-row h2{font-size:34px;}
+  .ap-toolbar{grid-template-columns:1fr;}
+  #adminStats .ap-kpi b{font-size:28px;}
+  #adminStats .ap-kpi span:not(.ap-kpi-ico){font-size:10px;}
+  .admin-card{padding:16px;}
+  .pe-overlay{padding:10px;}
+}
+
+/* ---- accesibilidad: menos movimiento ---- */
+@media (prefers-reduced-motion:reduce){
+  .ap-sidebar,.ap-backdrop,.admin-btn,.admin-tab-btn{transition:none;}
+}
+
+/* ---------- ajustes finos ---------- */
+#cardNuevoProducto .admin-add-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+.pe-imagen-prev{background:#0a0c09 !important;border-color:var(--adm-line) !important;}

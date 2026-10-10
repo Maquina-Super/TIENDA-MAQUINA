@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/admin-panel.css">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   #adminLoginView{ background:#060706; }
@@ -398,34 +399,44 @@
 
 <!-- ======================= DASHBOARD ======================= -->
 <div class="admin-page" id="adminDashView" style="display:none;">
-  <header class="admin-topbar">
-    <a href="index.html" class="nav-logo">
-      <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
-    </a>
-    <div class="admin-topbar-right">
-      <span class="admin-foto-hint" id="adminUsuarioActual" style="margin-right:2px;"></span>
-      <a href="productos.html" class="admin-btn admin-btn-ghost">Ver tienda</a>
-      <button class="admin-btn admin-btn-ghost" id="btnClave">Cambiar contraseña</button>
-      <button class="admin-btn admin-btn-dark" id="btnSalirAdmin">Cerrar sesión</button>
-    </div>
-  </header>
+  <div class="ap-shell">
+    <div class="ap-backdrop" id="apBackdrop"></div>
 
-  <main class="admin-main">
-    <div class="admin-title-row">
-      <div>
-        <div class="section-eyebrow">Panel del vendedor</div>
-        <h2 class="display" id="adminTituloTab">Inventario y precios</h2>
+    <aside class="ap-sidebar" id="apSidebar" aria-label="Navegación del panel">
+      <a href="index.html" class="ap-brand" aria-label="MAQUINA — ir a la tienda">
+        <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
+      </a>
+      <div class="ap-nav-label">Panel del vendedor</div>
+      <nav class="admin-tabs ap-nav">
+        <button type="button" class="admin-tab-btn active" id="tabBtnResumen"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span>Resumen</span></button>
+        <button type="button" class="admin-tab-btn" id="tabBtnInventario"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventario</span></button>
+        <button type="button" class="admin-tab-btn" id="tabBtnPedidos"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg></span><span>Pedidos</span> <span id="pedidosBadge"></span></button>
+        <button type="button" class="admin-tab-btn" id="tabBtnDrop"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg></span><span>Drop</span></button>
+        <button type="button" class="admin-tab-btn" id="tabBtnUsuarios"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.7 2.8 2.4 3 5.2"/></svg></span><span>Usuarios</span></button>
+      </nav>
+      <div class="ap-side-foot">
+        <span class="admin-foto-hint" id="adminUsuarioActual"></span>
+        <a href="productos.html" class="admin-btn admin-btn-ghost">Ver tienda</a>
+        <button class="admin-btn admin-btn-ghost" id="btnClave">Cambiar contraseña</button>
+        <button class="admin-btn admin-btn-dark" id="btnSalirAdmin">Cerrar sesión</button>
       </div>
-      <button class="admin-btn admin-btn-primary" id="btnMostrarNuevo">+ Agregar producto</button>
-    </div>
+    </aside>
 
-    <div class="admin-tabs">
-      <button type="button" class="admin-tab-btn active" id="tabBtnResumen">📊 Resumen</button>
-      <button type="button" class="admin-tab-btn" id="tabBtnInventario">📦 Inventario</button>
-      <button type="button" class="admin-tab-btn" id="tabBtnPedidos">🧾 Pedidos <span id="pedidosBadge"></span></button>
-      <button type="button" class="admin-tab-btn" id="tabBtnDrop">⚡ Drop</button>
-      <button type="button" class="admin-tab-btn" id="tabBtnUsuarios">👥 Usuarios</button>
-    </div>
+    <div class="ap-content">
+      <header class="ap-mobilebar">
+        <button type="button" class="ap-burger" id="apBurger" aria-label="Abrir menú" aria-controls="apSidebar" aria-expanded="false">☰</button>
+        <a href="index.html" class="ap-brand-sm"><span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span></a>
+      </header>
+
+      <main class="admin-main">
+        <div class="admin-title-row">
+          <div>
+            <div class="section-eyebrow">Panel del vendedor</div>
+            <h2 class="display" id="adminTituloTab">Inventario y precios</h2>
+            <p class="ap-sub" id="apSubtitulo"></p>
+          </div>
+          <button class="admin-btn admin-btn-primary" id="btnMostrarNuevo">+ Agregar producto</button>
+        </div>
 
     <div id="tabResumen">
       <div class="admin-stats admin-stats-color" id="resumenStats"></div>
@@ -523,9 +534,26 @@
         </div>
       </div>
 
-      <div class="admin-card">
+      <div class="admin-card ap-inv-card">
         <p class="admin-foto-hint admin-inv-hint">💡 Toca <b>✏ Editar</b> en un producto para cambiar su foto, precio (también por talla), descuento, stock (total, por color y por talla), New Drop y si se ve en la tienda. Todo se guarda solo cuando presionas <b>Guardar</b>.</p>
-        <input type="search" id="buscarProductoAdmin" class="admin-input admin-buscar" placeholder="🔍 Buscar por nombre o categoría…" autocomplete="off">
+        <div class="ap-toolbar">
+          <div class="ap-search">
+            <span class="ap-search-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+            <input type="search" id="buscarProductoAdmin" class="admin-input admin-buscar" placeholder="Buscar por nombre o categoría…" autocomplete="off" aria-label="Buscar producto">
+          </div>
+          <select id="filtroEstadoProducto" class="admin-input ap-select" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option value="disponible">Disponibles</option>
+            <option value="bajo">Pocas existencias</option>
+            <option value="agotado">Agotados</option>
+            <option value="oculto">No disponibles / ocultos</option>
+          </select>
+          <select id="filtroCategoriaProducto" class="admin-input ap-select" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+          </select>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btnLimpiarFiltrosProductos">Limpiar</button>
+        </div>
+        <p class="ap-result-count" id="apContadorResultados" aria-live="polite"></p>
         <div class="admin-table-wrap">
           <table class="admin-table" id="tablaProductos">
             <thead>
@@ -542,7 +570,7 @@
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody id="tablaProductosBody"></tbody>
+            <tbody id="tablaProductosBody"><tr class="fila-vacia"><td colspan="10" style="text-align:center;padding:30px;color:var(--adm-text-dim);">Cargando productos…</td></tr></tbody>
           </table>
         </div>
         <div class="admin-pagination" id="paginacionProductos"></div>
@@ -688,7 +716,9 @@
         </div>
       </div>
     </div>
-  </main>
+      </main>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"><span class="dot"></span><span id="toastText">Guardado</span></div>
@@ -816,6 +846,7 @@
 <script src="js/products.js"></script>
 <script src="js/store.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/admin-ui.js"></script>
 <script src="js/login-orbit.js"></script>
 
 </body>
