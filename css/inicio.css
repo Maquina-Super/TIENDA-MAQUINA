@@ -1,0 +1,227 @@
+/* ============================================================
+   MAQUINA — REFINAMIENTO VISUAL DE LA PÁGINA PRINCIPAL
+   ------------------------------------------------------------
+   Se carga DESPUÉS de estilos.css y maquina-ui.css. No cambia
+   la marca (mismos colores, fuentes, fotos y textos): solo
+   ordena, reduce ruido visual y unifica espacios y tamaños.
+
+   · Bloque A (sin prefijo): encabezado y pie. Si quieres el
+     mismo encabezado/pie en otras páginas, basta con añadir
+     <link rel="stylesheet" href="css/inicio.css"> en ellas
+     (el bloque B solo actúa en la portada: body.pg-inicio).
+   · Bloque B (.pg-inicio): contenido de la portada.
+   Para volver al diseño anterior: quita el <link> de index.html.
+   ============================================================ */
+
+:root{
+  --ini-max:1280px;          /* ancho máximo del contenido */
+  --ini-pad:clamp(18px,4vw,40px);
+  --ini-gap-sec:clamp(56px,7vw,96px);  /* espacio entre secciones */
+  --ini-radius:14px;         /* un solo radio para tarjetas */
+}
+
+/* ============================================================
+   A. ENCABEZADO Y PIE
+   ============================================================ */
+.topbar{padding:7px 12px;font-size:10px;letter-spacing:.16em;color:var(--gray);text-align:center;}
+.subbar{padding:6px 12px;font-size:12px;background:var(--surface);}
+.subbar a{white-space:nowrap;}
+.nav{padding-top:12px;padding-bottom:12px;background:rgba(10,10,10,.92);border-bottom:1px solid var(--line);}
+.nav-links{gap:clamp(20px,2.6vw,36px);}
+.nav-links a{font-size:12px;letter-spacing:.1em;}
+.nav-links a.active::after{bottom:-8px;height:1px;}
+.nav-right{gap:clamp(10px,1.4vw,18px);}
+.account-btn .account-name{font-size:13px;}
+
+@media (max-width:760px){
+  .nav{gap:8px;}
+  .nav-right{gap:8px;min-width:0;}
+  .account-btn .account-name,.account-btn .chev{display:none;}   /* queda el ícono/inicial de la cuenta */
+  .subbar{font-size:11.5px;}
+  .topbar{font-size:9.5px;letter-spacing:.08em;line-height:1.4;}
+}
+
+/* pie: una sola jerarquía, sin chips de colores */
+.footer-contacto{border-top:1px solid var(--line);}
+.footer-inner{padding-top:clamp(40px,5vw,64px);padding-bottom:clamp(32px,4vw,48px);gap:clamp(28px,4vw,56px);}
+.footer-col h4{font-size:11px;letter-spacing:.16em;color:var(--ink);margin-bottom:16px;}
+.footer-col li,.footer-col a{font-size:13.5px;color:var(--gray);}
+.footer-col a:hover{color:var(--acento);}
+.footer-slogan{color:var(--gray);font-size:13.5px;max-width:30ch;}
+.social-pill.ig,.social-pill.tk,.social-pill.fb{
+  background:transparent !important;color:var(--gray) !important;
+  border:1px solid var(--line-strong) !important;box-shadow:none !important;
+}
+.social-pill.ig:hover,.social-pill.tk:hover,.social-pill.fb:hover{color:var(--acento) !important;border-color:var(--acento) !important;}
+.footer-bottom{border-top:1px solid var(--line);padding-top:18px;padding-bottom:18px;font-size:12px;}
+.footer-bottom .hand{font-size:15px;}
+
+/* ============================================================
+   B. CONTENIDO DE LA PORTADA
+   ============================================================ */
+.pg-inicio{background-image:none;}   /* sin trama de puntos de fondo */
+
+/* ---------- 1. Portada ---------- */
+.pg-inicio .yd-hero{height:clamp(440px,70vh,640px);}
+.pg-inicio .yd-slide::after{
+  background:linear-gradient(90deg,rgba(0,0,0,.9) 0%,rgba(0,0,0,.6) 38%,rgba(0,0,0,.1) 70%,rgba(0,0,0,.3) 100%);
+}
+.pg-inicio .yd-hero-copy{left:max(var(--ini-pad),calc((100vw - var(--ini-max))/2 + var(--ini-pad)));max-width:min(560px,80vw);}
+.pg-inicio .yd-hero-copy--wide{max-width:min(600px,82vw);}
+.pg-inicio .yd-hero-eyebrow{font-size:11px;letter-spacing:.22em;color:var(--gray);margin-bottom:16px;text-shadow:none;}
+/* un título corto y proporcionado: ya no ocupa media pantalla */
+.pg-inicio .yd-hero-title{font-size:clamp(40px,6vw,76px);line-height:.98;text-shadow:none;}
+.pg-inicio .yd-hero-title.yd-hero-title--md{font-size:clamp(34px,4.8vw,60px);line-height:1;}
+.pg-inicio .yd-hero-title.yd-hero-title--sm{font-size:clamp(26px,3.4vw,42px);line-height:1.1;}
+.pg-inicio .yd-hero-title span{text-shadow:none;}
+.pg-inicio .yd-hero-sub{margin-top:16px;font-size:clamp(14px,1.3vw,16px);color:#cfcfcf;max-width:44ch;text-shadow:none;}
+.pg-inicio .yd-hero-btn{margin-top:24px;padding:14px 28px;font-size:12px;letter-spacing:.12em;box-shadow:none;white-space:nowrap;}
+.pg-inicio .yd-hero-btn:hover{box-shadow:none;transform:none;}
+.pg-inicio .yd-hero-arrow{width:40px;height:40px;background:rgba(10,10,10,.5);border-color:rgba(255,255,255,.18);}
+.pg-inicio .yd-hero-dots{bottom:20px;}
+
+/* ---------- 2. Beneficios: franja simple ---------- */
+.pg-inicio .yd-info{border-bottom:1px solid var(--line);background:var(--surface);}
+.pg-inicio .yd-bene{max-width:var(--ini-max);margin:0 auto;background:transparent;border-bottom:0;padding:0 var(--ini-pad);}
+.pg-inicio .yd-bene-item{padding:20px 16px;gap:12px;border-right:1px solid var(--line);justify-content:center;}
+.pg-inicio .yd-bene-item:last-child{border-right:0;}
+.pg-inicio .yd-bene-icon{width:22px;height:22px;color:var(--gray);}
+.pg-inicio .yd-bene-t{font-size:13px;font-weight:600;}
+.pg-inicio .yd-bene-s{font-size:12px;}
+
+/* ---------- ritmo común de las secciones ---------- */
+.pg-inicio .yd-sec{width:100%;max-width:var(--ini-max);box-sizing:border-box;padding:var(--ini-gap-sec) var(--ini-pad) 0;}
+.pg-inicio .yd-sec--flush{padding-top:var(--ini-gap-sec);}
+.pg-inicio .yd-sec-head{margin-bottom:28px;align-items:flex-end;}
+.pg-inicio .yd-sec-head h2{font-size:clamp(24px,2.6vw,32px);letter-spacing:.01em;}
+.pg-inicio .yd-clear{font-size:13px;color:var(--gray);text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:2px;}
+.pg-inicio .yd-clear:hover{color:var(--acento);border-color:var(--acento);}
+.pg-inicio .yd-more{text-align:center;margin-top:36px;}
+.pg-inicio .yd-more .btn{padding:13px 28px;font-size:13px;}
+
+/* pestañas de categoría: más discretas */
+.pg-inicio .yd-tabs{gap:4px;}
+.pg-inicio .yd-tab{padding:8px 14px;font-size:12.5px;font-weight:500;}
+.pg-inicio .yd-tab.is-active{background:transparent;color:var(--acento);border-color:var(--acento);}
+
+/* ---------- 5. Productos: tarjetas livianas y uniformes ---------- */
+.pg-inicio .grid{grid-template-columns:repeat(4,1fr);gap:clamp(14px,1.6vw,22px);}
+.pg-inicio .card,
+.pg-inicio .card:nth-child(n){
+  transform:none;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--ini-radius);box-shadow:none;
+}
+.pg-inicio .card:hover,
+.pg-inicio .card:nth-child(n):hover{transform:none;border-color:var(--line-strong);box-shadow:none;}
+.pg-inicio .card-media,.pg-inicio .card-media:has([data-icon]){aspect-ratio:4/5;height:auto !important;background:var(--surface-2) !important;}
+.pg-inicio .card-photo{object-fit:cover;}
+.pg-inicio .card-media [data-icon]{width:100%;height:100%;display:grid;place-items:center;}
+.pg-inicio .card-media [data-icon] svg{width:52%;height:52%;}
+.pg-inicio .card:hover .card-photo{transform:scale(1.03);}
+.pg-inicio .card-body{border-top:0;padding:14px 16px 16px;gap:10px;}
+.pg-inicio .card-cat{font-size:10.5px;letter-spacing:.12em;border:0 !important;}
+.pg-inicio .card-name{font-size:16px;line-height:1.2;text-transform:none;letter-spacing:.01em;}
+.pg-inicio .card-price{background:transparent !important;border:0 !important;padding:0 !important;box-shadow:none !important;font-size:16px;}
+.pg-inicio .card-price .old{display:block;font-size:12px;margin:0 0 1px;}
+.pg-inicio .add-btn{padding:9px 14px;font-size:12px;border-radius:10px;white-space:nowrap;}
+.pg-inicio .card-bottom{flex-wrap:wrap;gap:8px 10px;}
+.pg-inicio .add-btn:hover{box-shadow:none;transform:none;}
+.pg-inicio .badge{transform:none !important;box-shadow:none !important;font-size:10.5px;letter-spacing:.06em;padding:5px 10px;top:12px;left:12px;}
+.pg-inicio .size-chip{border-radius:8px;}
+.pg-inicio .yd-rating{display:none;}   /* estrellas de relleno: ver LEEME_REDISENO.txt */
+
+/* ---------- 4. Categorías: tarjetas uniformes ---------- */
+.pg-inicio .yd-cats{grid-template-columns:repeat(6,1fr);gap:clamp(10px,1.4vw,16px);width:100%;}
+.pg-inicio .yd-cat{aspect-ratio:3/4;border-radius:var(--ini-radius);background:var(--surface-2);min-width:0;}
+.pg-inicio .yd-cat:hover{transform:none;border-color:var(--line-strong);}
+.pg-inicio .yd-cat-art{opacity:1;}
+.pg-inicio .yd-cat-art img{width:100%;height:100%;object-fit:cover;}
+.pg-inicio .yd-cat-art svg{width:50%;height:50%;opacity:.7;}
+.pg-inicio .yd-cat:hover .yd-cat-art{opacity:1;transform:none;}
+.pg-inicio .yd-cat:hover .yd-cat-art img{transform:scale(1.04);transition:transform .5s ease;}
+.pg-inicio .yd-cat::after{background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.8));}
+.pg-inicio .yd-cat-label{left:14px;right:12px;bottom:12px;}
+.pg-inicio .yd-cat-label b{font-size:15px;letter-spacing:.03em;}
+.pg-inicio .yd-cat-go{width:26px;height:26px;background:transparent;border-color:rgba(255,255,255,.3);}
+
+/* ---------- 6. Sección promocional: una imagen y un mensaje ---------- */
+.pg-inicio .yd-promo{
+  border-radius:var(--ini-radius);border:1px solid var(--line);background:var(--surface);
+  min-height:clamp(260px,32vw,380px);display:flex;align-items:center;
+  padding:clamp(28px,5vw,64px);
+}
+.pg-inicio .yd-promo::before{
+  inset:0;right:0;top:0;width:auto;height:auto;border-radius:0;
+  background:linear-gradient(90deg,rgba(10,10,10,.96) 0%,rgba(10,10,10,.82) 45%,rgba(10,10,10,.35) 100%),url("../img/banner-hoodie-2.jpg") 72% 30%/cover no-repeat;
+}
+.pg-inicio .yd-promo h3{font-size:clamp(28px,3.6vw,44px);line-height:1.02;}
+.pg-inicio .yd-promo p{font-size:15px;color:#bdbdb9;}
+.pg-inicio .yd-promo .yd-hero-btn{margin-top:22px;}
+
+/* ---------- cuenta regresiva del drop: misma lógica, menos peso ---------- */
+.pg-inicio .drop-countdown{
+  width:calc(100% - 2*var(--ini-pad));max-width:calc(var(--ini-max) - 2*var(--ini-pad));margin:var(--ini-gap-sec) auto 0;box-sizing:border-box;
+  border-radius:var(--ini-radius);border:1px solid var(--line);box-shadow:none;
+  background:var(--surface);padding:clamp(28px,4vw,48px) clamp(18px,3vw,40px);
+}
+.pg-inicio .drop-countdown::before{display:none;}
+.pg-inicio .drop-countdown::after{opacity:.12 !important;filter:blur(30px) !important;}
+.pg-inicio .drop-countdown-label{font-size:12px;letter-spacing:.2em;color:var(--gray);}
+.pg-inicio .drop-unit span{font-size:clamp(30px,4.6vw,46px);}
+.pg-inicio .drop-countdown-cta{font-size:13px;padding:12px 26px;}
+.pg-inicio .drop-live-teaser-tag{box-shadow:none;}
+
+/* ---------- Voltage Club ---------- */
+.pg-inicio .club{width:100%;box-sizing:border-box;max-width:640px;margin:0 auto;padding:var(--ini-gap-sec) var(--ini-pad);}
+.pg-inicio .club h2{font-size:clamp(24px,2.8vw,32px);margin-bottom:10px;}
+.pg-inicio .club p{margin-bottom:24px;font-size:15px;}
+.pg-inicio .club-form input{border-radius:12px;padding:13px 18px;}
+.pg-inicio .club-form .btn{border-radius:12px;padding:13px 24px;}
+.pg-inicio .club-msg{font-family:inherit;font-size:13px;}
+
+/* el pie repite la invitación al club: en la portada ya está arriba */
+.pg-inicio .footer-cta{display:none;}
+
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
+@media (max-width:1100px){
+  .pg-inicio .grid{grid-template-columns:repeat(3,1fr);}
+  .pg-inicio .yd-cats{grid-template-columns:repeat(3,1fr);}
+  .pg-inicio .yd-cat{aspect-ratio:4/3;}
+  .pg-inicio .yd-bene{grid-template-columns:repeat(2,1fr);}
+  .pg-inicio .yd-bene-item:nth-child(2){border-right:0;}
+  .pg-inicio .yd-bene-item:nth-child(-n+2){border-bottom:1px solid var(--line);}
+}
+@media (max-width:760px){
+  :root{--ini-gap-sec:48px;}
+  .pg-inicio .yd-hero{height:clamp(420px,72vh,560px);}
+  .pg-inicio .yd-slide::after{background:linear-gradient(0deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.25) 100%);}
+  .pg-inicio .yd-hero-copy{top:auto;bottom:56px;transform:none;left:var(--ini-pad);right:var(--ini-pad);max-width:none;max-height:none;}
+  .pg-inicio .yd-hero-title{font-size:clamp(32px,10vw,44px);}
+  .pg-inicio .yd-hero-title.yd-hero-title--md{font-size:clamp(28px,8.4vw,38px);}
+  .pg-inicio .yd-hero-title.yd-hero-title--sm{font-size:clamp(22px,6.6vw,28px);}
+  .pg-inicio .yd-hero-arrow{display:none;}
+  .pg-inicio .yd-bene-item{padding:14px 8px;gap:10px;justify-content:flex-start;}
+  .pg-inicio .yd-bene-t{font-size:12.5px;}
+  .pg-inicio .yd-bene-s{display:none;}
+  .pg-inicio .yd-sec-head{flex-direction:column;align-items:flex-start;gap:12px;}
+  .pg-inicio .yd-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none;margin:0 calc(var(--ini-pad) * -1);padding:0 var(--ini-pad);width:calc(100% + 2*var(--ini-pad));}
+  .pg-inicio .yd-tabs::-webkit-scrollbar{display:none;}
+  .pg-inicio .yd-tab{white-space:nowrap;flex-shrink:0;}
+  .pg-inicio .grid{grid-template-columns:repeat(2,1fr);gap:12px;}
+  .pg-inicio .badge{font-size:9.5px;padding:4px 8px;top:10px;left:10px;max-width:calc(100% - 64px);white-space:nowrap;}
+  .pg-inicio .card-body{padding:12px;gap:8px;}
+  .pg-inicio .card-name{font-size:14.5px;}
+  .pg-inicio .add-btn{padding:8px 12px;}
+  .pg-inicio .yd-cats{grid-template-columns:repeat(2,1fr);}
+  .pg-inicio .yd-promo::before{background:linear-gradient(0deg,rgba(10,10,10,.95) 0%,rgba(10,10,10,.6) 100%),url("../img/banner-hoodie-2.jpg") 70% 20%/cover no-repeat;}
+  .pg-inicio .yd-promo{align-items:flex-end;}
+}
+@media (max-width:420px){
+  .pg-inicio .grid{grid-template-columns:1fr 1fr;}
+  .pg-inicio .size-chip{min-width:30px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .pg-inicio *{transition-duration:.01ms !important;}
+}

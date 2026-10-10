@@ -18,13 +18,17 @@
 <meta name="theme-color" content="#0a0a0a">
 <link rel="stylesheet" href="css/estilos.css?v=4">
 <link rel="stylesheet" href="css/maquina-ui.css?v=8">
+<link rel="stylesheet" href="css/inicio.css?v=1">
 </head>
-<body>
+<body class="pg-inicio">
 
 <div id="site-header"></div>
 
 <!-- ========== BANNER PRINCIPAL ========== -->
 <section class="yd-hero" id="ydHero" aria-label="Novedades de MAQUINA"></section>
+
+<!-- ========== BENEFICIOS (franja bajo el banner) ========== -->
+<div class="yd-info" id="ydInfo"></div>
 
 <!-- ========== PRODUCTOS DESTACADOS ========== -->
 <section class="yd-sec" id="destacados">
@@ -33,24 +37,24 @@
     <div class="yd-tabs" id="ydTabs"></div>
   </div>
   <div class="grid" id="gridDestacados"></div>
-  <div style="text-align:center;margin-top:34px;">
+  <div class="yd-more">
     <a href="productos.html" class="btn btn-ghost">Ver toda la colección</a>
   </div>
 </section>
 
 <!-- ========== CATEGORÍAS ========== -->
-<section class="yd-sec" style="padding-top:0;">
+<section class="yd-sec yd-sec--flush">
   <div class="yd-sec-head"><h2>Categorías</h2></div>
   <div class="yd-cats" id="ydCats"></div>
 </section>
 
 <!-- ========== BANNER PROMOCIONAL ========== -->
-<section class="yd-sec" style="padding-top:0;">
+<section class="yd-sec yd-sec--flush">
   <div class="yd-promo">
     <div class="yd-promo-in">
       <h3>Estilo urbano<br><span>sin límites</span></h3>
       <p>La verdadera actitud no se compra, se viste. Cada drop se hace una sola vez y en cantidades cortas.</p>
-      <a href="productos.html" class="yd-hero-btn" style="margin-top:22px;">Ver más</a>
+      <a href="productos.html" class="yd-hero-btn">Ver más</a>
     </div>
   </div>
 </section>
@@ -109,9 +113,6 @@
   <div class="club-msg" id="clubMsg"></div>
 </section>
 
-<!-- ========== INFORMACIÓN DE ENVÍOS / PAGOS / CAMBIOS ========== -->
-<div class="yd-info" id="ydInfo"></div>
-
 <div id="site-footer"></div>
 
 <div class="toast" id="toast"><span class="dot"></span><span id="toastText">Aviso</span></div>
@@ -130,8 +131,9 @@
 renderHeader('inicio');
 renderFooter();
 
-/* El banner no depende del catálogo: se pinta de una.
-   La barra de envíos/pagos/cambios queda solo abajo, cerca del pie. */
+/* La franja de beneficios ahora va justo bajo el banner.
+   El banner no depende del catálogo: se pinta de una.
+   */
 ydRenderHero('ydHero');
 ydRenderBeneficios('ydInfo');
 
