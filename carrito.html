@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google" content="notranslate">
 <title>Tu carrito — MAQUINA</title>
-<meta name="description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega.">
+<meta name="description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega o con PSE.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <meta property="og:title" content="Tu carrito — MAQUINA">
-<meta property="og:description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega.">
+<meta property="og:description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega o con PSE.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/carrito.html">
 <meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/portada.jpg">
@@ -122,6 +122,20 @@ const ENVIO_GRATIS_DESDE = 0;
    ============================================================ */
 const PAGO_TARJETA_ACTIVO = false;
 const PAGO_PAYPAL_ACTIVO  = false;
+/* PSE: el cliente elige banco y tipo de persona y el pedido queda
+   PENDIENTE de pago (no se cobra nada desde esta página: no hay pasarela
+   conectada). Para cobrar de verdad, crea un enlace/botón de pago PSE en
+   tu pasarela (Wompi, ePayco, PayU, Mercado Pago…) y pégalo en PSE_URL_PAGO:
+   al confirmar el pedido se le mostrará al cliente el botón "Ir a pagar con PSE".
+   Si lo dejas vacío, el pedido se registra y tú le envías el enlace de pago. */
+const PAGO_PSE_ACTIVO = true;
+const PSE_URL_PAGO = '';   // ej: 'https://checkout.wompi.co/l/XXXXXX'
+const BANCOS_PSE = [
+  'Bancolombia','Banco de Bogotá','Davivienda','BBVA Colombia','Banco de Occidente',
+  'Banco Popular','Banco AV Villas','Banco Caja Social','Scotiabank Colpatria','Itaú',
+  'Banco Agrario','Banco Falabella','Banco Pichincha','Banco W','Bancoomeva','Banco Santander',
+  'GNB Sudameris','Banco Serfinanza','Lulo Bank','Nu Colombia','Nequi','Daviplata','Movii','Dale!'
+];
 const NEQUI_NUMERO  = '';   // ej: '3001234567'
 const NEQUI_TITULAR = '';   // ej: 'MAQUINA S.A.S.'
 const PAGO_NEQUI_ACTIVO = !!(NEQUI_NUMERO.trim() && NEQUI_TITULAR.trim());
@@ -217,6 +231,9 @@ function svgBolsa() {
    los tres se vean consistentes y sin emojis) */
 function svgIconoTarjeta() {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.3" y="5.3" width="19.4" height="13.4" rx="2.6"/><path d="M2.3 9.6h19.4"/><path d="M6 14.4h4.2"/></svg>';
+}
+function svgIconoBanco() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 12 4l9 5.5"/><path d="M4.5 20.5h15"/><path d="M6 11v6.5M10 11v6.5M14 11v6.5M18 11v6.5"/></svg>';
 }
 function svgIconoNequi() {
   /* Sin el logo oficial de Nequi disponible en el proyecto, usamos un
@@ -500,6 +517,16 @@ function pintarCarrito() {
                     <span class="metodo-card-nombre">Pago contraentrega</span>
                     <span class="metodo-card-sub">Paga cuando recibas tu pedido</span>
                   </button>
+                  ${PAGO_PSE_ACTIVO ? `
+                  <button type="button" class="metodo-card" data-metodo="pse">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgIconoBanco()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">PSE</span>
+                    <span class="metodo-card-sub">Débito desde tu cuenta bancaria</span>
+                  </button>
+                  ` : ''}
                   ${PAGO_NEQUI_ACTIVO ? `
                   <button type="button" class="metodo-card" data-metodo="nequi">
                     <span class="metodo-card-top">
@@ -546,6 +573,27 @@ function pintarCarrito() {
                     <input type="text" id="tarjetaCvv" placeholder="CVV" inputmode="numeric" maxlength="4">
                   </div>
                   <p class="tarjeta-nota">🔒 Tu info va segura, cero drama. (Pago simulado — demo sin pasarela ni banco real todavía.)</p>
+                </div>
+
+                <div class="campos-tarjeta campos-pse" id="camposPse">
+                  <select id="pseBanco" aria-label="Banco">
+                    <option value="" disabled selected>Selecciona tu banco</option>
+                    ${BANCOS_PSE.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('')}
+                  </select>
+                  <div class="campo-fila">
+                    <select id="psePersona" aria-label="Tipo de persona">
+                      <option value="natural" selected>Persona natural</option>
+                      <option value="juridica">Persona jurídica</option>
+                    </select>
+                    <select id="pseDocTipo" aria-label="Tipo de documento">
+                      <option value="CC" selected>C.C.</option>
+                      <option value="CE">C.E.</option>
+                      <option value="NIT">NIT</option>
+                      <option value="PP">Pasaporte</option>
+                    </select>
+                  </div>
+                  <input type="text" id="pseDocNum" placeholder="Número de documento" inputmode="numeric" maxlength="15" autocomplete="off">
+                  <p class="tarjeta-nota">Al confirmar, registramos tu pedido con el banco elegido. Queda pendiente hasta que se confirme tu pago por PSE.</p>
                 </div>
 
                 <div class="campos-tarjeta campos-nequi" id="camposNequi">
@@ -607,12 +655,9 @@ function pintarCarrito() {
             <p class="finalizar-hint" id="finalizarHint"></p>
             <a href="productos.html" class="btn-seguir">${svgFlechaIz()}<span>Seguir comprando</span></a>
             ${PAGO_PAYPAL_ACTIVO ? `<button type="button" class="btn-paypal" id="btnPaypal"><span class="pp-mark" aria-hidden="true">P</span><span>Pagar con PayPal</span><span class="pp-soon">Pronto</span></button>` : ''}
-            <p class="summary-seguro">${svgEscudo()}<span>Tus datos viajan por conexión segura (HTTPS)</span></p>
           </div>
         </div>
         <div class="carrito-info-card">
-          <div class="info-item">${svgCamion()}<div><b>Envíos a toda Colombia</b><span>El costo depende de tu municipio.</span></div></div>
-          <div class="info-item">${svgIconoTarjeta()}<div><b>Formas de pago</b><span>${[PAGO_TARJETA_ACTIVO && 'Tarjeta', PAGO_NEQUI_ACTIVO && 'Nequi', 'Contraentrega'].filter(Boolean).join(' · ')}</span></div></div>
           <div class="info-item">${svgBolsa()}<div><b>Cambios y devoluciones</b><span><a href="legal.html#cambios-devoluciones">Consulta las condiciones</a></span></div></div>
         </div>
       </aside>
@@ -1099,6 +1144,7 @@ function pintarCarrito() {
   const chips = wrap.querySelectorAll('.metodo-card');
   const camposTarjeta = document.getElementById('camposTarjeta');
   const camposNequi = document.getElementById('camposNequi');
+  const camposPse = document.getElementById('camposPse');
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
       chips.forEach(c => c.classList.remove('active'));
@@ -1106,6 +1152,7 @@ function pintarCarrito() {
       metodoPago = chip.dataset.metodo;
       camposTarjeta.classList.toggle('open', metodoPago === 'tarjeta');
       camposNequi.classList.toggle('open', metodoPago === 'nequi');
+      if (camposPse) camposPse.classList.toggle('open', metodoPago === 'pse');
       if (metodoPago === 'nequi') {
         // Total a transferir: lo mismo que ya se muestra en el resumen del pedido.
         const totalTxt = document.getElementById('totalValor');
@@ -1132,7 +1179,9 @@ function pintarCarrito() {
     btn.setAttribute('aria-disabled', String(!listo));
     if (hint) hint.textContent = listo ? '' : 'Falta: ' + faltan.join(', ') + '.';
   }
-  if (chips.length === 1) chips[0].click();   // un único método disponible: ya queda elegido
+  /* contraentrega queda elegido de entrada (si hay un único método, también) */
+  const chipInicial = wrap.querySelector('.metodo-card[data-metodo="contraentrega"]') || chips[0];
+  if (chipInicial) chipInicial.click();
   wrap.addEventListener('input', actualizarEstadoFinalizar);
   wrap.addEventListener('change', actualizarEstadoFinalizar);
   actualizarEstadoFinalizar(); // estado inicial del botón, ya con "metodoPago" declarado
@@ -1221,6 +1270,20 @@ function pintarCarrito() {
         }
         tarjetaFinal = numLimpio.slice(-4);
       }
+      let pse = null;
+      if (metodoPago === 'pse') {
+        const banco = document.getElementById('pseBanco');
+        const docNum = document.getElementById('pseDocNum');
+        const numLimpio = docNum.value.replace(/\D/g, '');
+        if (!banco.value) { banco.classList.add('campo-error'); showToastCarrito('Selecciona tu banco para pagar con PSE.'); return; }
+        if (numLimpio.length < 5) { docNum.classList.add('campo-error'); showToastCarrito('Escribe tu número de documento.'); return; }
+        pse = {
+          banco: banco.value,
+          persona: document.getElementById('psePersona').value,
+          docTipo: document.getElementById('pseDocTipo').value,
+          docNum: numLimpio,
+        };
+      }
       if (metodoPago === 'nequi') {
         const chk = document.getElementById('nequiConfirmado');
         if (!chk || !chk.checked) {
@@ -1252,7 +1315,7 @@ function pintarCarrito() {
 
       setTimeout(async () => {
         try {
-          const pedido = await crearPedido({ nombre, email, telefono, metodoPago, tarjetaFinal, envio });
+          const pedido = await crearPedido({ nombre, email, telefono, metodoPago, tarjetaFinal, envio, pse });
           mostrarExito(nombre, pedido.codigo_pedido, pedido.items, metodoPago, {
             subtotal: pedido.subtotal, envio: pedido.costo_envio, total: pedido.total,
           });
@@ -1558,10 +1621,13 @@ function mostrarExito(nombreCliente, pedidoId, items, metodoPago, resumen) {
     const esContraentrega = metodoPago === 'contraentrega';
     document.querySelector('.check-circle').textContent = esContraentrega ? '📦' : '✅';
     const esNequi = metodoPago === 'nequi';
-    document.querySelector('.exito-titulo').textContent = esContraentrega ? '¡Pedido confirmado! 📦' : (esNequi ? '¡Pedido recibido! ⚡' : '¡Pago exitoso! ⚡');
+    const esPse = metodoPago === 'pse';
+    document.querySelector('.exito-titulo').textContent = esContraentrega ? '¡Pedido confirmado! 📦' : ((esNequi || esPse) ? '¡Pedido recibido! ⚡' : '¡Pago exitoso! ⚡');
     document.querySelector('.exito-sub').textContent = esContraentrega
       ? 'Ya estamos organizando tu pedido — pagas cuando te llegue 🚀'
-      : (esNequi
+      : (esPse
+        ? (PSE_URL_PAGO ? 'Tu pedido quedó pendiente de pago. Completa el pago por PSE con el botón de abajo.' : 'Tu pedido quedó pendiente de pago por PSE. Te enviamos el enlace de pago a tu correo para completarlo.')
+      : esNequi
         ? 'Vamos a verificar tu transferencia por Nequi y te confirmamos el pedido por correo.'
         : 'Tu pago se realizó correctamente — ya casi vuela para tu casa 🚀');
     document.getElementById('gracias-nombre').textContent = '✨ ¡Muchas gracias, ' + nombreCliente + '! ✨';
@@ -1586,7 +1652,8 @@ function mostrarExito(nombreCliente, pedidoId, items, metodoPago, resumen) {
       cajaTotales.innerHTML = resumen ? `
         <div class="exito-totales-fila"><span>Subtotal</span><span>${fmtDinero(resumen.subtotal)}</span></div>
         <div class="exito-totales-fila"><span>Envío</span><span>${resumen.envio ? fmtDinero(resumen.envio) : 'Gratis'}</span></div>
-        <div class="exito-totales-total"><span>${esContraentrega ? 'Total a pagar al recibir' : 'Total'}</span><span>${fmtDinero(resumen.total)}</span></div>` : '';
+        <div class="exito-totales-total"><span>${esContraentrega ? 'Total a pagar al recibir' : (esPse ? 'Total a pagar por PSE' : 'Total')}</span><span>${fmtDinero(resumen.total)}</span></div>
+        ${esPse && PSE_URL_PAGO ? `<a class="btn-seguir" style="margin-top:14px;justify-content:center" href="${esc(PSE_URL_PAGO)}" target="_blank" rel="noopener"><span>Ir a pagar con PSE</span></a>` : ''}` : '';
     }
     document.querySelectorAll('.stepper-step').forEach(s => { s.classList.add('is-done'); s.classList.remove('is-active'); s.querySelector('.stepper-circle').textContent = '✓'; });
     document.querySelectorAll('.stepper-line').forEach(l => l.classList.add('is-done'));
