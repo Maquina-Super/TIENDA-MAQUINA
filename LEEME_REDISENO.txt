@@ -71,3 +71,30 @@ Carrito, checkout, pagos, favoritos, login, registro,
 recuperación, inventario, pedidos, buscador, Voltage Club,
 cuenta regresiva del drop, avisos a Telegram/Sheets y el panel
 admin siguen funcionando exactamente igual.
+
+
+==========================================================
+AJUSTE VISUAL DE LA PORTADA (css/inicio.css)
+==========================================================
+index.html carga ahora css/inicio.css al final. Solo cambia la
+presentacion (espacios, tamanos, tarjetas mas livianas, franja de
+beneficios bajo el banner, 6 categorias en una fila, promo con una
+sola imagen). No toca productos, carrito, login ni Firebase.
+Para volver al diseno anterior: quita ese <link> y el class
+"pg-inicio" del <body> en index.html.
+
+
+==========================================================
+CARRITO Y CHECKOUT (css/carrito-pro.css + carrito.html)
+==========================================================
+Solo presentacion + honestidad de los metodos de pago.
+Interruptores al inicio del <script> de carrito.html:
+  PAGO_TARJETA_ACTIVO = false  (el formulario de tarjeta era una
+                               simulacion sin pasarela; no se muestra)
+  PAGO_PAYPAL_ACTIVO  = false  (no hay integracion)
+  NEQUI_NUMERO / NEQUI_TITULAR (vacios: Nequi se oculta hasta que
+                               pongas los datos REALES de tu cuenta;
+                               antes decia "300 000 0000")
+Contraentrega funciona siempre. Para volver al diseno anterior quita
+los <link> maquina-ui.css, inicio.css y carrito-pro.css de carrito.html.
+Copia del archivo original: carrito.original.html (en esta entrega).
