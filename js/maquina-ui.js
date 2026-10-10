@@ -556,8 +556,15 @@ function ydPintarCarritoLateral() {
           <div class="yd-cart-thumb">${p ? ydVisual(p, g.color) : ""}</div>
           <div>
             <div class="yd-cart-name">${g.nombre}</div>
-            <div class="yd-cart-meta">Talla ${g.talla} · x${g.cantidad}</div>
-            <div class="yd-cart-price">${ydPesos(g.subtotal)}</div>
+            <div class="yd-cart-meta">Talla ${g.talla}</div>
+            <div class="yd-cart-qtyrow">
+              <div class="yd-cart-qty" role="group" aria-label="Cantidad de ${g.nombre}">
+                <button type="button" class="yd-cart-qb" data-menos="${g.id}" data-color="${g.color}" data-talla="${g.talla}" aria-label="Quitar una unidad">−</button>
+                <span>${g.cantidad}</span>
+                <button type="button" class="yd-cart-qb" data-mas="${g.id}" data-color="${g.color}" data-talla="${g.talla}" aria-label="Agregar una unidad">+</button>
+              </div>
+              <div class="yd-cart-price">${ydPesos(g.subtotal)}</div>
+            </div>
           </div>
           <button class="yd-cart-x" data-quitar="${g.id}" data-color="${g.color}" data-talla="${g.talla}" aria-label="Quitar ${g.nombre}">${YD_ICONOS.equis}</button>
         </div>`;
@@ -572,6 +579,29 @@ function ydPintarCarritoLateral() {
     </div>`;
 
   panel.querySelector("#ydCartClose").addEventListener("click", ydCerrarCarrito);
+  /* cantidades: mismo tope de stock que los botones "Agregar" de la tienda */
+  panel.querySelectorAll("[data-menos]").forEach(b => {
+    b.addEventListener("click", () => {
+      quitarUnidad(b.dataset.menos, b.dataset.color, b.dataset.talla);
+      ydActualizarContadorCarrito();
+      ydPintarCarritoLateral();
+    });
+  });
+  panel.querySelectorAll("[data-mas]").forEach(b => {
+    b.addEventListener("click", () => {
+      const p = buscarProducto(b.dataset.mas);
+      if (!p) { mostrarToast("No pudimos revisar el stock de este producto.", true); return; }
+      const disponible = Math.min(stockColor(p, b.dataset.color), stockTalla(p, b.dataset.talla));
+      const yaEnCarrito = getCarrito().filter(it => it.id == p.id && it.color === b.dataset.color && it.talla === b.dataset.talla).length;
+      if (yaEnCarrito >= disponible) {
+        mostrarToast(`Ya tienes todas las unidades disponibles de ${p.nombre} en esa combinación.`, true);
+        return;
+      }
+      agregarAlCarrito(p, b.dataset.color, b.dataset.talla);
+      ydActualizarContadorCarrito();
+      ydPintarCarritoLateral();
+    });
+  });
   panel.querySelectorAll("[data-quitar]").forEach(b => {
     b.addEventListener("click", () => {
       eliminarGrupo(b.dataset.quitar, b.dataset.color, b.dataset.talla);

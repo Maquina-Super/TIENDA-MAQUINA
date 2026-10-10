@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="css/carrito.css">
 <link rel="stylesheet" href="css/carrito-pro.css?v=1">
+<link rel="stylesheet" href="css/carrito-v2.css?v=1">
 </head>
 <body class="carrito-page">
 
@@ -94,6 +95,7 @@
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
 <script src="js/store.js"></script>
+<script src="js/carrito-core.js"></script>
 <script src="js/layout.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -234,58 +236,139 @@ function agruparCarrito(carrito) {
   return grupos;
 }
 
+/* ---------- iconos extra del carrito (trazo, heredan color) ---------- */
+const _svg = (d, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.9}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const svgMas      = () => _svg('<path d="M12 5v14M5 12h14"/>', 2.2);
+const svgMenos    = () => _svg('<path d="M5 12h14"/>', 2.2);
+const svgBasura   = () => _svg('<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12.2a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8L18 7"/><path d="M9 7V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V7"/>');
+const svgAlerta   = () => _svg('<path d="M12 3.5 2.8 19.5h18.4L12 3.5Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>');
+const svgInfo     = () => _svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/>');
+const svgFlechaIz = () => _svg('<path d="M19 12H5M11 6l-6 6 6 6"/>');
+const svgFlechaDe = () => _svg('<path d="M5 12h14M13 6l6 6-6 6"/>');
+const svgCorazon  = () => _svg('<path d="M12 20.5s-7.6-4.6-10-9.3C.5 7.8 2.3 4.5 5.6 4c2-.3 3.9.7 5 2.3.1.15.3.15.4 0 1.1-1.6 3-2.6 5-2.3 3.3.5 5.1 3.8 3.6 7.2-2.4 4.7-10 9.3-10 9.3z"/>', 1.7);
+const svgEscudo   = () => _svg('<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8 7.5 9.5 4.4-1.5 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/>');
+
+/* ---------- estado vacío ---------- */
+function htmlChipsCategorias() {
+  let cats = [];
+  try { cats = (typeof categoriasDisponibles === 'function' ? categoriasDisponibles() : []).slice(0, 6); } catch (e) { cats = []; }
+  return cats.map(c => `<a class="cart-chip" href="productos.html?cat=${encodeURIComponent(c)}">${esc(c)}</a>`).join('');
+}
+function htmlVacio() {
+  const favs = typeof totalFavoritosCount === 'function' ? totalFavoritosCount() : 0;
+  return `
+    <div class="cart-empty">
+      <div class="cart-empty-art" aria-hidden="true">
+        <span class="spark s1"></span><span class="spark s2"></span><span class="spark s3"></span>
+        <div class="cart-empty-bag">${svgBolsa()}</div>
+      </div>
+      <h2>Tu carrito está vacío</h2>
+      <p>Todavía no has agregado nada. Explora la colección y arma tu fit.</p>
+      <div class="cart-empty-actions">
+        <a href="productos.html" class="btn-finalizar btn-inline">Ir a la tienda ${svgFlechaDe()}</a>
+        ${favs > 0 ? `<a href="favoritos.html" class="btn-ghost">${svgCorazon()}<span>Ver mis favoritos (${favs})</span></a>` : ''}
+      </div>
+      <div class="cart-empty-chips" id="cartEmptyChips">${htmlChipsCategorias()}</div>
+    </div>`;
+}
+
+/* ---------- una línea del carrito ---------- */
+let _primeraPintura = true;
+function htmlFilaInterior(g) {
+  const i = g.info;
+  const colorTxt = nombreColor(g.color);
+  const noVendible = i.estado === 'no_disponible' || i.estado === 'agotado';
+  const verificado = CarritoCore.estado.validacion === 'ok';
+  const masPosibles = verificado && i.producto ? CarritoCore.cuantasMasSePuede(i.producto, g.color, g.talla, CarritoCore.leer()) : 1;
+  const plusBloq = noVendible || (verificado && masPosibles <= 0);
+  const enlace = i.producto && !noVendible ? `producto.html?id=${encodeURIComponent(g.id)}` : '';
+  const nombre = enlace ? `<a href="${enlace}">${esc(g.nombre)}</a>` : esc(g.nombre);
+  const pr = i.producto || {};
+  const estiloFoto = `object-fit:${pr.ajusteFoto === 'contain' ? 'contain' : 'cover'};${pr.posicionFoto ? `object-position:${esc(pr.posicionFoto)};` : ''}`;
+  const foto = g.foto ? `<img src="${esc(g.foto)}" alt="${esc(g.nombre)}" style="${estiloFoto}" loading="lazy" decoding="async">` : iconoProducto(g.icono, g.color || '#dfe8da');
+  const conPrecioUnit = g.cantidad > 1 || i.ahorroUnidad > 0;
+
+  let aviso = '';
+  if (i.estado === 'no_disponible' || i.estado === 'agotado') {
+    aviso = `<div class="cart-item-alert is-error" role="alert">${svgAlerta()}<div><b>${i.estado === 'agotado' ? 'Agotado' : 'No disponible'}</b><span>${esc(i.mensaje)} No se suma al total.</span></div><button type="button" class="alert-act" data-act="quitar">Quitar</button></div>`;
+  } else if (i.estado === 'parcial') {
+    aviso = `<div class="cart-item-alert is-warn" role="alert">${svgAlerta()}<div><b>Stock insuficiente</b><span>${esc(i.mensaje)}</span></div><button type="button" class="alert-act" data-act="ajustar" data-n="${i.disponible}">Ajustar a ${i.disponible}</button></div>`;
+  } else if (i.pocoStock) {
+    aviso = `<div class="cart-item-low">${svgInfo()}<span>${i.pocoStock === 1 ? '¡Última unidad!' : `¡Quedan solo ${i.pocoStock}!`}</span></div>`;
+  }
+
+  return `
+    <a class="cart-item-media" ${enlace ? `href="${enlace}"` : 'aria-hidden="true" tabindex="-1"'}>${foto}${i.descuentoPct > 0 && !noVendible ? `<span class="cart-item-badge">-${i.descuentoPct}%</span>` : ''}</a>
+    <div class="cart-item-info">
+      <div class="cart-item-top">
+        <div class="cart-item-heading">
+          <h3 class="cart-item-name">${nombre}</h3>
+          <p class="cart-item-meta">
+            <span class="cart-swatch" style="background:${esc(g.color || '#dfe8da')}"></span>
+            ${colorTxt ? `<span>${esc(colorTxt)}</span><span class="sep">·</span>` : ''}
+            <span>Talla ${esc(g.talla || '—')}</span>
+          </p>
+        </div>
+        <button type="button" class="btn-eliminar" aria-label="Quitar ${esc(g.nombre)} del carrito" title="Quitar">${svgBasura()}</button>
+      </div>
+      ${aviso}
+      <div class="cart-item-bottom">
+        <div class="qty-stepper" role="group" aria-label="Cantidad de ${esc(g.nombre)}">
+          <button type="button" class="qty-btn qty-minus" aria-label="Quitar una unidad">${svgMenos()}</button>
+          <span class="qty-value" aria-live="polite">${g.cantidad}</span>
+          <button type="button" class="qty-btn qty-plus${plusBloq ? ' is-disabled' : ''}" aria-label="Agregar una unidad"${plusBloq ? ' aria-disabled="true"' : ''}>${svgMas()}</button>
+        </div>
+        <div class="cart-item-prices">
+          <span class="cart-item-line">${fmtDinero(g.subtotal)}</span>
+          <span class="cart-item-unit"${conPrecioUnit ? '' : ' hidden'}>${g.cantidad > 1
+            ? `${i.ahorroUnidad > 0 ? `<s>${fmtDinero(i.base)}</s> ` : ''}${fmtDinero(g.precio)} c/u`
+            : (i.ahorroUnidad > 0 ? `<s>${fmtDinero(i.base)}</s>` : '')}</span>
+        </div>
+      </div>
+    </div>`;
+}
+function htmlFila(g, n) {
+  const i = g.info;
+  const cls = ['cart-item'];
+  if (i.estado === 'no_disponible' || i.estado === 'agotado') cls.push('is-unavailable');
+  else if (i.estado === 'parcial') cls.push('is-warning');
+  return `<article class="${cls.join(' ')}" style="--i:${n || 0}" data-id="${esc(g.id)}" data-color="${esc(g.color)}" data-talla="${esc(g.talla)}">${htmlFilaInterior(g)}</article>`;
+}
+
+/* ---------- avisos sobre la lista (precios, stock, verificación) ---------- */
+function htmlAvisos(a) {
+  const est = CarritoCore.estado;
+  let h = '';
+  if (est.validacion === 'pendiente') {
+    h += `<div class="cart-notice is-loading"><span class="spinner" aria-hidden="true"></span><span>Verificando precios y disponibilidad…</span></div>`;
+  } else if (est.validacion === 'sin_verificar') {
+    h += `<div class="cart-notice is-info">${svgInfo()}<span>No pudimos verificar precios y disponibilidad ahora mismo.</span><button type="button" class="notice-act" data-notice="reintentar">Reintentar</button></div>`;
+  }
+  est.avisosPrecio.forEach((av, k) => {
+    const sube = av.ahora > av.antes;
+    h += `<div class="cart-notice ${sube ? 'is-warn' : 'is-good'}" role="status">${svgInfo()}<span>El precio de <b>${esc(av.nombre)}</b>${av.talla ? ` (talla ${esc(av.talla)})` : ''} ${sube ? 'subió' : 'bajó'}: antes ${fmtDinero(av.antes)}, ahora <b>${fmtDinero(av.ahora)}</b>.</span><button type="button" class="notice-x" data-notice="cerrar" data-k="${k}" aria-label="Cerrar aviso">×</button></div>`;
+  });
+  if (a.verificado && a.problemas > 0) {
+    const hayQuitar = a.grupos.some(g => g.info.estado === 'no_disponible' || g.info.estado === 'agotado');
+    h += `<div class="cart-notice is-error" role="alert">${svgAlerta()}<span>${a.problemas === 1 ? 'Hay 1 producto que' : `Hay ${a.problemas} productos que`} necesita${a.problemas === 1 ? '' : 'n'} tu atención antes de pagar.</span>${hayQuitar ? '<button type="button" class="notice-act" data-notice="quitar-malos">Quitar no disponibles</button>' : ''}</div>`;
+  }
+  return h;
+}
+
 function pintarCarrito() {
-  const carrito = getCarrito();
+  const carrito = CarritoCore.leer();
   const wrap = document.getElementById('carritoWrap');
 
   if (carrito.length === 0) {
-    wrap.innerHTML = `
-      <div class="cart-empty">
-        <div class="cart-empty-icon">${svgBolsa()}</div>
-        <h2>Tu carrito está vacío</h2>
-        <p>Hora de armar el fit.</p>
-        <a href="productos.html" class="btn-finalizar btn-inline">Ver el drop <span aria-hidden="true">→</span></a>
-      </div>`;
+    wrap.innerHTML = htmlVacio();
+    if (typeof actualizarBarraMovil === 'function') actualizarBarraMovil(null);
     return;
   }
 
-  const grupos = agruparCarrito(carrito);
-  const totalUnidades = carrito.length;
-
-  let itemsHtml = '';
-  grupos.forEach(g => {
-    const colorTxt = nombreColor(g.color);
-    itemsHtml += `
-      <article class="cart-item" data-id="${esc(g.id)}" data-color="${esc(g.color)}" data-talla="${esc(g.talla)}">
-        <div class="cart-item-media">${g.foto ? `<img src="${esc(g.foto)}" alt="${esc(g.nombre)}" loading="lazy">` : iconoProducto(g.icono, g.color || '#dfe8da')}</div>
-        <div class="cart-item-info">
-          <div class="cart-item-top">
-            <div class="cart-item-heading">
-              <h3 class="cart-item-name">${esc(g.nombre)}</h3>
-              <p class="cart-item-meta">
-                <span class="cart-swatch" style="background:${esc(g.color || '#dfe8da')}"></span>
-                ${colorTxt ? `<span>${colorTxt}</span><span class="sep">|</span>` : ''}
-                <span>Talla ${esc(g.talla || '—')}</span>
-              </p>
-            </div>
-            <button type="button" class="btn-eliminar" aria-label="Quitar ${esc(g.nombre)}">${svgEquisBoton()}</button>
-          </div>
-          <div class="cart-item-bottom">
-            <div class="qty-stepper" role="group" aria-label="Cantidad">
-              <button type="button" class="qty-btn qty-minus" aria-label="Quitar una unidad">−</button>
-              <span class="qty-value" aria-live="polite">${g.cantidad}</span>
-              <button type="button" class="qty-btn qty-plus" aria-label="Agregar una unidad">+</button>
-            </div>
-            <div class="cart-item-prices">
-              <span class="cart-item-line">${fmtDinero(g.subtotal)}</span>
-              <span class="cart-item-unit"${g.cantidad > 1 ? '' : ' hidden'}>c/u ${fmtDinero(g.precio)}</span>
-            </div>
-          </div>
-        </div>
-      </article>`;
-  });
-
-  const subtotalInicial = totalCarritoValor();
+  const analisisInicial = CarritoCore.analizar(carrito);
+  const totalUnidades = analisisInicial.unidades;
+  const itemsHtml = analisisInicial.grupos.map((g, n) => htmlFila(g, n)).join('');
+  const subtotalInicial = analisisInicial.subtotal;
   const html = `
     <div class="checkout-stepper" id="checkoutStepper">
       <div class="stepper-step is-active" data-stepper="1">
@@ -310,11 +393,13 @@ function pintarCarrito() {
     </div>
     <div class="carrito-layout">
       <section class="carrito-items" aria-label="Productos de tu carrito">
+        <div class="cart-notices" id="cartNotices" aria-live="polite">${htmlAvisos(analisisInicial)}</div>
         <div class="cart-list-head">
+          <a href="productos.html" class="cart-back">${svgFlechaIz()}<span>Seguir comprando</span></a>
           <span class="cart-list-count"><b id="cartListCount">${totalUnidades}</b> <span id="cartListWord">${totalUnidades === 1 ? 'producto' : 'productos'}</span></span>
-          <a href="#" class="btn-limpiar" id="btnLimpiar">Vaciar carrito</a>
+          <button type="button" class="btn-limpiar" id="btnLimpiar">Vaciar carrito</button>
         </div>
-        <div class="cart-list" id="cartList">
+        <div class="cart-list${_primeraPintura ? ' is-first' : ''}" id="cartList">
           ${itemsHtml}
         </div>
       </section>
@@ -502,8 +587,10 @@ function pintarCarrito() {
       <aside class="carrito-summary-col" aria-label="Resumen del pedido">
         <div class="carrito-summary-card">
           <h2 class="summary-eyebrow">Resumen del pedido</h2>
+          <div class="summary-row" id="listaFila" hidden><span>Precio de lista</span><span id="listaValor">${fmtDinero(analisisInicial.lista)}</span></div>
+          <div class="summary-row is-discount" id="descFila" hidden><span>Descuentos</span><span id="descValor">−${fmtDinero(analisisInicial.descuentos)}</span></div>
           <div class="summary-row"><span>Subtotal</span><span id="subtotalValor">${fmtDinero(subtotalInicial)}</span></div>
-          <div class="summary-row" id="envioFila"><span>Envío</span><span id="envioValor">Elige tu municipio</span></div>
+          <div class="summary-row" id="envioFila"><span>Envío</span><span id="envioValor">Se calcula al elegir tu municipio</span></div>
           ${ENVIO_GRATIS_DESDE > 0 ? `
           <div class="ship-banner" id="shipBanner">
             <div class="ship-line">${svgCamion()}<span id="shipBannerTxt"></span></div>
@@ -513,11 +600,14 @@ function pintarCarrito() {
             <span>Total</span>
             <span class="total-valor" id="totalValor">${fmtDinero(subtotalInicial)}</span>
           </div>
+          <p class="cart-ahorro" id="ahorroTxt" hidden></p>
           <div class="resumen-acciones" id="resumenAcciones">
-            <button type="button" class="btn-finalizar" id="btnFinalizar">${svgCandado()}<span id="btnFinalizarTxt">Proceder al pago</span></button>
+            <button type="button" class="btn-finalizar" id="btnFinalizar">${svgCandado()}<span id="btnFinalizarTxt">Proceder al pago</span><i class="btn-spinner" aria-hidden="true"></i></button>
+            <p class="cart-bloqueo" id="cartBloqueoMsg" role="status" hidden></p>
             <p class="finalizar-hint" id="finalizarHint"></p>
+            <a href="productos.html" class="btn-seguir">${svgFlechaIz()}<span>Seguir comprando</span></a>
             ${PAGO_PAYPAL_ACTIVO ? `<button type="button" class="btn-paypal" id="btnPaypal"><span class="pp-mark" aria-hidden="true">P</span><span>Pagar con PayPal</span><span class="pp-soon">Pronto</span></button>` : ''}
-            <p class="summary-seguro">${svgCandado()}<span>Tus datos viajan por conexión segura (HTTPS)</span></p>
+            <p class="summary-seguro">${svgEscudo()}<span>Tus datos viajan por conexión segura (HTTPS)</span></p>
           </div>
         </div>
         <div class="carrito-info-card">
@@ -530,7 +620,7 @@ function pintarCarrito() {
 
   wrap.innerHTML = html;
 
-  /* ---------- resumen: subtotal / envío / total (se actualiza solo) ---------- */
+  /* ---------- resumen: subtotal / descuentos / envío / total (se actualiza solo) ---------- */
   const listEl = document.getElementById('cartList');
   const selectMunicipio = document.getElementById('municipioEnvio');
   const envioValorEl = document.getElementById('envioValor');
@@ -538,16 +628,36 @@ function pintarCarrito() {
   let envioZona = 0;     // costo del envío según el municipio elegido
   let envioActual = 0;   // costo que de verdad se cobra (0 si aplica envío gratis)
 
+  /** ¿Qué impide pagar ahora mismo? ('' = nada) */
+  function motivoBloqueo(a) {
+    if (a.estadoValidacion === 'pendiente') return 'cargando';
+    if (a.verificado && a.problemas > 0) return 'problemas';
+    if (a.unidadesValidas === 0) return 'vacio';
+    return '';
+  }
+
   function recalcularResumen() {
-    const subtotal = totalCarritoValor();
+    const a = CarritoCore.analizar();
+    const subtotal = a.subtotal;
     const gratis = ENVIO_GRATIS_DESDE > 0 && subtotal >= ENVIO_GRATIS_DESDE;
     envioActual = gratis ? 0 : envioZona;
 
     setDinero(document.getElementById('subtotalValor'), subtotal);
+    const conDesc = a.descuentos > 0;
+    const filaLista = document.getElementById('listaFila'), filaDesc = document.getElementById('descFila');
+    if (filaLista) { filaLista.hidden = !conDesc; setDinero(document.getElementById('listaValor'), a.lista); }
+    if (filaDesc) {
+      filaDesc.hidden = !conDesc;
+      const dv = document.getElementById('descValor');
+      if (dv) dv.textContent = '−' + fmtDinero(a.descuentos);
+    }
+    const ahorro = document.getElementById('ahorroTxt');
+    if (ahorro) { ahorro.hidden = !conDesc; if (conDesc) ahorro.textContent = `Estás ahorrando ${fmtDinero(a.descuentos)} en este pedido`; }
+
     const filaEnvio = document.getElementById('envioFila');
     if (filaEnvio) filaEnvio.classList.toggle('is-free', gratis);
     if (gratis) envioValorEl.textContent = '¡Gratis!';
-    else envioValorEl.textContent = envioZona ? fmtDinero(envioZona) : 'Elige tu municipio';
+    else envioValorEl.textContent = envioZona ? fmtDinero(envioZona) : 'Se calcula al elegir tu municipio';
     setDinero(totalValorEl, subtotal + envioActual);
 
     const banner = document.getElementById('shipBanner');
@@ -564,6 +674,22 @@ function pintarCarrito() {
     const chipActivo = wrap.querySelector('.metodo-card.active');
     const nequiValor = document.getElementById('nequiValorTxt');
     if (chipActivo && chipActivo.dataset.metodo === 'nequi' && nequiValor) nequiValor.textContent = totalValorEl.textContent;
+
+    // botón "Finalizar": bloqueado (sin deshabilitarlo) mientras haya algo por resolver
+    const motivo = motivoBloqueo(a);
+    const btn = document.getElementById('btnFinalizar'), msg = document.getElementById('cartBloqueoMsg');
+    if (btn) {
+      btn.classList.toggle('is-blocked', !!motivo && motivo !== 'cargando');
+      btn.classList.toggle('is-loading', motivo === 'cargando');
+      btn.setAttribute('aria-disabled', motivo ? 'true' : 'false');
+    }
+    if (msg) {
+      msg.hidden = !motivo;
+      msg.textContent = motivo === 'cargando' ? 'Verificando disponibilidad…'
+        : motivo === 'problemas' ? 'Resuelve los avisos de tus productos para poder pagar.'
+        : motivo === 'vacio' ? 'No hay productos disponibles para comprar.' : '';
+    }
+    if (typeof actualizarBarraMovil === 'function') actualizarBarraMovil(a, subtotal + envioActual, motivo);
   }
 
   function actualizarContadores() {
@@ -576,12 +702,20 @@ function pintarCarrito() {
     if (w) w.textContent = n === 1 ? 'producto' : 'productos';
   }
 
-  /* ---------- filas del carrito: cambiar cantidad / quitar (sin repintar todo,
-     así no se pierde lo que el cliente ya escribió en el formulario) ---------- */
-  function itemsDelGrupo(id, color, talla) {
-    return getCarrito().filter(it => it.id == id && it.color === color && it.talla === talla);
+  /** Repinta lista, avisos y resumen SIN tocar el formulario (no se pierde lo escrito). */
+  function refrescar() {
+    const a = CarritoCore.analizar();
+    if (!a.grupos.length) { pintarCarrito(); return; }
+    if (!document.getElementById('cartList')) { pintarCarrito(); return; }
+    listEl.classList.remove('is-first');
+    listEl.innerHTML = a.grupos.map((g, n) => htmlFila(g, n)).join('');
+    document.getElementById('cartNotices').innerHTML = htmlAvisos(a);
+    recalcularResumen();
+    actualizarContadores();
   }
+  window.__carrito = { refrescar, recalcularResumen };
 
+  /* ---------- filas: cambiar cantidad / quitar (sin repintar todo) ---------- */
   function quitarFilaAnimada(fila) {
     if (fila.dataset.saliendo) return;
     fila.dataset.saliendo = '1';
@@ -594,63 +728,148 @@ function pintarCarrito() {
     }, reducirMovimiento ? 0 : 340);
   }
 
+  /** Rehace por dentro UNA fila con los datos actuales (conserva el foco del teclado). */
   function refrescarFila(fila) {
     const { id, color, talla } = fila.dataset;
-    const items = itemsDelGrupo(id, color, talla);
-    if (items.length === 0) { quitarFilaAnimada(fila); return; }
-    const suma = items.reduce((s, it) => s + Number(it.precio), 0);
-    const qty = fila.querySelector('.qty-value');
-    qty.textContent = items.length;
-    animarClase(qty, 'bump');
-    setDinero(fila.querySelector('.cart-item-line'), suma);
-    const unit = fila.querySelector('.cart-item-unit');
-    unit.textContent = 'c/u ' + fmtDinero(items[0].precio);
-    unit.hidden = items.length < 2;
+    const a = CarritoCore.analizar();
+    const g = a.grupos.find(x => x.id == id && x.color === color && x.talla === talla);
+    if (!g) { quitarFilaAnimada(fila); return; }
+    const activo = document.activeElement;
+    const claseFoco = fila.contains(activo) ? ['qty-plus', 'qty-minus', 'btn-eliminar'].find(c => activo.classList.contains(c)) : null;
+    const lineaPrev = fila.querySelector('.cart-item-line');
+    const prev = lineaPrev && typeof lineaPrev._valor === 'number' ? lineaPrev._valor : null;
+    fila.classList.toggle('is-unavailable', g.info.estado === 'no_disponible' || g.info.estado === 'agotado');
+    fila.classList.toggle('is-warning', g.info.estado === 'parcial');
+    fila.innerHTML = htmlFilaInterior(g);
+    const linea = fila.querySelector('.cart-item-line');
+    if (linea) { if (prev !== null) linea._valor = prev; setDinero(linea, g.subtotal); }
+    animarClase(fila.querySelector('.qty-value'), 'bump');
     animarClase(fila, 'flash');
+    if (claseFoco) (fila.querySelector('.' + claseFoco) || fila.querySelector('.qty-minus'))?.focus({ preventScroll: true });
   }
 
   function despuesDeCambio(fila) {
     refrescarFila(fila);
+    document.getElementById('cartNotices').innerHTML = htmlAvisos(CarritoCore.analizar());
     recalcularResumen();
     actualizarContadores();
   }
 
+  function deshacerA(instantanea) {
+    return () => {
+      _guardar(LS_KEYS.carrito, instantanea);
+      if (document.getElementById('cartList')) window.__carrito.refrescar(); else pintarCarrito();
+      actualizarContadoresGlobal();
+    };
+  }
+
   listEl.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.qty-plus, .qty-minus, .btn-eliminar');
+    const btn = e.target.closest('.qty-plus, .qty-minus, .btn-eliminar, [data-act]');
     if (!btn) return;
     e.preventDefault();
     const fila = btn.closest('.cart-item');
     if (!fila || fila.dataset.saliendo) return;
     const { id, color, talla } = fila.dataset;
+    const antes = CarritoCore.leer();
+    const cantidadAntes = antes.filter(it => it.id == id && it.color === color && it.talla === talla).length;
+    const nombreProd = (antes.find(it => it.id == id) || {}).nombre || 'producto';
 
+    if (btn.dataset.act === 'ajustar') {
+      CarritoCore.ajustarAlStock(id, color, talla, Number(btn.dataset.n) || 0);
+      despuesDeCambio(fila);
+      return;
+    }
+    if (btn.dataset.act === 'quitar' || btn.classList.contains('btn-eliminar') || (btn.classList.contains('qty-minus') && cantidadAntes <= 1)) {
+      eliminarGrupo(id, color, talla);
+      despuesDeCambio(fila);
+      mostrarSnack(`Quitaste «${nombreProd}»`, 'Deshacer', deshacerA(antes));
+      return;
+    }
     if (btn.classList.contains('qty-plus')) {
-      await catalogoListo;                       // necesitamos el catálogo para revisar el stock
+      if (btn.classList.contains('is-loading')) return;
+      if (CarritoCore.estado.validacion === 'pendiente') {       // necesitamos el catálogo para revisar el stock
+        btn.classList.add('is-loading');
+        await catalogoListo;
+        btn.classList.remove('is-loading');
+      }
       const producto = buscarProducto(id);
       if (!producto) { showToastCarrito('No pudimos revisar el stock de este producto ahora mismo. Intenta de nuevo.'); return; }
-      const enGrupo = itemsDelGrupo(id, color, talla).length;
-      const stockDisponible = stockColor(producto, color);
-      if (enGrupo >= stockDisponible) {
-        showToastCarrito(`Ya tienes las ${stockDisponible} unidades disponibles de ${producto.nombre} en ese color.`);
+      if (!CarritoCore.vendible(producto)) { showToastCarrito(`${producto.nombre} ya no está disponible.`); refrescar(); return; }
+      const mas = CarritoCore.cuantasMasSePuede(producto, color, talla, CarritoCore.leer());
+      if (mas <= 0) {
+        const tope = CarritoCore.topeVariante(producto, color, talla);
+        showToastCarrito(tope <= 0 ? `${producto.nombre} está agotado en esa combinación.` : `Ya tienes todas las unidades disponibles (${tope}) de ${producto.nombre} en ese color y talla.`);
+        animarClase(fila, 'shake');
         return;
       }
       agregarAlCarrito(producto, color, talla);
     } else if (btn.classList.contains('qty-minus')) {
       quitarUnidad(id, color, talla);
-    } else {
-      eliminarGrupo(id, color, talla);
     }
     despuesDeCambio(fila);
+  });
+
+  /* ---------- avisos sobre la lista ---------- */
+  document.getElementById('cartNotices').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-notice]');
+    if (!b) return;
+    const acc = b.dataset.notice;
+    if (acc === 'cerrar') { CarritoCore.estado.avisosPrecio.splice(Number(b.dataset.k), 1); refrescar(); }
+    else if (acc === 'reintentar') { b.classList.add('is-busy'); await revalidar(); }
+    else if (acc === 'quitar-malos') {
+      const antes = CarritoCore.leer();
+      CarritoCore.quitarNoDisponibles();
+      refrescar();
+      actualizarContadoresGlobal();
+      mostrarSnack('Quitamos los productos no disponibles', 'Deshacer', deshacerA(antes));
+    }
   });
 
   const btnLimpiar = document.getElementById('btnLimpiar');
   if (btnLimpiar) {
     btnLimpiar.addEventListener('click', (e) => {
       e.preventDefault();
+      const antes = CarritoCore.leer();
       limpiarCarrito();
       listEl.querySelectorAll('.cart-item').forEach((fila, i) => setTimeout(() => quitarFilaAnimada(fila), reducirMovimiento ? 0 : i * 70));
       recalcularResumen();
       actualizarContadores();
+      mostrarSnack('Vaciaste el carrito', 'Deshacer', deshacerA(antes));
     });
+  }
+
+  /* ---------- protección: no se puede pagar con productos agotados o sin verificar ----------
+     Se engancha en la fase de captura, ANTES de la lógica del formulario, y no la modifica. */
+  const _btnFin = document.getElementById('btnFinalizar');
+  const _formPago = document.getElementById('form-pago');
+  function avisarBloqueo(motivo) {
+    if (motivo === 'cargando') showToastCarrito('Estamos verificando la disponibilidad. Un momento…');
+    else if (motivo === 'problemas') { showToastCarrito('Resuelve los avisos de tu carrito antes de pagar.'); document.getElementById('cartNotices').scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'center' }); }
+    else showToastCarrito('Tu carrito no tiene productos disponibles para comprar.');
+  }
+  if (_btnFin) {
+    let _reenviando = false;
+    _btnFin.addEventListener('click', async (e) => {
+      if (_reenviando) return;
+      const motivo = motivoBloqueo(CarritoCore.analizar());
+      if (motivo) { e.preventDefault(); e.stopImmediatePropagation(); avisarBloqueo(motivo); return; }
+      // datos viejos (>45 s): se vuelve a consultar Firestore justo antes de seguir
+      if (Date.now() - CarritoCore.estado.fecha > 45000) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        _btnFin.classList.add('is-loading');
+        await revalidar();
+        _btnFin.classList.remove('is-loading');
+        const m2 = motivoBloqueo(CarritoCore.analizar());
+        if (m2) { avisarBloqueo(m2); return; }
+        _reenviando = true; _btnFin.click(); _reenviando = false;
+      }
+    }, true);
+  }
+  if (_formPago) {
+    _formPago.addEventListener('submit', (e) => {
+      const motivo = motivoBloqueo(CarritoCore.analizar());
+      if (motivo) { e.preventDefault(); e.stopImmediatePropagation(); avisarBloqueo(motivo); }
+    }, true);
   }
 
   /* ---- envío dinámico según municipio elegido ---- */
@@ -1198,7 +1417,113 @@ function showToastCarrito(texto) {
   window._toastTimerCarrito = setTimeout(() => toast.classList.remove('show', 'error'), 2600);
 }
 
+/* ============================================================
+   VALIDACIÓN CONTRA EL CATÁLOGO (Firestore) + EXTRAS DEL CARRITO
+   ============================================================ */
+/** Vuelve a leer el catálogo de Firestore y corrige precios / stock del carrito. */
+let _revalidando = null;
+function revalidar() {
+  if (_revalidando) return _revalidando;
+  _revalidando = (async () => {
+    try {
+      await cargarCatalogo();
+      CarritoCore.reconciliar(typeof catalogoDesdeNube === 'function' && catalogoDesdeNube());
+    } catch (e) {
+      CarritoCore.reconciliar(false);
+    } finally {
+      _revalidando = null;
+    }
+    if (window.__carrito) window.__carrito.refrescar();
+    actualizarContadoresGlobal();
+  })();
+  return _revalidando;
+}
+/* primera validación: en cuanto llega el catálogo */
+catalogoListo.then(() => {
+  CarritoCore.reconciliar(typeof catalogoDesdeNube === 'function' && catalogoDesdeNube());
+  if (window.__carrito) window.__carrito.refrescar();
+  const chips = document.getElementById('cartEmptyChips');     // estado vacío: ya se pueden mostrar categorías
+  if (chips) chips.innerHTML = htmlChipsCategorias();
+});
+/* al volver a la pestaña después de un rato, se revisa de nuevo (alguien pudo comprar lo último) */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && CarritoCore.estado.validacion !== 'pendiente' && Date.now() - CarritoCore.estado.fecha > 60000) revalidar();
+});
+
+function actualizarContadoresGlobal() {
+  const hdr = document.getElementById('cartCount');
+  if (hdr) hdr.textContent = totalCarritoCount();
+}
+
+/* ---------- el carrito se conserva: se sincroniza con otras pestañas y con "atrás" ---------- */
+window.addEventListener('storage', (e) => {
+  if (e.key !== LS_KEYS.carrito) return;
+  if (document.getElementById('cartList') && getCarrito().length) window.__carrito.refrescar();
+  else if (!document.getElementById('estado-exito')?.offsetParent) pintarCarrito();
+  actualizarContadoresGlobal();
+});
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && document.getElementById('cartList')) { window.__carrito.refrescar(); actualizarContadoresGlobal(); }
+});
+
+/* ---------- mensaje inferior con "Deshacer" ---------- */
+function mostrarSnack(texto, accion, alAccionar) {
+  let el = document.getElementById('cartSnack');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'cartSnack'; el.className = 'cart-snack';
+    el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<span></span><button type="button"></button>`;
+  el.firstChild.textContent = texto;
+  const b = el.querySelector('button');
+  b.textContent = accion || '';
+  b.hidden = !accion;
+  b.onclick = () => { el.classList.remove('show'); if (alAccionar) alAccionar(); };
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 6000);
+}
+
+/* ---------- barra fija en celular: total + botón, mientras el resumen no se ve ---------- */
+let _barra = null, _barraObs = null, _barraEstado = { oculta: false, resumenVisible: false, enCampo: false };
+function actualizarBarraMovil(a, total, motivo) {
+  if (!_barra) {
+    _barra = document.createElement('div');
+    _barra.className = 'cart-mobilebar'; _barra.id = 'cartMobileBar'; _barra.hidden = true;
+    _barra.innerHTML = `<div class="mb-total"><small>Total</small><b id="mbTotal">$0</b></div><button type="button" class="mb-btn" id="mbBtn">${svgCandado()}<span>Finalizar compra</span><i class="btn-spinner" aria-hidden="true"></i></button>`;
+    document.body.appendChild(_barra);
+    _barra.querySelector('#mbBtn').addEventListener('click', () => { const b = document.getElementById('btnFinalizar'); if (b) b.click(); });
+    // si el teclado está abierto (escribiendo en el formulario), la barra estorba
+    document.addEventListener('focusin', (e) => { _barraEstado.enCampo = !!e.target.closest('input, textarea, select'); pintarEstadoBarra(); });
+    document.addEventListener('focusout', () => { _barraEstado.enCampo = false; pintarEstadoBarra(); });
+  }
+  if (!a) { _barraEstado.vacia = true; pintarEstadoBarra(); return; }
+  _barraEstado.vacia = false;
+  const mt = _barra.querySelector('#mbTotal');
+  if (mt) mt.textContent = fmtDinero(total);
+  _barra.classList.toggle('is-blocked', !!motivo && motivo !== 'cargando');
+  _barra.classList.toggle('is-loading', motivo === 'cargando');
+  // observar el bloque de acciones del resumen: si ya se ve, la barra sobra
+  const acciones = document.getElementById('resumenAcciones');
+  if (acciones && 'IntersectionObserver' in window && _barraObs && _barraObs._el !== acciones) { _barraObs.disconnect(); _barraObs = null; }
+  if (acciones && 'IntersectionObserver' in window && !_barraObs) {
+    _barraObs = new IntersectionObserver((en) => { _barraEstado.resumenVisible = en[0].isIntersecting; pintarEstadoBarra(); }, { threshold: 0.2 });
+    _barraObs._el = acciones; _barraObs.observe(acciones);
+  }
+  pintarEstadoBarra();
+}
+function pintarEstadoBarra() {
+  if (!_barra) return;
+  const oculta = _barraEstado.vacia || _barraEstado.resumenVisible || _barraEstado.enCampo;
+  _barra.hidden = !!_barraEstado.vacia;
+  _barra.classList.toggle('is-hidden', !!oculta);
+  document.body.classList.toggle('has-mobilebar', !_barraEstado.vacia);
+}
+
 pintarCarrito();
+_primeraPintura = false;
 
 /* ---- animación de "pago" (igual que en el proyecto original) ---- */
 function mostrarOverlay(metodoPago) {

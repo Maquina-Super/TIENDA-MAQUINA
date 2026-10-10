@@ -104,6 +104,11 @@ function _guardar(key, valor) {
    normal (sincrónica) y en segundo plano avisan a Firestore del
    cambio, sin bloquear la interfaz. ============================================================ */
 let _catalogoCache = [];
+/* true solo si la última carga del catálogo SÍ vino de Firestore. El carrito
+   lo usa para no "corregir" precios con el catálogo de fábrica cuando no
+   hay internet. */
+let _catalogoDesdeNube = false;
+function catalogoDesdeNube() { return _catalogoDesdeNube; }
 
 /** Carga el catálogo desde Firestore a la memoria (_catalogoCache).
     Si la colección "productos" está vacía (primera vez que se usa
@@ -133,13 +138,16 @@ async function cargarCatalogo() {
       });
       await batch.commit();
       _catalogoCache = base;
+      _catalogoDesdeNube = true;
     } else {
       _catalogoCache = snap.docs.map(d => {
         const datos = d.data();
         return { ...datos, id: isNaN(d.id) ? d.id : Number(d.id) };
       });
+      _catalogoDesdeNube = true;
     }
   } catch (e) {
+    _catalogoDesdeNube = false;
     console.error('Error cargando el catálogo desde Firestore:', e);
     // Si falla internet, al menos que la tienda muestre el catálogo de fábrica
     _catalogoCache = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).map(p => ({ ...p, descuento: 0 }));
