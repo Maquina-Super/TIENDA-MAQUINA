@@ -1,0 +1,44 @@
+MAQUINA — CHECKOUT POR PASOS (fase 1)
+=====================================
+
+ARCHIVOS
+  carrito.html            Formulario por pasos, validaciones, estados (procesando / error / confirmado).
+  css/checkout-v3.css     Estilos nuevos del checkout (se carga después de carrito-v2.css).
+  js/store.js             crearPedido(): valida datos, precios y envío contra el catálogo DENTRO de la
+                          transacción, y usa una clave por intento para no duplicar pedidos.
+  firestore.rules         Reglas del pedido más estrictas (ver abajo).
+  APPS_SCRIPT_pegar_en_script.google.com.txt   Ya no marca "Pagado" por elegir PSE/Nequi; soporta PSE.
+  js/admin.js, admin-extras.js   Etiqueta correcta del método de pago (antes Nequi salía "Contraentrega").
+
+ORDEN PARA PUBLICAR (importante)
+  1) Sube el sitio (GitHub Pages) con estos archivos.
+  2) Pega firestore.rules en Firebase -> Firestore -> Reglas -> Publicar.
+     (Si publicas las reglas ANTES que el sitio, el checkout viejo puede ser rechazado.)
+  3) Panel admin -> Costos de envío -> pulsa "Guardar" UNA vez. Eso guarda la lista de costos válidos
+     (campo "costos" en config/envio) que las reglas usan para rechazar un envío manipulado.
+  4) Apps Script: reemplaza TODO el código por el del .txt y publica "Nueva versión" de la implementación.
+
+QUÉ SE VALIDA Y DÓNDE
+  En el navegador (ayuda al cliente):  nombre y apellido, correo, celular de 10 dígitos, ciudad/departamento,
+                                       dirección, vereda si es zona rural, método de pago y términos.
+  En crearPedido (transacción):        stock real, precio de cada prenda (talla + descuento) y costo de envío
+                                       de la zona, leídos de Firestore en ese momento. Si algo cambió, el
+                                       pedido NO se crea y el cliente ve un mensaje claro.
+  En firestore.rules (servidor):       precios y total contra el catálogo, costo de envío permitido,
+                                       solo campos conocidos, tamaños de texto, método de pago válido,
+                                       estado "pendiente" y estado_pago "pendiente"/"por_verificar" (un pedido
+                                       nunca nace pagado), id de documento automático.
+
+PAGOS (sin cambios de integración)
+  Contraentrega: pago pendiente, se cobra al entregar.
+  PSE / Nequi / tarjeta: pedido "por_verificar" hasta que el equipo confirme el pago.
+  La pantalla de confirmación y los correos nunca dicen "pagado" por sí solos.
+  PSE no guarda número de documento (se pide en la pasarela, no aquí).
+
+LÍMITES CONOCIDOS
+  · Sin un backend (Cloud Functions) no se puede impedir al 100% que alguien salte la transacción del
+    navegador: las reglas validan precio, envío y datos, pero no pueden obligar a descontar el stock.
+  · Máximo 8 prendas por pedido (límite del lenguaje de reglas). Más de 8 se pide dividir en dos pedidos.
+  · Si activas ENVIO_GRATIS_DESDE, agrega 0 a "costos" en config/envio (o las reglas rechazarán envío $0).
+  · Las reglas NO se pudieron probar con el emulador de Firebase aquí: pruébalas con un pedido real de
+    contraentrega después de publicarlas.

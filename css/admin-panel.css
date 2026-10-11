@@ -497,3 +497,160 @@
 /* ---------- ajustes finos ---------- */
 #cardNuevoProducto .admin-add-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
 .pe-imagen-prev{background:#0a0c09 !important;border-color:var(--adm-line) !important;}
+
+/* ==========================================================================
+   17. PEDIDOS — tabla ordenada, filtros, estados discretos y detalle
+   (solo presentación: no cambia datos ni lógica)
+   ========================================================================== */
+
+/* ---- filtros ---- */
+#tabPedidos .admin-filtros-pedidos{
+  display:grid;grid-template-columns:minmax(240px,3fr) minmax(170px,1.3fr) repeat(2,minmax(140px,1fr)) auto auto;
+  gap:12px;align-items:end;margin-bottom:18px;
+}
+#tabPedidos .admin-filtros-pedidos .admin-filtro-fecha{min-width:0;}
+#tabPedidos .admin-filtros-pedidos .admin-input{
+  width:100%;box-sizing:border-box;min-height:42px;font-family:'Work Sans',system-ui,sans-serif;font-size:14px;text-transform:none;letter-spacing:0;
+}
+#tabPedidos .admin-filtros-pedidos input[type="date"]{color-scheme:dark;}
+#tabPedidos .admin-filtros-pedidos .admin-btn{min-height:42px;white-space:nowrap;padding:0 14px;font-size:12.5px;}
+
+/* ---- tabla (escritorio) ---- */
+#tablaPedidos{table-layout:auto;}
+#tablaPedidos th{white-space:nowrap;}
+#tablaPedidos td{padding:14px 12px;vertical-align:middle;}
+#tablaPedidos tbody tr[data-id]{cursor:pointer;}
+#tablaPedidos tbody tr:last-child td{border-bottom:0;}
+#tablaPedidos th:nth-child(1){width:74px;}
+#tablaPedidos th:nth-child(5),#tablaPedidos td:nth-child(5){text-align:right;}
+#tablaPedidos th:nth-child(7){width:1%;}
+#tablaPedidos .pedido-numero{cursor:inherit;}
+#tablaPedidos .ped-fecha-dia{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;}
+#tablaPedidos .ped-cliente{display:block;font-weight:700;color:var(--adm-text);}
+.ped-sub{display:block;margin-top:2px;font-size:11.5px;color:var(--adm-text-dim);}
+.ped-tel{color:var(--adm-text);text-decoration:none;white-space:nowrap;}
+.ped-tel:hover,.ped-tel:focus-visible{color:var(--adm-lime);text-decoration:underline;}
+#tablaPedidos .ped-total b{font-size:14px;color:var(--adm-text);white-space:nowrap;}
+#tablaPedidos .ped-acciones{white-space:nowrap;}
+#tablaPedidos .ped-acciones .admin-btn{min-height:36px;padding:0 14px;font-size:13px;margin-right:6px;}
+#tablaPedidos .ped-acciones .admin-btn:last-child{margin-right:0;}
+#tablaPedidos .ped-acciones .btn-ver-detalle{border-color:rgba(168,255,61,.4);color:var(--adm-lime);}
+#tablaPedidos .ped-acciones .btn-ver-detalle:hover{background:var(--adm-lime);color:var(--adm-lime-ink);border-color:var(--adm-lime);}
+#tablaPedidos .ped-acciones .btn-borrar-pedido{color:#d9959d;border-color:var(--adm-line);}
+#tablaPedidos .ped-acciones .btn-borrar-pedido:hover{background:#ff5c6c;border-color:#ff5c6c;color:#fff;}
+
+/* ---- estados: colores discretos (select de la tabla y pastillas) ---- */
+#tablaPedidos .select-estado-pedido{
+  -webkit-appearance:none;appearance:none;min-width:136px;padding:6px 28px 6px 12px;font-size:12.5px;font-weight:600;
+  border-width:1px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a5a3bd' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+}
+#tablaPedidos .estado-select-pendiente{background-color:rgba(255,181,69,.08);color:#e3b258;border-color:rgba(255,181,69,.26);}
+#tablaPedidos .estado-select-confirmado{background-color:rgba(108,184,255,.08);color:#86b9ea;border-color:rgba(108,184,255,.26);}
+#tablaPedidos .estado-select-enviado{background-color:rgba(190,160,255,.08);color:#b9a8e8;border-color:rgba(190,160,255,.26);}
+#tablaPedidos .estado-select-entregado{background-color:rgba(61,220,151,.08);color:#6fcf9f;border-color:rgba(61,220,151,.26);}
+#tablaPedidos .estado-select-cancelado{background-color:rgba(255,92,114,.08);color:#e8808e;border-color:rgba(255,92,114,.26);}
+#modalDetallePedido .pedido-estado-pill{padding:5px 12px;font-size:12px;font-weight:600;}
+#modalDetallePedido .estado-pill-pendiente{background:rgba(255,181,69,.1);color:#e3b258;}
+#modalDetallePedido .estado-pill-confirmado{background:rgba(108,184,255,.1);color:#86b9ea;}
+#modalDetallePedido .estado-pill-enviado{background:rgba(190,160,255,.1);color:#b9a8e8;}
+#modalDetallePedido .estado-pill-entregado{background:rgba(61,220,151,.1);color:#6fcf9f;}
+#modalDetallePedido .estado-pill-cancelado{background:rgba(255,92,114,.1);color:#e8808e;}
+
+/* ---- modal de detalle ---- */
+#modalDetallePedido .admin-modal{max-width:640px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;}
+.dp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px;}
+.dp-head h3{margin:0 0 4px;}
+.dp-fecha{display:block;font-size:12px;color:var(--adm-text-dim);}
+.dp-sec{border-top:1px solid var(--adm-line);padding:14px 0;}
+.dp-sec h4{
+  margin:0 0 10px;font-family:var(--ap-font-mono);font-size:10.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--adm-text-dim);
+}
+.dp-grid{display:grid;grid-template-columns:130px minmax(0,1fr);gap:7px 14px;margin:0;font-size:13.5px;}
+.dp-grid dt{color:var(--adm-text-dim);}
+.dp-grid dd{margin:0;color:var(--adm-text);overflow-wrap:anywhere;}
+.dp-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px dashed var(--adm-line);font-size:13.5px;}
+.dp-item:last-of-type{border-bottom:0;}
+.dp-totales{margin-top:8px;padding-top:10px;border-top:1px solid var(--adm-line);display:grid;gap:6px;font-size:13.5px;}
+.dp-totales > div{display:flex;justify-content:space-between;gap:12px;color:var(--adm-text-dim);}
+.dp-totales .dp-total-final{color:var(--adm-text);font-weight:700;font-size:16px;}
+.dp-totales .dp-total-final .mono{color:var(--adm-lime);}
+#modalDetallePedido .admin-add-actions{margin-top:6px;}
+
+/* ---- tablet ---- */
+@media (max-width:1180px){
+  #tabPedidos .admin-filtros-pedidos{grid-template-columns:repeat(3,minmax(0,1fr));}
+  #tabPedidos .admin-filtros-pedidos .ped-campo-buscar{grid-column:1/-1;}
+}
+/* tarjetas de resumen (Pedidos / Total vendido / Pendientes) */
+@media (max-width:600px){
+  #pedidosStats{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  #pedidosStats .admin-stat:nth-child(2){grid-column:1/-1;order:-1;}
+  #pedidosStats .admin-stat b{font-size:28px;overflow-wrap:anywhere;}
+}
+
+/* ---- laptop pequeña (1100–1239): tabla compacta, acciones apiladas ---- */
+@media (min-width:1100px) and (max-width:1239px){
+  #tablaPedidos th{padding:12px 8px;}
+  #tablaPedidos td{padding:12px 8px;}
+  #tablaPedidos .select-estado-pedido{min-width:122px;}
+  #tablaPedidos .ped-acciones{white-space:normal;}
+  #tablaPedidos .ped-acciones .admin-btn{display:flex;width:100%;margin:0 0 6px;justify-content:center;}
+  #tablaPedidos .ped-acciones .admin-btn:last-child{margin-bottom:0;}
+}
+
+/* ---- tablet y celular (≤1099): la tabla no cabe, cada pedido pasa a ser una tarjeta ---- */
+@media (max-width:1099px){
+  #tabPedidos .admin-table-wrap{overflow-x:visible;}
+  #tablaPedidos,#tablaPedidos tbody{display:block;width:100%;}
+  #tablaPedidos thead{display:none;}
+
+  #tablaPedidos tbody tr[data-id]{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 12px;align-items:center;
+    background:var(--adm-surface-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius);padding:14px;margin-bottom:12px;
+  }
+  #tablaPedidos tbody tr[data-id]:hover{background:var(--adm-surface-2);}
+  #tablaPedidos tbody tr[data-id] td{display:block;border:0;padding:0;text-align:left;min-width:0;}
+  #tablaPedidos tbody tr[data-id] td::before{content:none;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(1){grid-column:1;grid-row:1;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(6){grid-column:2;grid-row:1;justify-self:end;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(3){grid-column:1;grid-row:2;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(5){grid-column:2;grid-row:2;text-align:right;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(2){grid-column:1;grid-row:3;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(2) .ped-fecha-dia,
+  #tablaPedidos tbody tr[data-id] td:nth-child(2) .ped-sub{display:inline;margin:0 6px 0 0;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(2) .ped-sub{white-space:nowrap;}
+  #tablaPedidos tbody tr[data-id] td:nth-child(4){grid-column:2;grid-row:3;text-align:right;}
+  #tablaPedidos tbody tr[data-id] td.ped-acciones{
+    grid-column:1/-1;grid-row:4;display:flex;justify-content:flex-end;gap:8px;padding-top:12px;border-top:1px dashed var(--adm-line);
+  }
+  #tablaPedidos .ped-acciones .admin-btn{margin:0;min-height:40px;}
+  #tablaPedidos .ped-total b{font-size:16px;}
+  #tablaPedidos .select-estado-pedido{font-size:14px;min-height:38px;}
+}
+
+/* ---- tablet (≤980): el menú lateral se oculta; 16px en el select evita el zoom de iPad/iPhone ---- */
+@media (max-width:980px){
+  #tablaPedidos .select-estado-pedido{font-size:16px;}
+}
+
+/* ---- celular (≤760) ---- */
+@media (max-width:760px){
+  #tabPedidos .admin-filtros-pedidos{grid-template-columns:1fr 1fr;}
+  #tabPedidos .admin-filtros-pedidos .ped-campo-buscar,
+  #tabPedidos .admin-filtros-pedidos .admin-filtro-fecha:nth-child(2){grid-column:1/-1;}
+  #tabPedidos .admin-filtros-pedidos .admin-btn{width:100%;}
+  #tablaPedidos tbody tr[data-id] td.ped-acciones{display:grid;grid-template-columns:1fr 1fr;}
+  #tablaPedidos tbody tr[data-id] td.ped-acciones:has(.btn-ver-detalle:only-child){grid-template-columns:1fr;}
+  #tablaPedidos .ped-acciones .admin-btn{width:100%;min-height:46px;font-size:15px;}
+  #tablaPedidos .ped-total b{font-size:17px;}
+  #tablaPedidos .select-estado-pedido{min-height:40px;}
+}
+
+@media (max-width:480px){
+  .dp-grid{grid-template-columns:1fr;gap:2px;}
+  .dp-grid dt{margin-top:8px;font-size:12px;}
+  #modalDetallePedido .admin-modal{padding:20px 16px;}
+}

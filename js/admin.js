@@ -699,9 +699,37 @@ let numerosPedidoCache = new Map(); // id de Firestore -> número corto ("Pedido
 const PEDIDOS_POR_PAGINA = 15;
 let paginaPedidos = 1;
 
+/* ---------- ayudas de presentación para la tabla y el detalle de pedidos ----------
+   Solo dan formato a datos que ya existen en Firestore; no cambian nada guardado.
+   escaparHtml: los datos del cliente se escriben a mano en el checkout, así que
+   antes de pintarlos con innerHTML se escapan (evita que un nombre con "<" rompa
+   o inyecte código en el panel). */
+function escaparHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fechaPartesPedido(p) {
+  const d = p && p.fecha ? new Date(p.fecha) : null;
+  if (!d || isNaN(d.getTime())) return { dia: '—', hora: '' };
+  return {
+    dia: d.toLocaleDateString('es-CO', { dateStyle: 'medium' }),
+    hora: d.toLocaleTimeString('es-CO', { timeStyle: 'short' }),
+  };
+}
+function formatoTelefonoPedido(t) {
+  const d = String(t || '').replace(/\D/g, '');
+  return d.length === 10 ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : String(t || '');
+}
+function enlaceTelefonoPedido(t) {
+  const d = String(t || '').replace(/\D/g, '');
+  if (!d) return '<span class="ped-sub">—</span>';
+  const texto = escaparHtml(formatoTelefonoPedido(t));
+  return d.length >= 7 && d.length <= 10 ? `<a class="ped-tel mono" href="tel:+57${d}">${texto}</a>` : `<span class="mono">${texto}</span>`;
+}
+function dineroPedido(n) { return '$' + (Number(n) || 0).toLocaleString('es-CO'); }
+
 async function pintarPedidos() {
   const tbody = document.getElementById('tablaPedidosBody');
-  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--gray);">Cargando pedidos…</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">Cargando pedidos…</td></tr>`;
   pedidosCache = await obtenerPedidosAdmin();
   numerosPedidoCache = mapaNumerosPedido(pedidosCache);
   document.getElementById('pedidosBadge').textContent = pedidosCache.length ? `(${pedidosCache.length})` : '';
@@ -755,8 +783,17 @@ function aplicarFiltrosPedidos() {
 
   let pedidos = pedidosCache.filter(p => {
     if (texto) {
-      const bolsa = `${p.nombre_cliente || ''} ${p.email_cliente || ''} ${p.telefono_cliente || ''} ${p.detalle || ''}`.toLowerCase();
-      if (!bolsa.includes(texto)) return false;
+      // "3" o "#3" busca el pedido número 3 (o un nombre que lo contenga); cualquier otro texto
+      // busca en nombre, correo, teléfono y productos, como antes.
+      const q = texto.replace(/^#/, '');
+      if (/^\d{1,4}$/.test(q)) {
+        const coincideNumero = numerosPedidoCache.get(p.id) === Number(q);
+        const coincideNombre = (p.nombre_cliente || '').toLowerCase().includes(texto);
+        if (!coincideNumero && !coincideNombre) return false;
+      } else {
+        const bolsa = `${p.nombre_cliente || ''} ${p.email_cliente || ''} ${p.telefono_cliente || ''} ${p.detalle || ''}`.toLowerCase();
+        if (!bolsa.includes(texto)) return false;
+      }
     }
     if (estadoElegido && estadoPedido(p) !== estadoElegido) return false;
     if (p.fecha) {
@@ -779,12 +816,12 @@ function aplicarFiltrosPedidos() {
   `;
 
   if (!pedidosCache.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--gray);">Todavía no hay pedidos.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">Todavía no hay pedidos.</td></tr>`;
     document.getElementById('paginacionPedidos').innerHTML = '';
     return;
   }
   if (!pedidos.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--gray);">Ningún pedido coincide con el filtro.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">Ningún pedido coincide con el filtro.</td></tr>`;
     document.getElementById('paginacionPedidos').innerHTML = '';
     return;
   }
@@ -796,26 +833,24 @@ function aplicarFiltrosPedidos() {
   const pedidosPagina = pedidos.slice(inicio, inicio + PEDIDOS_POR_PAGINA);
 
   tbody.innerHTML = pedidosPagina.map(p => {
-    const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
-    const envioTexto = [p.envio_direccion, p.envio_barrio, p.envio_municipio].filter(Boolean).join(', ');
+    const { dia, hora } = fechaPartesPedido(p);
     const estadoActual = estadoPedido(p);
     const numero = numerosPedidoCache.get(p.id) || '—';
+    const idSeguro = escaparHtml(p.id);
+    const cantidadPrendas = Array.isArray(p.items) ? p.items.length : 0;
     const opcionesEstado = Object.entries(ESTADOS_PEDIDO).map(([valor, info]) =>
       `<option value="${valor}" ${valor === estadoActual ? 'selected' : ''}>${info.emoji} ${info.label}</option>`).join('');
     return `
-      <tr>
-        <td data-label="N°"><span class="pedido-numero mono" title="ID interno: ${p.id}">#${numero}</span></td>
-        <td data-label="Fecha" class="mono" style="white-space:nowrap;">${fecha}</td>
-        <td data-label="Cliente"><b>${p.nombre_cliente || '—'}</b></td>
-        <td data-label="Contacto">${p.email_cliente || ''}<br><span style="color:var(--gray);">${p.telefono_cliente || ''}</span></td>
-        <td data-label="Productos">${p.detalle || '—'}</td>
-        <td data-label="Envío">${envioTexto || '—'}</td>
-        <td data-label="Pago">${p.metodo_pago === 'tarjeta' ? `Tarjeta •••• ${p.tarjeta_final || ''}` : 'Contraentrega'}</td>
-        <td data-label="Total" class="mono"><b>$${(Number(p.total) || 0).toLocaleString('es-CO')}</b></td>
-        <td data-label="Estado"><select class="admin-input select-estado-pedido estado-select-${estadoActual}" data-id="${p.id}">${opcionesEstado}</select></td>
-        <td data-label="">
-          <button type="button" class="admin-btn admin-btn-ghost btn-ver-historial" data-id="${p.id}">Historial</button>
-          ${permisosActuales.eliminarPedidos ? `<button type="button" class="admin-btn admin-btn-ghost btn-borrar-pedido" data-id="${p.id}">Eliminar</button>` : ''}
+      <tr data-id="${idSeguro}" title="Clic para ver los detalles">
+        <td data-label="N°"><span class="pedido-numero mono" title="ID interno: ${idSeguro}">#${numero}</span></td>
+        <td data-label="Fecha"><span class="ped-fecha-dia">${escaparHtml(dia)}</span>${hora ? `<span class="ped-sub mono">${escaparHtml(hora)}</span>` : ''}</td>
+        <td data-label="Cliente"><b class="ped-cliente">${escaparHtml(p.nombre_cliente) || '—'}</b>${cantidadPrendas ? `<span class="ped-sub">${cantidadPrendas} prenda${cantidadPrendas === 1 ? '' : 's'}</span>` : ''}</td>
+        <td data-label="Teléfono">${enlaceTelefonoPedido(p.telefono_cliente)}</td>
+        <td data-label="Total" class="mono ped-total"><b>${dineroPedido(p.total)}</b></td>
+        <td data-label="Estado"><select class="admin-input select-estado-pedido estado-select-${estadoActual}" data-id="${idSeguro}" aria-label="Estado del pedido #${numero}">${opcionesEstado}</select></td>
+        <td data-label="" class="ped-acciones">
+          <button type="button" class="admin-btn admin-btn-ghost btn-ver-detalle" data-id="${idSeguro}">Ver detalles</button>
+          ${permisosActuales.eliminarPedidos ? `<button type="button" class="admin-btn admin-btn-ghost btn-borrar-pedido" data-id="${idSeguro}">Eliminar</button>` : ''}
         </td>
       </tr>`;
   }).join('');
@@ -862,7 +897,7 @@ document.getElementById('btnExportarPedidosCSV').addEventListener('click', () =>
   const filas = pedidosFiltradosActuales.map(p => {
     const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CO') : '';
     const envioTexto = [p.envio_direccion, p.envio_barrio, p.envio_municipio].filter(Boolean).join(', ');
-    const pago = p.metodo_pago === 'tarjeta' ? `Tarjeta ****${p.tarjeta_final || ''}` : 'Contraentrega';
+    const pago = etiquetaMetodoPago(p);
     const numero = numerosPedidoCache.get(p.id) || '';
     return [`#${numero}`, fecha, p.nombre_cliente || '', p.email_cliente || '', p.telefono_cliente || '', p.detalle || '', envioTexto, pago, Number(p.total) || 0, ESTADOS_PEDIDO[estadoPedido(p)].label];
   });
@@ -880,6 +915,97 @@ document.getElementById('btnExportarPedidosCSV').addEventListener('click', () =>
   URL.revokeObjectURL(url);
   showToast(`${pedidosFiltradosActuales.length} pedido(s) exportado(s) ✓`);
 });
+
+/* ---------- ver los detalles de un pedido (botón "Ver detalles" o clic en la fila) ----------
+   Solo LEE el pedido que ya está en pedidosCache (datos reales de Firestore);
+   no guarda ni cambia nada. */
+const modalDetallePedido = document.getElementById('modalDetallePedido');
+const ETIQUETAS_ESTADO_PAGO = { pendiente: 'Pendiente de cobro', por_verificar: 'Por verificar', pagado: 'Pagado' };
+
+function filasDetalle(pares) {
+  const filas = pares.filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '');
+  return filas.length ? `<dl class="dp-grid">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : '<p class="admin-foto-hint">Sin datos.</p>';
+}
+
+function abrirDetallePedido(id) {
+  const p = pedidosCache.find(x => x.id === id);
+  if (!p) return;
+  const numero = numerosPedidoCache.get(id);
+  const estado = estadoPedido(p);
+  const infoEstado = ESTADOS_PEDIDO[estado];
+  const d = p.fecha ? new Date(p.fecha) : null;
+
+  document.getElementById('detallePedidoTitulo').textContent = numero ? `Pedido #${numero}` : 'Detalle del pedido';
+  document.getElementById('detallePedidoFecha').textContent = d && !isNaN(d.getTime()) ? d.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' }) : '';
+  document.getElementById('detallePedidoEstado').innerHTML = `<span class="pedido-estado-pill estado-pill-${estado}">${infoEstado.emoji} ${infoEstado.label}</span>`;
+
+  const correo = p.email_cliente ? `<a class="ped-tel" href="mailto:${escaparHtml(p.email_cliente)}">${escaparHtml(p.email_cliente)}</a>` : '';
+  const telefono = p.telefono_cliente ? enlaceTelefonoPedido(p.telefono_cliente) : '';
+  const seccionCliente = filasDetalle([['Nombre', escaparHtml(p.nombre_cliente)], ['Correo', correo], ['Teléfono', telefono]]);
+
+  const seccionEnvio = filasDetalle([
+    ['Dirección', escaparHtml(p.envio_direccion)], ['Edificio / apto', escaparHtml(p.envio_edificio)],
+    ['Barrio', escaparHtml(p.envio_barrio)], ['Vereda', escaparHtml(p.envio_vereda)],
+    ['Municipio', escaparHtml(p.envio_municipio)], ['Departamento', escaparHtml(p.envio_departamento)],
+    ['Referencia', escaparHtml(p.envio_referencia)],
+  ]);
+
+  const seccionPago = filasDetalle([
+    ['Método', escaparHtml(etiquetaMetodoPago(p))],
+    ['Estado del pago', p.estado_pago ? escaparHtml(ETIQUETAS_ESTADO_PAGO[p.estado_pago] || p.estado_pago) : ''],
+  ]);
+
+  let productos;
+  if (Array.isArray(p.items) && p.items.length) {
+    productos = p.items.map(it => {
+      const variante = [it.talla ? `Talla ${it.talla}` : '', it.color ? it.color : ''].filter(Boolean).join(' · ');
+      return `<div class="dp-item"><div><b>${escaparHtml(it.nombre) || 'Producto'}</b>${variante ? `<span class="ped-sub">${escaparHtml(variante)}</span>` : ''}</div><span class="mono">${dineroPedido(it.precio)}</span></div>`;
+    }).join('');
+  } else if (p.detalle) {
+    productos = String(p.detalle).split(' | ').map(t => `<div class="dp-item"><div><b>${escaparHtml(t)}</b></div></div>`).join('');
+  } else {
+    productos = '<p class="admin-foto-hint">Sin productos registrados.</p>';
+  }
+
+  const totales = `
+    <div class="dp-totales">
+      ${p.subtotal != null ? `<div><span>Subtotal</span><span class="mono">${dineroPedido(p.subtotal)}</span></div>` : ''}
+      ${p.costo_envio != null ? `<div><span>Envío</span><span class="mono">${dineroPedido(p.costo_envio)}</span></div>` : ''}
+      <div class="dp-total-final"><span>Total</span><span class="mono">${dineroPedido(p.total)}</span></div>
+    </div>`;
+
+  const historial = Array.isArray(p.historial_estados) ? p.historial_estados : [];
+  const seccionHistorial = historial.length
+    ? [...historial].reverse().map(h => {
+        const info = ESTADOS_PEDIDO[h.estado] || { emoji: '•', label: h.estado };
+        const f = h.fecha ? new Date(h.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+        return `<div class="historial-fila"><span class="pedido-estado-pill estado-pill-${escaparHtml(h.estado)}">${info.emoji} ${escaparHtml(info.label)}</span><span class="historial-usuario">${escaparHtml(h.usuario || 'desconocido')}</span><span class="historial-fecha mono">${escaparHtml(f)}</span></div>`;
+      }).join('')
+    : '<p class="admin-foto-hint">Todavía no hay cambios de estado registrados para este pedido.</p>';
+
+  document.getElementById('detallePedidoCuerpo').innerHTML = `
+    <section class="dp-sec"><h4>Cliente</h4>${seccionCliente}</section>
+    <section class="dp-sec"><h4>Envío</h4>${seccionEnvio}</section>
+    <section class="dp-sec"><h4>Pago</h4>${seccionPago}</section>
+    <section class="dp-sec"><h4>Productos</h4>${productos}${totales}</section>
+    <section class="dp-sec"><h4>Historial de estados</h4>${seccionHistorial}</section>`;
+  modalDetallePedido.classList.add('open');
+  modalDetallePedido.querySelector('.admin-modal').scrollTop = 0;
+}
+function cerrarDetallePedido() { modalDetallePedido.classList.remove('open'); }
+
+document.getElementById('tablaPedidosBody').addEventListener('click', (e) => {
+  if (e.target.closest('select, a, button, option, input, label')) {
+    const btn = e.target.closest('.btn-ver-detalle');
+    if (btn) abrirDetallePedido(btn.dataset.id);
+    return;
+  }
+  const fila = e.target.closest('tr[data-id]');
+  if (fila) abrirDetallePedido(fila.dataset.id);
+});
+document.getElementById('btnCerrarModalDetallePedido').addEventListener('click', cerrarDetallePedido);
+modalDetallePedido.addEventListener('click', (e) => { if (e.target === modalDetallePedido) cerrarDetallePedido(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalDetallePedido.classList.contains('open')) cerrarDetallePedido(); });
 
 /* ---------- ver el historial de cambios de estado de un pedido ---------- */
 const modalHistorialPedido = document.getElementById('modalHistorialPedido');

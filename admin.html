@@ -11,7 +11,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="css/estilos.css">
-<link rel="stylesheet" href="css/admin-panel.css">
+<link rel="stylesheet" href="css/admin-panel.css?v=ped1">
 <link rel="stylesheet" href="css/admin-extras.css?v=msg1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -584,15 +584,15 @@
       <div class="admin-card">
         <p class="admin-foto-hint" style="margin-bottom:12px;">💡 Estos pedidos quedan guardados en la nube (Firebase), no en este computador — los ves igual desde cualquier navegador donde entres con el usuario del panel.</p>
         <div class="admin-filtros-pedidos">
-          <input type="text" id="buscarPedidoAdmin" class="admin-input" placeholder="🔍 Buscar por cliente, contacto o producto…">
-          <select id="filtroEstadoPedido" class="admin-input">
+          <label class="admin-filtro-fecha ped-campo-buscar">Buscar<input type="text" id="buscarPedidoAdmin" class="admin-input" placeholder="N° de pedido o nombre…" autocomplete="off"></label>
+          <label class="admin-filtro-fecha">Estado<select id="filtroEstadoPedido" class="admin-input">
             <option value="">Todos los estados</option>
             <option value="pendiente">🕓 Pendiente</option>
             <option value="confirmado">✅ Confirmado</option>
             <option value="enviado">🚚 Enviado</option>
             <option value="entregado">📦 Entregado</option>
             <option value="cancelado">✕ Cancelado</option>
-          </select>
+          </select></label>
           <label class="admin-filtro-fecha">Desde<input type="date" id="filtroFechaDesde" class="admin-input"></label>
           <label class="admin-filtro-fecha">Hasta<input type="date" id="filtroFechaHasta" class="admin-input"></label>
           <button type="button" class="admin-btn admin-btn-ghost" id="btnLimpiarFiltrosPedidos">Limpiar filtros</button>
@@ -605,17 +605,14 @@
                 <th>N°</th>
                 <th class="th-ordenable" data-campo="fecha">Fecha</th>
                 <th class="th-ordenable" data-campo="cliente">Cliente</th>
-                <th>Contacto</th>
-                <th>Productos</th>
-                <th>Envío</th>
-                <th>Pago</th>
+                <th>Teléfono</th>
                 <th class="th-ordenable" data-campo="total">Total</th>
                 <th>Estado</th>
-                <th></th>
+                <th aria-label="Acciones"></th>
               </tr>
             </thead>
             <tbody id="tablaPedidosBody">
-              <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--gray);">Cargando pedidos…</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">Cargando pedidos…</td></tr>
             </tbody>
           </table>
         </div>
@@ -865,6 +862,23 @@
   </div>
 </div>
 
+<!-- ======================= MODAL DETALLE DE PEDIDO ======================= -->
+<div class="admin-modal-overlay" id="modalDetallePedido">
+  <div class="admin-modal admin-modal-wide" role="dialog" aria-modal="true" aria-labelledby="detallePedidoTitulo">
+    <div class="dp-head">
+      <div>
+        <h3 id="detallePedidoTitulo">Detalle del pedido</h3>
+        <span class="dp-fecha mono" id="detallePedidoFecha"></span>
+      </div>
+      <span id="detallePedidoEstado"></span>
+    </div>
+    <div id="detallePedidoCuerpo"></div>
+    <div class="admin-add-actions">
+      <button type="button" class="admin-btn admin-btn-ghost" id="btnCerrarModalDetallePedido">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======================= MODAL BORRAR PEDIDO ======================= -->
 <div class="admin-modal-overlay" id="modalVerFoto">
   <div class="admin-modal">
@@ -910,7 +924,7 @@
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
 <script src="js/store.js?v=msg2"></script>
-<script src="js/admin.js?v=msg1"></script>
+<script src="js/admin.js?v=ped1"></script>
 <script src="js/admin-ui.js?v=msg1"></script>
 <script src="js/admin-mensajes.js?v=msg2"></script>
 <script src="js/admin-extras.js"></script>
