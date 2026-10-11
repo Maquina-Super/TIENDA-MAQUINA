@@ -21,7 +21,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-10 contactos-en-sheet";
+const VERSION_SCRIPT = "2026-10-11 checkout-pasos-pago-pendiente";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -46,8 +46,8 @@ function doPost(e) {
     const datos = JSON.parse(e.postData.contents);
 
     if (datos.tipo === 'pedido_nuevo') {
-      guardarPedidoEnSheet(datos.pedido);
-      enviarCorreoConfirmacion(datos.pedido);
+      // Si el pedido ya estaba en la hoja (reintento del cliente), no se duplica ni se reenvía el correo.
+      if (guardarPedidoEnSheet(datos.pedido)) enviarCorreoConfirmacion(datos.pedido);
     }
     if (datos.tipo === 'pedido_eliminado') {
       eliminarPedidoDeSheet(datos.id);
@@ -86,14 +86,28 @@ function doGet() {
 }
 
 /* ---------- 4) HELPERS ---------- */
-function nombreMetodoPago(metodo) {
+function nombreMetodoPago(metodo, pedido) {
   if (metodo === 'tarjeta') return 'Tarjeta';
   if (metodo === 'nequi') return 'Nequi';
+  if (metodo === 'pse') return 'PSE' + (pedido && pedido.pse_banco ? ' (' + pedido.pse_banco + ')' : '');
   return 'Contraentrega';
 }
 
-function esPagoDeUnaVez(metodo) {
-  return metodo === 'tarjeta' || metodo === 'nequi';
+/* Un pedido NUNCA se marca como pagado solo porque el cliente eligió un método:
+   el pago se da por confirmado únicamente si el pedido trae estado_pago = 'pagado'
+   (algo que solo cambia el equipo desde el panel). Al crearse, siempre está pendiente. */
+function pagoConfirmado(pedido) {
+  return !!pedido && pedido.estado_pago === 'pagado';
+}
+
+/* Texto del estado de pago para la hoja y los correos. */
+function textoEstadoPago(pedido) {
+  if (pagoConfirmado(pedido)) return 'Pagado';
+  const m = pedido && pedido.metodo_pago;
+  if (m === 'pse') return 'Pendiente (PSE por confirmar)';
+  if (m === 'nequi') return 'Por verificar (transferencia Nequi)';
+  if (m === 'tarjeta') return 'Por verificar (tarjeta)';
+  return 'Pendiente (contraentrega)';
 }
 
 function normalizarCodigo(valor) {
@@ -130,11 +144,23 @@ function guardarPedidoEnSheet(pedido) {
     const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
     if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
 
+    // Anti-duplicados: si el N° de pedido ya está en la columna A, no se inserta otra fila.
+    const codigoPedido = normalizarCodigo(pedido.codigo_pedido || pedido.id);
+    const ultima = hoja.getLastRow();
+    if (codigoPedido && ultima >= 2) {
+      const existentes = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+      for (let i = 0; i < existentes.length; i++) {
+        if (normalizarCodigo(existentes[i][0]) === codigoPedido) return false;
+      }
+    }
+
     const detalle = pedido.detalle ||
       (pedido.items || []).map(function (it) { return it.nombre + ' (' + it.talla + ')'; }).join(' | ');
 
-    const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_referencia]
+    const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio,
+      pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : '', pedido.envio_referencia]
       .filter(Boolean).join(', ');
+    const municipio = [pedido.envio_municipio, pedido.envio_departamento].filter(Boolean).join(', ');
 
     const fila = [
       String(pedido.codigo_pedido || pedido.id || ''),                 // A - N° Pedido (texto)
@@ -143,18 +169,19 @@ function guardarPedidoEnSheet(pedido) {
       pedido.email_cliente || '',                                      // D - Correo
       pedido.telefono_cliente || '',                                   // E - Teléfono
       detalle,                                                         // F - Productos
-      pedido.envio_municipio || '',                                    // G - Municipio
+      municipio,                                                       // G - Municipio y departamento
       direccion,                                                       // H - Dirección
-      nombreMetodoPago(pedido.metodo_pago),                            // I - Método de pago
+      nombreMetodoPago(pedido.metodo_pago, pedido),                    // I - Método de pago
       pedido.subtotal || 0,                                            // J - Subtotal
       pedido.costo_envio || 0,                                         // K - Envío
       pedido.total || 0,                                               // L - Total
-      esPagoDeUnaVez(pedido.metodo_pago) ? 'Pagado' : 'Pendiente',     // M - Estado de pago
+      textoEstadoPago(pedido),                                         // M - Estado de pago (nunca 'Pagado' al crear)
     ];
 
     const numeroFila = hoja.getLastRow() + 1;
     hoja.getRange(numeroFila, 1).setNumberFormat('@'); // columna A como texto
     hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
+    return true;
   } finally {
     candado.releaseLock();
   }
@@ -376,8 +403,14 @@ function enviarCorreoConfirmacion(pedido) {
 
   const codigo = pedido.codigo_pedido || pedido.id;
   const items = pedido.items || [];
-  const yaPago = esPagoDeUnaVez(pedido.metodo_pago);
-  const metodoTexto = nombreMetodoPago(pedido.metodo_pago);
+  const yaPago = pagoConfirmado(pedido);
+  const metodoTexto = nombreMetodoPago(pedido.metodo_pago, pedido);
+  const esContraentrega = !pedido.metodo_pago || pedido.metodo_pago === 'contraentrega';
+  const textoPendiente = esContraentrega
+    ? 'pagas $' + dinero(pedido.total) + ' contraentrega, cuando te llegue.'
+    : (pedido.metodo_pago === 'pse'
+        ? 'te contactaremos con el enlace de pago PSE (por correo o WhatsApp) para completar el pago de $' + dinero(pedido.total) + '.'
+        : 'confirmaremos tu pago de $' + dinero(pedido.total) + ' (' + metodoTexto + ') y te avisamos.');
 
   const filasItemsTexto = items.map(function (it) {
     return it.nombre + ' — talla ' + it.talla + ' — $' + dinero(it.precio);
@@ -396,23 +429,25 @@ function enviarCorreoConfirmacion(pedido) {
     '</tr>';
   }).join('');
 
-  const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_municipio]
+  const direccion = [pedido.envio_direccion, pedido.envio_edificio,
+    pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : pedido.envio_barrio, pedido.envio_municipio, pedido.envio_departamento]
     .filter(Boolean).join(', ');
 
   const linkSeguimiento = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(pedido.id || '');
 
-  const encabezado = yaPago ? '✅ Pago confirmado' : '📦 Pedido confirmado';
+  const encabezado = yaPago ? '✅ Pago confirmado' : (esContraentrega ? '📦 Pedido confirmado' : '📦 Pedido recibido');
   const asunto = yaPago
     ? 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo
-    : 'MAQUINA — 📦 Pedido confirmado (pago pendiente), #' + codigo;
+    : (esContraentrega
+        ? 'MAQUINA — 📦 Pedido confirmado (pago contraentrega), #' + codigo
+        : 'MAQUINA — 📦 Pedido recibido (pago pendiente), #' + codigo);
   const lineaEstadoTexto = yaPago
     ? 'Tu pago por ' + metodoTexto + ' se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
-    : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: pagas $' +
-      dinero(pedido.total) + ' contraentrega, cuando te llegue.';
+    : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: ' + textoPendiente;
   const lineaEstadoHtml = yaPago
     ? 'Tu pago por <strong>' + metodoTexto + '</strong> se realizó <strong>correctamente</strong> y ya recibimos tu pedido ' +
       '<strong>#' + esc(codigo) + '</strong> en MAQUINA. Esto fue lo que compraste:'
-    : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: pagas contraentrega, cuando te llegue. Esto fue lo que pediste:';
+    : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:';
 
   const cuerpoTexto =
     '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
@@ -421,7 +456,7 @@ function enviarCorreoConfirmacion(pedido) {
     'Subtotal: $' + dinero(pedido.subtotal) + '\n' +
     'Envío: $' + dinero(pedido.costo_envio) + '\n' +
     'Total: $' + dinero(pedido.total) + '\n' +
-    'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : 'Pendiente (contraentrega)') + '\n\n' +
+    'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : textoEstadoPago(pedido)) + '\n\n' +
     'Dirección de entrega: ' + direccion + '\n' +
     'Método de pago: ' + metodoTexto + '\n\n' +
     'Rastrea tu pedido cuando quieras: ' + linkSeguimiento + '\n\n' +
@@ -443,7 +478,7 @@ function enviarCorreoConfirmacion(pedido) {
           '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + dinero(pedido.total) + '</td></tr>' +
         '</table>' +
         '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#2f8a1f' : '#b45309') + ';margin-top:6px;">' +
-          (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 Pendiente — se paga contraentrega') +
+          (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 ' + esc(textoEstadoPago(pedido))) +
         '</p>' +
         '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
         '💳 Método de pago: ' + metodoTexto + '</p>' +

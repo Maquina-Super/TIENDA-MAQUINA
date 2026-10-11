@@ -517,7 +517,7 @@ async function cargarConfigEnvio() {
     envío, con sus costos ya editados. */
 function guardarConfigEnvioAdmin(zonas) {
   setZonasEnvioCache(zonas);
-  fbDb.collection('config').doc('envio').set({ zonas: zonasEnvio() }, { merge: true })
+  fbDb.collection('config').doc('envio').set({ zonas: zonasEnvio(), costos: [...new Set(zonasEnvio().map(z => Number(z.costo) || 0))] }, { merge: true })
     .catch(e => console.error('Error guardando la configuración de envío en la nube:', e));
   return zonasEnvio();
 }
@@ -637,50 +637,154 @@ function _agruparNecesidadesStock(carrito) {
   return necesidades;
 }
 
+/* ------------------------------------------------------------
+   CHECKOUT — validación y protección contra pedidos duplicados
+   ------------------------------------------------------------ */
+
+/** Máximo de prendas por pedido: es el límite que revisan las reglas
+    de Firestore (firestore.rules, función todosLosItemsOk). */
+const MAX_UNIDADES_PEDIDO = 8;
+
+/** Texto de usuario → sin saltos/controles, espacios normalizados y con tope de largo. */
+function _textoLimpio(v, max) {
+  return String(v == null ? '' : v)
+    .replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max || 200);
+}
+
+/** Teléfono colombiano → solo dígitos, sin el 57 inicial. '' si no es válido (7 a 10 dígitos). */
+function normalizarTelefonoCO(v) {
+  let d = String(v == null ? '' : v).replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
+  return d.length >= 7 && d.length <= 10 ? d : '';
+}
+
+function _emailValidoPedido(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) && v.length <= 120;
+}
+
+function _errorPedido(code, message) {
+  return Object.assign(new Error(message), { code });
+}
+
+/** Códigos de error "nuestros" (esperados): no se avisan al admin como fallo del sistema. */
+const _CODIGOS_PEDIDO_ESPERADOS = ['SIN_STOCK', 'SIN_PRODUCTO', 'PRECIO_CAMBIO', 'ENVIO_CAMBIO', 'DATOS_INVALIDOS', 'LIMITE_UNIDADES'];
+
+/** Etiqueta legible del método de pago de un pedido (panel admin, CSV, etc.). */
+function etiquetaMetodoPago(p) {
+  const m = p && p.metodo_pago;
+  if (m === 'tarjeta') return `Tarjeta •••• ${p.tarjeta_final || ''}`.trim();
+  if (m === 'pse') return `PSE${p.pse_banco ? ' · ' + p.pse_banco : ''}`;
+  if (m === 'nequi') return 'Nequi';
+  return 'Contraentrega';
+}
+
+/** Clave única de UN intento de compra. Se guarda en sessionStorage junto con
+    la "firma" del carrito: si el cliente reintenta (error de red, doble clic,
+    recarga) con el mismo carrito, el pedido usa el MISMO id de documento y
+    Firestore no puede crear dos pedidos ni descontar el stock dos veces. */
+function _claveIntentoPedido(carrito) {
+  const firma = carrito.map(i => `${i.id}|${i.color || ''}|${i.talla || ''}|${i.precio}`).sort().join(';');
+  try {
+    const g = JSON.parse(sessionStorage.getItem('maquina_intento_pedido') || 'null');
+    if (g && g.firma === firma && /^[A-Za-z0-9]{20}$/.test(g.id || '')) return g.id;
+  } catch (e) { /* sin sessionStorage: se genera una clave nueva */ }
+  const id = fbDb.collection('pedidos').doc().id;
+  try { sessionStorage.setItem('maquina_intento_pedido', JSON.stringify({ firma, id })); } catch (e) { /* sin sessionStorage */ }
+  return id;
+}
+function _olvidarIntentoPedido() {
+  try { sessionStorage.removeItem('maquina_intento_pedido'); } catch (e) { /* nada */ }
+}
+
 /** Crea el pedido y descuenta el stock en una sola transacción de
-    Firestore: primero LEE el stock real más reciente de cada
-    producto involucrado, confirma que alcanza para lo que hay en
-    el carrito, y solo si alcanza, descuenta y guarda el pedido —
-    todo o nada. Así, si dos personas compran la última unidad casi
-    al mismo tiempo, a la segunda se le avisa "ya no queda" en vez
-    de dejar el stock en negativo.
-    Lanza un Error con .code = 'SIN_STOCK' o 'SIN_PRODUCTO' cuando
-    algo del carrito ya no está disponible, para que la pantalla de
-    pago pueda mostrar un mensaje claro en vez de uno genérico. */
+    Firestore: primero LEE el estado real más reciente de cada producto
+    y de los costos de envío, confirma que alcanza el stock y que el
+    precio de cada prenda y el envío siguen siendo los del catálogo, y
+    solo si todo coincide, descuenta y guarda el pedido — todo o nada.
+    Así, si dos personas compran la última unidad casi al mismo tiempo,
+    a la segunda se le avisa "ya no queda" en vez de dejar el stock en
+    negativo, y un precio manipulado en el navegador se rechaza.
+
+    Es idempotente: el id del pedido sale de _claveIntentoPedido(), así
+    que reintentar el mismo carrito nunca crea un segundo pedido.
+
+    Lanza un Error con .code = 'SIN_STOCK', 'SIN_PRODUCTO', 'PRECIO_CAMBIO',
+    'ENVIO_CAMBIO', 'DATOS_INVALIDOS' o 'LIMITE_UNIDADES' cuando algo no
+    cuadra, para que la pantalla de pago muestre un mensaje claro.
+
+    El pedido NUNCA nace "pagado": contraentrega queda pendiente de
+    cobro y PSE/Nequi/tarjeta quedan "por_verificar" hasta que alguien
+    del equipo confirme el pago. */
 async function crearPedido(datosCliente) {
   const carrito = getCarrito();
   if (!carrito.length) return null;
   const envio = datosCliente.envio || {};
+
+  // --- 1) datos del cliente: se limpian y se revalidan aquí (no solo en la pantalla) ---
+  const nombre = _textoLimpio(datosCliente.nombre, 120);
+  const email = _textoLimpio(datosCliente.email, 120).toLowerCase();
+  const telefono = normalizarTelefonoCO(datosCliente.telefono);
+  const direccion = _textoLimpio(envio.direccion, 160);
+  const municipio = _textoLimpio(envio.municipio, 80);
+  if (nombre.length < 3) throw _errorPedido('DATOS_INVALIDOS', 'Escribe tu nombre completo.');
+  if (!_emailValidoPedido(email)) throw _errorPedido('DATOS_INVALIDOS', 'Revisa tu correo electrónico.');
+  if (!telefono) throw _errorPedido('DATOS_INVALIDOS', 'Revisa tu teléfono: debe tener entre 7 y 10 dígitos.');
+  if (municipio.length < 2 || direccion.length < 5) throw _errorPedido('DATOS_INVALIDOS', 'Revisa la ciudad y la dirección de entrega.');
+  if (carrito.length > MAX_UNIDADES_PEDIDO) {
+    throw _errorPedido('LIMITE_UNIDADES', `Un pedido admite hasta ${MAX_UNIDADES_PEDIDO} prendas. Divide tu compra en dos pedidos.`);
+  }
+  const metodo = ['contraentrega', 'pse', 'nequi', 'tarjeta'].includes(datosCliente.metodoPago) ? datosCliente.metodoPago : 'contraentrega';
+  const pse = metodo === 'pse' && datosCliente.pse ? datosCliente.pse : null;
+  if (metodo === 'pse' && (!pse || !_textoLimpio(pse.banco, 60))) throw _errorPedido('DATOS_INVALIDOS', 'Selecciona tu banco para pagar con PSE.');
+
   const subtotal = totalCarritoValor();
   const costoEnvioPedido = Number(envio.costo || 0);
   const usuario = usuarioActual();
+  const ahora = new Date().toISOString();
   const pedido = {
     usuario_uid: usuario ? usuario.id : null,
-    nombre_cliente: datosCliente.nombre,
-    email_cliente: datosCliente.email,
-    telefono_cliente: datosCliente.telefono || '',
-    metodo_pago: datosCliente.metodoPago || 'contraentrega',
+    nombre_cliente: nombre,
+    email_cliente: email,
+    telefono_cliente: telefono,
+    metodo_pago: metodo,
     tarjeta_final: datosCliente.tarjetaFinal || null,
-    envio_municipio: envio.municipio || '',
-    envio_barrio: envio.barrio || '',
-    envio_vereda: envio.vereda || '',
-    envio_direccion: envio.direccion || '',
-    envio_edificio: envio.edificio || '',
-    envio_referencia: envio.referencia || '',
+    pse_banco: pse ? _textoLimpio(pse.banco, 60) : null,
+    pse_tipo_persona: pse ? (pse.persona === 'juridica' ? 'juridica' : 'natural') : null,
+    envio_departamento: _textoLimpio(envio.departamento, 60),
+    envio_municipio: municipio,
+    envio_zona: _textoLimpio(envio.zona, 40),
+    envio_barrio: _textoLimpio(envio.barrio, 80),
+    envio_vereda: _textoLimpio(envio.vereda, 80),
+    envio_direccion: direccion,
+    envio_edificio: _textoLimpio(envio.edificio, 80),
+    envio_referencia: _textoLimpio(envio.referencia, 300),
     costo_envio: costoEnvioPedido,
     items: carrito.map(i => ({ id: String(i.id), nombre: i.nombre, talla: i.talla, color: i.color, precio: i.precio, foto: i.foto || null })),
     detalle: carrito.map(i => `${i.nombre} (${i.talla})`).join(" | "),
     subtotal: subtotal,
     total: subtotal + costoEnvioPedido,
-    fecha: new Date().toISOString(),
+    fecha: ahora,
+    estado: 'pendiente',
+    // El pago nunca se marca como hecho desde el navegador. Contraentrega se cobra
+    // al entregar; los demás métodos esperan a que el equipo verifique el pago.
+    estado_pago: metodo === 'contraentrega' ? 'pendiente' : 'por_verificar',
+    acepta_terminos: datosCliente.aceptaTerminos === true,
+    acepta_terminos_fecha: datosCliente.aceptaTerminos === true ? ahora : null,
   };
 
   const necesidades = _agruparNecesidadesStock(carrito);
   const idsUnicos = [...new Set(Object.values(necesidades).map(n => String(n.id)))];
-  const pedidoRef = fbDb.collection('pedidos').doc();
+  const pedidoRef = fbDb.collection('pedidos').doc(_claveIntentoPedido(carrito));
+  let pedidoExistente = null;   // si este intento ya se había guardado antes
 
   try {
     await fbDb.runTransaction(async (tx) => {
+      pedidoExistente = null;
+      // 0) ¿Este mismo intento ya quedó guardado (reintento tras un corte)? Entonces no se
+      //    descuenta stock ni se crea nada otra vez: se devuelve el pedido que ya existe.
+      const yaGuardado = await tx.get(pedidoRef);
+      if (yaGuardado.exists) { pedidoExistente = yaGuardado.data(); return; }
+
       // 1) Lee el estado MÁS RECIENTE de cada producto (dentro de la
       //    transacción, así Firestore detecta si alguien más lo
       //    cambió al mismo tiempo y reintenta solo).
@@ -689,6 +793,7 @@ async function crearPedido(datosCliente) {
         const snap = await tx.get(fbDb.collection('productos').doc(id));
         productosPorId[id] = snap.exists ? snap.data() : null;
       }
+      const cfgEnvio = await tx.get(fbDb.collection('config').doc('envio'));
 
       // 2) Verifica que alcance el stock de CADA variante pedida.
       Object.values(necesidades).forEach(n => {
@@ -715,6 +820,25 @@ async function crearPedido(datosCliente) {
         }
       });
 
+      // 2b) Precio de CADA prenda contra el catálogo real (talla + descuento).
+      //     Mismo cálculo que firestore.rules: si el navegador mandó otro precio, se rechaza.
+      pedido.items.forEach(it => {
+        const data = productosPorId[String(it.id)];
+        if (Number(it.precio) !== precioConDescuentoTalla(data, it.talla)) {
+          throw _errorPedido('PRECIO_CAMBIO', `El precio de "${data.nombre || it.nombre}" cambió. Actualizamos tu carrito: revisa el total y vuelve a confirmar.`);
+        }
+      });
+
+      // 2c) Costo de envío contra la zona real (config/envio, o los valores de fábrica).
+      const zonas = cfgEnvio.exists && Array.isArray(cfgEnvio.data().zonas) && cfgEnvio.data().zonas.length
+        ? cfgEnvio.data().zonas : ZONAS_ENVIO_POR_DEFECTO;
+      const zona = zonas.find(z => z.id === pedido.envio_zona);
+      const gratisDesde = Number(datosCliente.envioGratisDesde) || 0;
+      const envioEsperado = zona ? (gratisDesde > 0 && subtotal >= gratisDesde ? 0 : Number(zona.costo) || 0) : null;
+      if (envioEsperado === null || envioEsperado !== costoEnvioPedido) {
+        throw _errorPedido('ENVIO_CAMBIO', 'El costo de envío de tu zona cambió. Vuelve a elegir tu ciudad para ver el valor actualizado.');
+      }
+
       // 3) Ya validado: descuenta stock y crea el pedido, todo en la
       //    misma transacción (o se guardan las dos cosas, o ninguna).
       Object.values(necesidades).forEach(n => {
@@ -735,40 +859,46 @@ async function crearPedido(datosCliente) {
     });
   } catch (e) {
     console.error('Error guardando el pedido en Firestore:', e);
-    if (!e || !e.code) {
-      // Error real de conexión/Firebase (no de stock): avisa al admin
-      // igual que antes, pero deja que quien llamó decida el mensaje
-      // para el cliente (sin internet, error genérico, etc).
-      enviarAviso({ tipo: 'problema', titulo: 'No se pudo guardar un pedido', detalle: String(e && e.message || e) });
+    if (!e || !_CODIGOS_PEDIDO_ESPERADOS.includes(e.code)) {
+      // Error real de conexión/Firebase/reglas (no de stock ni de datos): avisa al
+      // admin y deja que quien llamó decida el mensaje para el cliente.
+      enviarAviso({ tipo: 'problema', titulo: 'No se pudo guardar un pedido', detalle: String(e && (e.code || e.message) || e) });
     }
     throw e;
   }
 
+  const pedidoFinal = pedidoExistente || pedido;
+
   // Refresca el stock en la caché local (en la nube ya quedó
   // descontado dentro de la transacción de arriba) para que la
   // vitrina no siga mostrando unidades que ya se vendieron.
-  Object.values(necesidades).forEach(n => {
-    const p = _catalogoCache.find(x => x.id == n.id);
-    if (!p) return;
-    if (p.stockColores && Object.prototype.hasOwnProperty.call(p.stockColores, n.color)) {
-      p.stockColores[n.color] = Math.max(0, Number(p.stockColores[n.color]) - n.cantidad);
-    }
-    if (p.stockTallas && Object.prototype.hasOwnProperty.call(p.stockTallas, n.talla)) {
-      p.stockTallas[n.talla] = Math.max(0, Number(p.stockTallas[n.talla]) - n.cantidad);
-    }
-    p.stock = (p.stockColores && Object.keys(p.stockColores).length) || (p.stockTallas && Object.keys(p.stockTallas).length)
-      ? stockTotalProducto(p)
-      : Math.max(0, Number(p.stock) - n.cantidad);
-  });
+  if (!pedidoExistente) {
+    Object.values(necesidades).forEach(n => {
+      const p = _catalogoCache.find(x => x.id == n.id);
+      if (!p) return;
+      if (p.stockColores && Object.prototype.hasOwnProperty.call(p.stockColores, n.color)) {
+        p.stockColores[n.color] = Math.max(0, Number(p.stockColores[n.color]) - n.cantidad);
+      }
+      if (p.stockTallas && Object.prototype.hasOwnProperty.call(p.stockTallas, n.talla)) {
+        p.stockTallas[n.talla] = Math.max(0, Number(p.stockTallas[n.talla]) - n.cantidad);
+      }
+      p.stock = (p.stockColores && Object.keys(p.stockColores).length) || (p.stockTallas && Object.keys(p.stockTallas).length)
+        ? stockTotalProducto(p)
+        : Math.max(0, Number(p.stock) - n.cantidad);
+    });
+  }
 
   limpiarCarrito();
+  _olvidarIntentoPedido();
   // código corto y fácil de leer para el asunto/cuerpo del correo de
   // confirmación (el número "Pedido #7" del panel admin necesita ver
   // TODOS los pedidos para calcularse, así que aquí usamos algo que
   // sí se puede armar al instante, con lo que ya tenemos a mano).
   const codigoPedido = pedidoRef.id.slice(-6).toUpperCase();
-  enviarAviso({ tipo: 'pedido_nuevo', pedido: { ...pedido, id: pedidoRef.id, codigo_pedido: codigoPedido } });
-  return { ...pedido, id: pedidoRef.id, codigo_pedido: codigoPedido };
+  const resultado = { ...pedidoFinal, id: pedidoRef.id, codigo_pedido: codigoPedido };
+  // El script de Google ignora un aviso repetido del mismo pedido (no duplica fila ni correo).
+  enviarAviso({ tipo: 'pedido_nuevo', pedido: resultado });
+  return resultado;
 }
 
 /** Estados posibles de un pedido, en el orden en que avanzan.

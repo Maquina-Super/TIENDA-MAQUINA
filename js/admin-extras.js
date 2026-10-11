@@ -223,7 +223,7 @@
       const maxC = Math.max(1, ...cub.map(c => c.total));
       const ejeA = cub[0] ? cub[0].tip : '', ejeB = cub.length ? cub[cub.length - 1].tip : '';
       const porEstado = contar(actual.todos, p => (ESTADOS_PEDIDO[estadoPedido(p)] || {}).label);
-      const pagos = contar(actual.ok, p => ({ contraentrega: 'Contra entrega', tarjeta: 'Tarjeta', nequi: 'Nequi' }[p.metodo_pago] || p.metodo_pago));
+      const pagos = contar(actual.ok, p => ({ contraentrega: 'Contra entrega', tarjeta: 'Tarjeta', nequi: 'Nequi', pse: 'PSE' }[p.metodo_pago] || p.metodo_pago));
       const ciudades = contar(actual.ok, p => (p.envio_municipio || '').trim()).slice(0, 5);
       const ingPorProd = {};
       actual.ok.forEach(p => (p.items || []).forEach(i => {

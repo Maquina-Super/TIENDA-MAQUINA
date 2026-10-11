@@ -5,24 +5,19 @@ service cloud.firestore {
     /* ============================================================
        ADMINS
        ------------------------------------------------------------
-       El UID de abajo es el "admin de respaldo": SIEMPRE tiene
+       Los UID de abajo son los "admins de respaldo": SIEMPRE tienen
        acceso, pase lo que pase, aunque el documento admin_config/
-       admins se borre o se dañe por error. Es tu llave de repuesto,
-       no la borres.
+       admins se borre o se dañe por error. No los borres.
 
        Todos los demás administradores (los que crees desde la
-       pestaña "Usuarios" del panel) NO se agregan aquí a mano: el
-       panel los agrega solo al documento admin_config/admins, en
-       Firestore. Esa es la parte que antes había que hacer a mano
-       en este archivo cada vez que entraba alguien nuevo al equipo.
+       pestaña "Usuarios" del panel) los agrega el panel solo al
+       documento admin_config/admins, en Firestore.
     ============================================================ */
     function isAdmin() {
       return request.auth != null && (
         request.auth.uid in [
           '8CBfiOxDeda0MmtTmSlXYIkfbx82',
           '9JYFhLkos8PpWdiLcowvmaw9xoo2'
-          // Estos son tus admins de respaldo. No los borres. No hace
-          // falta agregar a nadie más aquí: el panel se encarga.
         ]
         ||
         (
@@ -40,19 +35,12 @@ service cloud.firestore {
 
     /* ============================================================
        VALIDACIÓN DE PEDIDOS: el precio de cada prenda se recalcula
-       aquí mismo comparando contra el precio REAL guardado en
-       "productos" (talla + % de descuento), en vez de confiar en el
-       precio que manda el navegador. Antes, cualquiera con las
-       herramientas de desarrollador podía cambiar el precio del
-       carrito antes de pagar y el pedido se guardaba con ese precio
-       falso — con esto ya no se puede: si el precio no coincide con
-       el catálogo real, Firestore rechaza el pedido entero.
-
-       Por límites del lenguaje de reglas de Firestore (no se pueden
-       hacer "for" ni recorrer listas de tamaño libre), esto se
-       revisa hasta 8 prendas por pedido — de sobra para una compra
-       normal. Un carrito de más de 8 prendas distintas se rechaza y
-       toca dividirlo en dos pedidos. */
+       comparando contra el precio REAL de "productos" (talla + %
+       de descuento), en vez de confiar en el navegador. Si el
+       precio no coincide con el catálogo, el pedido se rechaza.
+       Se revisan hasta 8 prendas por pedido (límite del lenguaje
+       de reglas, que no permite "for").
+    ============================================================ */
     function precioEsperadoItem(producto, talla) {
       let tieneTalla = talla != null && ('preciosTalla' in producto) && (talla in producto.preciosTalla);
       let base = tieneTalla ? producto.preciosTalla[talla] : producto.precio;
@@ -77,24 +65,51 @@ service cloud.firestore {
       return precioEnIndice(items, 0) + precioEnIndice(items, 1) + precioEnIndice(items, 2) + precioEnIndice(items, 3)
            + precioEnIndice(items, 4) + precioEnIndice(items, 5) + precioEnIndice(items, 6) + precioEnIndice(items, 7);
     }
-    /* Además de los precios, se exige que los datos básicos del
-       cliente tengan pinta de datos reales (texto no vacío, no
-       gigante) — así un bot no puede llenar el panel de pedidos
-       basura con campos de miles de caracteres. */
+    /* Texto opcional: si viene, es texto (o null) y no pasa del tope. */
+    function textoOpcional(d, k, max) {
+      return !(k in d) || d[k] == null || (d[k] is string && d[k].size() <= max);
+    }
+    /* Costo de envío: debe ser uno de los costos reales de las zonas. El panel
+       guarda esa lista en config/envio (campo "costos") cada vez que se guardan
+       los costos de envío. Mientras ese campo no exista, solo se exige >= 0
+       (así el checkout no se rompe antes de guardar los costos una vez). */
+    function envioPermitido(costo) {
+      return !exists(/databases/$(database)/documents/config/envio)
+        || !('costos' in get(/databases/$(database)/documents/config/envio).data)
+        || costo in get(/databases/$(database)/documents/config/envio).data.costos;
+    }
     function pedidoValido() {
       let d = request.resource.data;
-      return d.items is list && d.items.size() >= 1 && d.items.size() <= 8
+      return d.keys().hasOnly([
+          'usuario_uid','nombre_cliente','email_cliente','telefono_cliente','metodo_pago','tarjeta_final',
+          'pse_banco','pse_tipo_persona','envio_departamento','envio_municipio','envio_zona','envio_barrio',
+          'envio_vereda','envio_direccion','envio_edificio','envio_referencia','costo_envio','items','detalle',
+          'subtotal','total','fecha','estado','estado_pago','acepta_terminos','acepta_terminos_fecha'
+        ])
+        && d.items is list && d.items.size() >= 1 && d.items.size() <= 8
         && todosLosItemsOk(d.items)
         && d.subtotal is number && d.subtotal == sumaPrecios(d.items)
-        && d.costo_envio is number && d.costo_envio >= 0
+        && d.costo_envio is number && d.costo_envio >= 0 && envioPermitido(d.costo_envio)
         && d.total is number && d.total == d.subtotal + d.costo_envio
-        && d.nombre_cliente is string && d.nombre_cliente.size() >= 1 && d.nombre_cliente.size() <= 120
-        && d.email_cliente is string && d.email_cliente.matches('.*@.*') && d.email_cliente.size() <= 160
+        && d.nombre_cliente is string && d.nombre_cliente.size() >= 3 && d.nombre_cliente.size() <= 120
+        && d.email_cliente is string && d.email_cliente.size() <= 160 && d.email_cliente.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && d.telefono_cliente is string && d.telefono_cliente.size() >= 7 && d.telefono_cliente.size() <= 20
+        && d.metodo_pago in ['contraentrega', 'pse', 'nequi', 'tarjeta']
+        && d.envio_direccion is string && d.envio_direccion.size() >= 5 && d.envio_direccion.size() <= 200
+        && d.envio_municipio is string && d.envio_municipio.size() >= 2 && d.envio_municipio.size() <= 80
+        && textoOpcional(d, 'envio_departamento', 60) && textoOpcional(d, 'envio_zona', 40)
+        && textoOpcional(d, 'envio_barrio', 100) && textoOpcional(d, 'envio_vereda', 100)
+        && textoOpcional(d, 'envio_edificio', 100) && textoOpcional(d, 'envio_referencia', 400)
+        && textoOpcional(d, 'pse_banco', 60) && textoOpcional(d, 'pse_tipo_persona', 20)
+        // Un pedido NUNCA nace confirmado ni pagado: eso solo lo cambia un admin.
+        && (!('estado' in d) || d.estado == 'pendiente')
+        && (!('estado_pago' in d) || d.estado_pago in ['pendiente', 'por_verificar'])
+        && (!('acepta_terminos' in d) || d.acepta_terminos == true)
         && d.detalle is string && d.detalle.size() <= 2000;
     }
 
-    /* Forma exacta del mensaje de contacto (ver enviarMensajeContacto
-       en js/store.js). Sin campos de más, con tamaños razonables. */
+    // Forma exacta del mensaje de contacto (enviarMensajeContacto en
+    // js/store.js). Sin campos de más y con tamaños razonables.
     function contactoValido() {
       let d = request.resource.data;
       return d.keys().hasOnly(['nombre','correo','telefono','asunto','mensaje','fecha','origen'])
@@ -109,8 +124,7 @@ service cloud.firestore {
 
     /* Lo ÚNICO que un admin puede cambiar en un mensaje de contacto ya
        recibido: su gestión (estado, leído, historial). Nombre, correo,
-       teléfono, asunto, mensaje y fecha quedan intocables, así nadie
-       puede alterar lo que escribió el cliente. */
+       teléfono, asunto, mensaje y fecha quedan intocables. */
     function gestionContactoValida() {
       let antes = resource.data;
       let despues = request.resource.data;
@@ -121,38 +135,22 @@ service cloud.firestore {
     }
 
     // Pedidos:
-    // - "get" (leer UNO, sabiendo su ID) queda abierto: lo necesita
-    //   seguimiento.html para que un cliente vea SU pedido con el
-    //   link/código que le diste.
-    // - "list" (listar TODOS los pedidos) queda cerrado a cualquiera
-    //   que no sea admin — esto es lo que antes permitía a cualquier
-    //   visitante sacar la lista completa de clientes (nombre,
-    //   teléfono, dirección). Con esto ya no se puede.
-    // - crear un pedido nuevo sigue abierto (checkout sin cuenta),
-    //   pero ahora se valida que el precio de cada prenda y el total
-    //   coincidan con el catálogo real (ver pedidoValido() arriba).
-    // - actualizar/borrar (cambiar estado, eliminar) solo admin.
+    // - "get" (leer UNO) abierto: lo usa seguimiento.html.
+    // - "list" (todos) solo admin: así nadie saca la lista de clientes.
+    // - "create" abierto (checkout sin cuenta) pero validado.
+    // - update/delete solo admin.
     match /pedidos/{pedidoId} {
       allow get: if true;
       allow list: if isAdmin();
-      allow create: if pedidoValido();
+      // El id debe ser un id automático de Firestore (20 letras/números): el checkout
+      // lo reutiliza al reintentar, y así un mismo intento nunca crea dos pedidos.
+      allow create: if pedidoId.matches('[A-Za-z0-9]{20}') && pedidoValido();
       allow update, delete: if isAdmin();
     }
 
-    /* Descuento de stock durante el checkout: cuando un cliente paga
-       (contraentrega o tarjeta), la tienda descuenta el stock del
-       producto en la MISMA transacción en que crea el pedido (ver
-       crearPedido() en js/store.js) — y esa escritura la hace el
-       navegador del cliente, que NUNCA está logueado como admin.
-       Antes "productos" exigía isAdmin() para CUALQUIER escritura,
-       así que ese descuento de stock quedaba rechazado por las
-       reglas y el pedido entero fallaba (pantalla "Error en el
-       pago" / "problema de conexión con el servidor", aunque la
-       conexión estuviera perfecta: era un permission-denied).
-       Esta función deja pasar SOLO una actualización que baja el
-       stock (nunca lo sube) y no toca ningún otro campo del
-       producto — así un cliente puede completar su compra, pero
-       seguir sin poder cambiar precios, fotos, nombres, etc. */
+    // Descuento de stock en el checkout: el navegador del cliente (que
+    // nunca es admin) baja el stock en la misma transacción que crea el
+    // pedido. Solo se permite BAJAR stock y no tocar ningún otro campo.
     function soloDescuentaStock() {
       let antes = resource.data;
       let despues = request.resource.data;
@@ -160,18 +158,16 @@ service cloud.firestore {
         && (!('stock' in despues) || (despues.stock is number && antes.stock is number && despues.stock >= 0 && despues.stock <= antes.stock));
     }
 
-    // Catálogo: lectura pública (es tu vitrina). Crear o borrar un
-    // producto, y cualquier cambio que no sea bajar el stock (precio,
-    // fotos, nombre, activar/desactivar, etc.), solo admin. Bajar el
-    // stock también lo puede hacer el checkout de un cliente normal
-    // (ver soloDescuentaStock() arriba).
+    // Catálogo: lectura pública. Crear/borrar y cualquier otro cambio
+    // (precio, fotos, nombre...) solo admin. Bajar stock también el checkout.
     match /productos/{productoId} {
       allow read: if true;
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || soloDescuentaStock();
     }
 
-    // Config del "drop": lectura pública, escritura solo admin.
+    // Config del "drop" y de los costos de envío: lectura pública,
+    // escritura solo admin.
     match /config/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -185,17 +181,10 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Correos del "Voltage Club" (formulario de la portada). Colección
-    // aparte, sin relación con admin_usuarios/admin_sesiones: cualquier
-    // visitante puede DEJAR su correo (create), pero nadie puede leer
-    // la lista completa salvo el admin — así no se puede robar ni
-    // scrapear la lista de correos de tus clientes, y tampoco se mezcla
-    // con las cuentas del panel.
+    // Correos del Voltage Club: cualquiera puede dejar su correo
+    // (create; update si ya existía, porque el sitio guarda con
+    // merge:true). Solo el admin puede leer la lista o borrar.
     match /voltage_club/{correoId} {
-      // "create" cuando es la primera vez que ese correo se suscribe;
-      // "update" cuando ya existía y vuelve a llenar el formulario
-      // (el sitio guarda con merge:true, así que Firestore lo trata
-      // como update, no como create, la segunda vez).
       allow create, update: if request.resource.data.correo is string
         && request.resource.data.correo.matches('.*@.*')
         && request.resource.data.correo.size() <= 160;
@@ -204,15 +193,11 @@ service cloud.firestore {
     }
 
     // Mensajes del formulario de contacto (servicios.html).
-    // - create: cualquier visitante, pero solo con la forma exacta que
-    //   manda el formulario (campos y tamaños validados).
-    // - get / list / delete: SOLO admin (nadie más puede leer los datos
-    //   de los clientes).
-    // - update: (a) un admin, pero solo para cambiar la gestión (estado,
-    //   leído, historial; ver gestionContactoValida()); (b) cualquiera,
-    //   solo si los datos son IDÉNTICOS: es el reintento del mismo envío
-    //   cuando la conexión se cortó, y así nunca se duplica ni se puede
-    //   modificar un mensaje ya enviado.
+    // - create: cualquier visitante, solo con la forma exacta del formulario.
+    // - get / list / delete: SOLO admin.
+    // - update: (a) un admin, solo para cambiar la gestión (estado, leído,
+    //   historial); (b) cualquiera, solo si los datos son IDÉNTICOS
+    //   (reintento del mismo envío si se cortó la conexión).
     match /mensajes_contacto/{mensajeId} {
       allow create: if contactoValido();
       allow update: if (isAdmin() && gestionContactoValida())
@@ -220,10 +205,7 @@ service cloud.firestore {
       allow get, list, delete: if isAdmin();
     }
 
-    // Usuarios y sesiones del panel: SOLO admin puede leer o escribir.
-    // (Antes estaban abiertos a cualquiera: cualquiera podía leer los
-    // hashes de contraseña de tu equipo o crearse un usuario admin
-    // propio saltándose el login por completo.)
+    // Usuarios y sesiones del panel: SOLO admin.
     match /admin_usuarios/{usuarioId} {
       allow read, write: if isAdmin();
     }
@@ -231,21 +213,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Lista de UIDs admin que mantiene el propio panel (ver isAdmin()
-    // arriba). Solo un admin puede leerla o escribirla — nunca queda
-    // pública. get()/exists() dentro de isAdmin() NO pasan por esta
-    // regla (Firestore los evalúa directo), así que no hay ciclo.
+    // Lista de UIDs admin que mantiene el panel. Solo admin.
     match /admin_config/{docId} {
       allow read, write: if isAdmin();
     }
 
-    // Código de acceso al panel de cada persona del equipo, guardado
-    // por CORREO (no por UID) para poder recuperarlo sabiendo solo el
-    // correo. "get" (leer UNO, sabiendo ya el correo exacto) queda
-    // abierto — lo necesita la pantalla de "olvidé mi código". "list"
-    // (verlos todos) queda cerrado, así nadie puede sacar la lista
-    // completa de correos+códigos del equipo de un solo golpe. Solo
-    // un admin puede crear o cambiar un código.
+    // Código de acceso al panel por CORREO: "get" abierto (pantalla
+    // "olvidé mi código"), "list" cerrado, escritura solo admin.
     match /panel_codigos/{correoId} {
       allow get: if true;
       allow list: if false;
