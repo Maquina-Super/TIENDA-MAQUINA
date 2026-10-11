@@ -4,6 +4,8 @@
 
    Qué hace según el aviso que mande la tienda:
      pedido_nuevo               -> escribe la fila en Sheets + correo
+     pedido_estado              -> refleja el estado del pedido en la columna "Estado del pedido"
+                                   (lee el estado REAL en Firestore; solo escribe esa celda)
      pedido_eliminado           -> borra esa fila de la hoja
      codigo_panel_recuperacion  -> manda el código del panel por correo
      aviso_drop_nuevo           -> correo del drop a todo el Voltage Club
@@ -11,27 +13,30 @@
      contacto_nuevo             -> escribe la fila en la pestaña "Contactos" + correo
      contactos_sincronizar      -> reenvía contactos que faltaron (sin duplicar)
      contacto_estado            -> actualiza el estado en la pestaña "Contactos"
-
-   Esta versión une las dos anteriores:
-     - Conserva el borrado robusto de pedidos (código como texto, candado).
-     - RECUPERA "contacto_nuevo", que la versión 2 había perdido.
-     - Usa getEffectiveUser() para el correo propio (getActiveUser puede
-       salir vacío en una web app y hacía fallar el aviso del drop).
-     - Escapa el HTML de nombres/productos en los correos.
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-11 checkout-pasos-pago-pendiente";
+const VERSION_SCRIPT = "2026-10-11 pedidos-estado-sync";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
 
 // Pestaña NUEVA e independiente para los mensajes del formulario de Contacto.
-// Se crea sola la primera vez (con sus encabezados). No toca "Pedidos".
 const SHEET_TAB_CONTACTOS = "Contactos";
-// Aquí se anotan los contactos que NO se pudieron escribir (si esta pestaña
-// también falla, el error queda en "Ejecuciones" del editor de Apps Script).
 const SHEET_TAB_ERRORES = "Errores_Contactos";
+
+// Pestaña donde se anotan los avisos de PEDIDOS que fallaron (sin datos personales).
+// Se crea sola la primera vez. Si no existe o está vacía, no ha fallado nada.
+const SHEET_TAB_ERRORES_PEDIDOS = "Errores_Pedidos";
+
+// Estado del pedido: se escribe en UNA columna extra al final de "Pedidos"
+// (después de la última columna usada). Nunca toca las columnas A-M existentes.
+const TITULO_COLUMNA_ESTADO_PEDIDO = "Estado del pedido";
+const ESTADOS_PEDIDO_TXT = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
+
+// Proyecto de Firestore de la tienda. El estado se LEE de ahí (fuente de verdad):
+// lo que el navegador diga en el aviso se ignora, así nadie puede falsearlo.
+const FIRESTORE_PROJECT_ID = "maquina-dea83";
 
 // Tu tienda en vivo, sin barra al final.
 const TIENDA_URL = "https://maquina-super.github.io/TIENDA-MAQUINA";
@@ -42,12 +47,16 @@ const DESTINO_CONTACTO = '';
 
 /* ---------- 2) doPost: recibe los avisos de la tienda ---------- */
 function doPost(e) {
+  let datos = null;
   try {
-    const datos = JSON.parse(e.postData.contents);
+    datos = JSON.parse(e.postData.contents);
 
     if (datos.tipo === 'pedido_nuevo') {
-      // Si el pedido ya estaba en la hoja (reintento del cliente), no se duplica ni se reenvía el correo.
-      if (guardarPedidoEnSheet(datos.pedido)) enviarCorreoConfirmacion(datos.pedido);
+      guardarPedidoEnSheet(datos.pedido);
+      enviarCorreoConfirmacion(datos.pedido);
+    }
+    if (datos.tipo === 'pedido_estado') {
+      actualizarEstadoPedidoEnSheet(datos.id);
     }
     if (datos.tipo === 'pedido_eliminado') {
       eliminarPedidoDeSheet(datos.id);
@@ -70,12 +79,16 @@ function doPost(e) {
     if (datos.tipo === 'contacto_estado') {
       actualizarEstadoContactoEnSheet(datos.codigo, datos.estado);
     }
-    // 'problema' y 'pedido_estado' no hacen nada aquí (no rompen nada).
+    // 'problema' no hace nada aquí (no rompe nada).
 
     return ContentService.createTextOutput('ok');
   } catch (err) {
     // La tienda usa "no-cors": el error solo se ve en "Ejecuciones".
     console.error(err);
+    // Los avisos de pedidos que fallan quedan anotados en la pestaña "Errores_Pedidos".
+    if (datos && typeof datos.tipo === 'string' && datos.tipo.indexOf('pedido_') === 0) {
+      registrarErrorPedido(datos.tipo, datos.id || (datos.pedido && (datos.pedido.codigo_pedido || datos.pedido.id)), err);
+    }
     return ContentService.createTextOutput('error: ' + err.message);
   }
 }
@@ -86,28 +99,14 @@ function doGet() {
 }
 
 /* ---------- 4) HELPERS ---------- */
-function nombreMetodoPago(metodo, pedido) {
+function nombreMetodoPago(metodo) {
   if (metodo === 'tarjeta') return 'Tarjeta';
   if (metodo === 'nequi') return 'Nequi';
-  if (metodo === 'pse') return 'PSE' + (pedido && pedido.pse_banco ? ' (' + pedido.pse_banco + ')' : '');
   return 'Contraentrega';
 }
 
-/* Un pedido NUNCA se marca como pagado solo porque el cliente eligió un método:
-   el pago se da por confirmado únicamente si el pedido trae estado_pago = 'pagado'
-   (algo que solo cambia el equipo desde el panel). Al crearse, siempre está pendiente. */
-function pagoConfirmado(pedido) {
-  return !!pedido && pedido.estado_pago === 'pagado';
-}
-
-/* Texto del estado de pago para la hoja y los correos. */
-function textoEstadoPago(pedido) {
-  if (pagoConfirmado(pedido)) return 'Pagado';
-  const m = pedido && pedido.metodo_pago;
-  if (m === 'pse') return 'Pendiente (PSE por confirmar)';
-  if (m === 'nequi') return 'Por verificar (transferencia Nequi)';
-  if (m === 'tarjeta') return 'Por verificar (tarjeta)';
-  return 'Pendiente (contraentrega)';
+function esPagoDeUnaVez(metodo) {
+  return metodo === 'tarjeta' || metodo === 'nequi';
 }
 
 function normalizarCodigo(valor) {
@@ -144,23 +143,11 @@ function guardarPedidoEnSheet(pedido) {
     const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
     if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
 
-    // Anti-duplicados: si el N° de pedido ya está en la columna A, no se inserta otra fila.
-    const codigoPedido = normalizarCodigo(pedido.codigo_pedido || pedido.id);
-    const ultima = hoja.getLastRow();
-    if (codigoPedido && ultima >= 2) {
-      const existentes = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
-      for (let i = 0; i < existentes.length; i++) {
-        if (normalizarCodigo(existentes[i][0]) === codigoPedido) return false;
-      }
-    }
-
     const detalle = pedido.detalle ||
       (pedido.items || []).map(function (it) { return it.nombre + ' (' + it.talla + ')'; }).join(' | ');
 
-    const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio,
-      pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : '', pedido.envio_referencia]
+    const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_referencia]
       .filter(Boolean).join(', ');
-    const municipio = [pedido.envio_municipio, pedido.envio_departamento].filter(Boolean).join(', ');
 
     const fila = [
       String(pedido.codigo_pedido || pedido.id || ''),                 // A - N° Pedido (texto)
@@ -169,21 +156,118 @@ function guardarPedidoEnSheet(pedido) {
       pedido.email_cliente || '',                                      // D - Correo
       pedido.telefono_cliente || '',                                   // E - Teléfono
       detalle,                                                         // F - Productos
-      municipio,                                                       // G - Municipio y departamento
+      pedido.envio_municipio || '',                                    // G - Municipio
       direccion,                                                       // H - Dirección
-      nombreMetodoPago(pedido.metodo_pago, pedido),                    // I - Método de pago
+      nombreMetodoPago(pedido.metodo_pago),                            // I - Método de pago
       pedido.subtotal || 0,                                            // J - Subtotal
       pedido.costo_envio || 0,                                         // K - Envío
       pedido.total || 0,                                               // L - Total
-      textoEstadoPago(pedido),                                         // M - Estado de pago (nunca 'Pagado' al crear)
+      esPagoDeUnaVez(pedido.metodo_pago) ? 'Pagado' : 'Pendiente',     // M - Estado de pago
     ];
 
     const numeroFila = hoja.getLastRow() + 1;
     hoja.getRange(numeroFila, 1).setNumberFormat('@'); // columna A como texto
     hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
-    return true;
+
+    // Estado inicial en la columna "Estado del pedido". Si esto falla, el pedido YA quedó
+    // registrado: solo se anota el error y se sigue (nunca bloquea el pedido ni el correo).
+    try {
+      escribirEstadoEnFila(hoja, numeroFila, ESTADOS_PEDIDO_TXT.pendiente);
+    } catch (errEstado) {
+      registrarErrorPedido('pedido_nuevo', pedido.codigo_pedido || pedido.id, errEstado);
+    }
   } finally {
     candado.releaseLock();
+  }
+}
+
+/* ---------- 5a) ESTADO DEL PEDIDO EN LA HOJA ----------
+   - Solo escribe UNA celda: la columna "Estado del pedido" de la fila de ese pedido.
+   - No inserta filas, no borra, no toca A-M ni totales (J, K, L).
+   - Lee el estado real en Firestore, así que repetir el aviso o que lleguen
+     desordenados no cambia nada: siempre queda el estado actual de verdad.
+   - Si el pedido no está en la hoja (o el código sale en 2 filas) NO adivina:
+     lo anota en "Errores_Pedidos". */
+
+/* Devuelve el número de columna de "Estado del pedido"; si no existe, la crea
+   justo después de la última columna usada (nunca pisa datos existentes). */
+function columnaEstadoPedido(hoja) {
+  const ultimaCol = Math.max(hoja.getLastColumn(), 1);
+  const encabezados = hoja.getRange(1, 1, 1, ultimaCol).getDisplayValues()[0];
+  for (let c = 0; c < encabezados.length; c++) {
+    if (String(encabezados[c]).trim().toLowerCase() === TITULO_COLUMNA_ESTADO_PEDIDO.toLowerCase()) return c + 1;
+  }
+  const nueva = ultimaCol + 1;
+  if (nueva > hoja.getMaxColumns()) hoja.insertColumnAfter(hoja.getMaxColumns());
+  const celda = hoja.getRange(1, nueva);
+  celda.setValue(TITULO_COLUMNA_ESTADO_PEDIDO);
+  celda.setFontWeight(hoja.getRange(1, ultimaCol).getFontWeight());
+  return nueva;
+}
+
+function escribirEstadoEnFila(hoja, fila, etiqueta) {
+  hoja.getRange(fila, columnaEstadoPedido(hoja)).setValue(etiqueta);
+}
+
+/* Estado real del pedido en Firestore (lectura pública del documento, igual que
+   seguimiento.html). Devuelve null si el pedido no existe. */
+function leerEstadoPedidoFirestore(id) {
+  const url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
+    '/databases/(default)/documents/pedidos/' + encodeURIComponent(id);
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  const code = resp.getResponseCode();
+  if (code === 404) return null;
+  if (code !== 200) throw new Error('Firestore respondió ' + code + ' al leer el pedido.');
+  const campos = (JSON.parse(resp.getContentText()).fields) || {};
+  const estado = campos.estado && campos.estado.stringValue;
+  return ESTADOS_PEDIDO_TXT[estado] ? estado : 'pendiente'; // sin campo = pendiente (pedidos antiguos)
+}
+
+function actualizarEstadoPedidoEnSheet(id) {
+  const idCompleto = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(idCompleto)) { console.warn('pedido_estado: id inválido, se ignora.'); return; }
+
+  const estado = leerEstadoPedidoFirestore(idCompleto);
+  if (estado === null) { console.warn('pedido_estado: el pedido ' + idCompleto + ' no existe en Firestore.'); return; }
+
+  const codigo = normalizarCodigo(idCompleto.slice(-6));
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+    const ultima = hoja.getLastRow();
+    const filas = [];
+    if (ultima >= 2) {
+      const colA = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+      for (let i = 0; i < colA.length; i++) {
+        if (normalizarCodigo(colA[i][0]) === codigo) filas.push(i + 2);
+      }
+    }
+    if (filas.length === 0) throw new Error('El pedido ' + codigo + ' no está en la hoja; no se creó ninguna fila.');
+    if (filas.length > 1) throw new Error('El código ' + codigo + ' aparece en ' + filas.length + ' filas; no se cambió ninguna para no equivocarse de pedido.');
+    escribirEstadoEnFila(hoja, filas[0], ESTADOS_PEDIDO_TXT[estado]);
+    console.log('Pedido ' + codigo + ': estado "' + ESTADOS_PEDIDO_TXT[estado] + '" escrito en la fila ' + filas[0] + '.');
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* Anota el fallo de un aviso de pedido (sin datos personales). */
+function registrarErrorPedido(tipo, id, err) {
+  const ref = String(id === null || id === undefined ? '(sin id)' : id);
+  console.error('Aviso ' + tipo + ' del pedido ' + ref + ' falló: ' + (err && err.message));
+  try {
+    const libro = SpreadsheetApp.openById(SHEET_ID);
+    let hoja = libro.getSheetByName(SHEET_TAB_ERRORES_PEDIDOS);
+    if (!hoja) {
+      hoja = libro.insertSheet(SHEET_TAB_ERRORES_PEDIDOS);
+      hoja.getRange(1, 1, 1, 4).setValues([['Fecha', 'Tipo de aviso', 'Pedido (código o id)', 'Error']]).setFontWeight('bold');
+      hoja.setFrozenRows(1);
+    }
+    hoja.appendRow([new Date(), textoSeguroHoja(tipo), textoSeguroHoja(ref), textoSeguroHoja(err && err.message)]);
+  } catch (e2) {
+    console.error('Tampoco se pudo anotar el error del pedido en la hoja: ' + e2.message);
   }
 }
 
@@ -230,9 +314,7 @@ function eliminarPedidoDeSheet(id) {
              E Teléfono · F Asunto · G Mensaje · H Estado del contacto
    - Siempre agrega al final (nunca sobrescribe filas anteriores).
    - Anti-duplicados: si el ID (columna A) ya existe, no inserta otra fila.
-   - Si la hoja falla, el contacto NO se pierde: ya está en Firestore (la
-     tienda lo guarda primero allí). El error se anota y, desde el panel
-     (Mensajes -> "Sincronizar con la hoja"), se reenvía sin duplicar. */
+   - Si la hoja falla, el contacto NO se pierde: ya está en Firestore. */
 const ENCABEZADOS_CONTACTOS = [
   'ID del contacto', 'Fecha y hora', 'Nombre completo', 'Correo electrónico',
   'Teléfono', 'Asunto', 'Mensaje', 'Estado del contacto'
@@ -403,14 +485,8 @@ function enviarCorreoConfirmacion(pedido) {
 
   const codigo = pedido.codigo_pedido || pedido.id;
   const items = pedido.items || [];
-  const yaPago = pagoConfirmado(pedido);
-  const metodoTexto = nombreMetodoPago(pedido.metodo_pago, pedido);
-  const esContraentrega = !pedido.metodo_pago || pedido.metodo_pago === 'contraentrega';
-  const textoPendiente = esContraentrega
-    ? 'pagas $' + dinero(pedido.total) + ' contraentrega, cuando te llegue.'
-    : (pedido.metodo_pago === 'pse'
-        ? 'te contactaremos con el enlace de pago PSE (por correo o WhatsApp) para completar el pago de $' + dinero(pedido.total) + '.'
-        : 'confirmaremos tu pago de $' + dinero(pedido.total) + ' (' + metodoTexto + ') y te avisamos.');
+  const yaPago = esPagoDeUnaVez(pedido.metodo_pago);
+  const metodoTexto = nombreMetodoPago(pedido.metodo_pago);
 
   const filasItemsTexto = items.map(function (it) {
     return it.nombre + ' — talla ' + it.talla + ' — $' + dinero(it.precio);
@@ -429,25 +505,23 @@ function enviarCorreoConfirmacion(pedido) {
     '</tr>';
   }).join('');
 
-  const direccion = [pedido.envio_direccion, pedido.envio_edificio,
-    pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : pedido.envio_barrio, pedido.envio_municipio, pedido.envio_departamento]
+  const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_municipio]
     .filter(Boolean).join(', ');
 
   const linkSeguimiento = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(pedido.id || '');
 
-  const encabezado = yaPago ? '✅ Pago confirmado' : (esContraentrega ? '📦 Pedido confirmado' : '📦 Pedido recibido');
+  const encabezado = yaPago ? '✅ Pago confirmado' : '📦 Pedido confirmado';
   const asunto = yaPago
     ? 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo
-    : (esContraentrega
-        ? 'MAQUINA — 📦 Pedido confirmado (pago contraentrega), #' + codigo
-        : 'MAQUINA — 📦 Pedido recibido (pago pendiente), #' + codigo);
+    : 'MAQUINA — 📦 Pedido confirmado (pago pendiente), #' + codigo;
   const lineaEstadoTexto = yaPago
     ? 'Tu pago por ' + metodoTexto + ' se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
-    : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: ' + textoPendiente;
+    : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: pagas $' +
+      dinero(pedido.total) + ' contraentrega, cuando te llegue.';
   const lineaEstadoHtml = yaPago
     ? 'Tu pago por <strong>' + metodoTexto + '</strong> se realizó <strong>correctamente</strong> y ya recibimos tu pedido ' +
       '<strong>#' + esc(codigo) + '</strong> en MAQUINA. Esto fue lo que compraste:'
-    : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:';
+    : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: pagas contraentrega, cuando te llegue. Esto fue lo que pediste:';
 
   const cuerpoTexto =
     '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
@@ -456,7 +530,7 @@ function enviarCorreoConfirmacion(pedido) {
     'Subtotal: $' + dinero(pedido.subtotal) + '\n' +
     'Envío: $' + dinero(pedido.costo_envio) + '\n' +
     'Total: $' + dinero(pedido.total) + '\n' +
-    'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : textoEstadoPago(pedido)) + '\n\n' +
+    'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : 'Pendiente (contraentrega)') + '\n\n' +
     'Dirección de entrega: ' + direccion + '\n' +
     'Método de pago: ' + metodoTexto + '\n\n' +
     'Rastrea tu pedido cuando quieras: ' + linkSeguimiento + '\n\n' +
@@ -478,7 +552,7 @@ function enviarCorreoConfirmacion(pedido) {
           '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + dinero(pedido.total) + '</td></tr>' +
         '</table>' +
         '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#2f8a1f' : '#b45309') + ';margin-top:6px;">' +
-          (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 ' + esc(textoEstadoPago(pedido))) +
+          (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 Pendiente — se paga contraentrega') +
         '</p>' +
         '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
         '💳 Método de pago: ' + metodoTexto + '</p>' +

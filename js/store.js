@@ -936,14 +936,23 @@ function mapaNumerosPedido(todosLosPedidos) {
   return mapa;
 }
 
+/** Último error al leer los pedidos (null si la última lectura salió bien).
+    El panel lo usa para distinguir "no hay pedidos" de "no se pudieron leer". */
+let errorLecturaPedidos = null;
+
 /** Trae todos los pedidos guardados en la nube, del más nuevo al
-    más viejo. Lo usa el panel admin. */
+    más viejo. Lo usa el panel admin.
+    Se lee la colección completa y se ordena aquí: con orderBy('fecha') Firestore
+    deja FUERA, sin avisar, cualquier pedido antiguo al que le falte ese campo. */
 async function obtenerPedidosAdmin() {
+  errorLecturaPedidos = null;
   try {
-    const snap = await fbDb.collection('pedidos').orderBy('fecha', 'desc').get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const snap = await fbDb.collection('pedidos').get();
+    const tiempo = (p) => { const t = p.fecha ? new Date(p.fecha).getTime() : 0; return isNaN(t) ? 0 : t; };
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tiempo(b) - tiempo(a));
   } catch (e) {
     console.error('Error leyendo pedidos:', e);
+    errorLecturaPedidos = e;
     return [];
   }
 }
@@ -956,20 +965,51 @@ async function obtenerPedidosAdmin() {
       usando el panel).
     - avisa por Telegram (mismo canal que "pedido nuevo"), para
       que el equipo se entere del cambio sin tener que abrir el
-      panel a cada rato. */
+      panel a cada rato.
+
+    Es una transacción: lee el estado REAL que hay ahora en Firestore.
+    Si el pedido ya estaba en ese estado (otro admin lo cambió, o fue
+    un doble clic) no escribe nada y no duplica el historial. Solo toca
+    "estado" e "historial_estados": jamás precios, productos, totales
+    ni "estado_pago" (el pago solo se da por hecho con confirmación
+    del sistema de pago, no desde este selector). Las reglas de
+    Firestore (gestionPedidoValida) lo exigen también en el servidor.
+
+    Devuelve { ok:true, sinCambio, entradaHistorial } o { ok:false, msg }
+    con un mensaje que dice la causa real (permiso, sesión, red...). */
 async function actualizarEstadoPedidoAdmin(id, estado) {
   if (!ESTADOS_PEDIDO[estado]) return { ok: false, msg: 'Estado inválido.' };
+  if (!id) return { ok: false, msg: 'No se encontró el pedido.' };
+  if (typeof fbAuth !== 'undefined' && !fbAuth.currentUser) {
+    return { ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
+  }
   const usuario = usuarioAdminActual() || 'desconocido';
   const entradaHistorial = { estado, usuario, fecha: new Date().toISOString() };
+  const ref = fbDb.collection('pedidos').doc(id);
   try {
-    await fbDb.collection('pedidos').doc(id).update({
-      estado,
-      historial_estados: firebase.firestore.FieldValue.arrayUnion(entradaHistorial),
+    const sinCambio = await fbDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw Object.assign(new Error('El pedido no existe'), { code: 'pedido-no-existe' });
+      const actual = snap.data().estado;
+      if ((ESTADOS_PEDIDO[actual] ? actual : 'pendiente') === estado) return true; // ya estaba así: no se escribe nada
+      tx.update(ref, {
+        estado,
+        historial_estados: firebase.firestore.FieldValue.arrayUnion(entradaHistorial),
+      });
+      return false;
     });
-    enviarAviso({ tipo: 'pedido_estado', id, estado, usuario });
-    return { ok: true, entradaHistorial };
+    if (!sinCambio) enviarAviso({ tipo: 'pedido_estado', id, estado, usuario });
+    return { ok: true, sinCambio, entradaHistorial: sinCambio ? null : entradaHistorial };
   } catch (e) {
-    return { ok: false, msg: 'No hay conexión a internet.' };
+    console.error('Error cambiando el estado del pedido:', e);
+    const code = (e && e.code) || '';
+    if (code === 'permission-denied') return { ok: false, msg: 'No tienes permiso para cambiar el estado de los pedidos.' };
+    if (code === 'unauthenticated') return { ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
+    if (code === 'pedido-no-existe' || code === 'not-found') return { ok: false, msg: 'Este pedido ya no existe. Recarga la lista de pedidos.' };
+    if (code === 'unavailable' || code === 'deadline-exceeded' || code === 'network-request-failed') {
+      return { ok: false, msg: 'Sin conexión: el estado NO se cambió. Inténtalo de nuevo.' };
+    }
+    return { ok: false, msg: 'No se pudo guardar el estado. El pedido sigue como estaba.' };
   }
 }
 

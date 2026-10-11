@@ -727,6 +727,9 @@ function enlaceTelefonoPedido(t) {
 }
 function dineroPedido(n) { return '$' + (Number(n) || 0).toLocaleString('es-CO'); }
 
+/* Pedidos cuyo cambio de estado se está guardando ahora mismo: evita doble clic / solicitudes repetidas. */
+const cambiosEstadoEnCurso = new Set();
+
 async function pintarPedidos() {
   const tbody = document.getElementById('tablaPedidosBody');
   tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">Cargando pedidos…</td></tr>`;
@@ -815,6 +818,13 @@ function aplicarFiltrosPedidos() {
     <div class="admin-stat admin-stat-butter"><b>${pendientesFiltrados}</b><span>Pendientes</span></div>
   `;
 
+  if (!pedidosCache.length && typeof errorLecturaPedidos !== 'undefined' && errorLecturaPedidos) {
+    // No es que no haya pedidos: la lectura falló. Se dice la causa en vez de mostrar una lista vacía.
+    const cod = escaparHtml(errorLecturaPedidos.code || errorLecturaPedidos.message || 'desconocido');
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">⚠️ No se pudieron cargar los pedidos (${cod}). Revisa tu conexión o tus permisos y recarga la página. Tus pedidos NO se borraron.</td></tr>`;
+    document.getElementById('paginacionPedidos').innerHTML = '';
+    return;
+  }
   if (!pedidosCache.length) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray);">Todavía no hay pedidos.</td></tr>`;
     document.getElementById('paginacionPedidos').innerHTML = '';
@@ -847,7 +857,7 @@ function aplicarFiltrosPedidos() {
         <td data-label="Cliente"><b class="ped-cliente">${escaparHtml(p.nombre_cliente) || '—'}</b>${cantidadPrendas ? `<span class="ped-sub">${cantidadPrendas} prenda${cantidadPrendas === 1 ? '' : 's'}</span>` : ''}</td>
         <td data-label="Teléfono">${enlaceTelefonoPedido(p.telefono_cliente)}</td>
         <td data-label="Total" class="mono ped-total"><b>${dineroPedido(p.total)}</b></td>
-        <td data-label="Estado"><select class="admin-input select-estado-pedido estado-select-${estadoActual}" data-id="${idSeguro}" aria-label="Estado del pedido #${numero}">${opcionesEstado}</select></td>
+        <td data-label="Estado"><select class="admin-input select-estado-pedido estado-select-${estadoActual}" data-id="${idSeguro}" aria-label="Estado del pedido #${numero}" ${cambiosEstadoEnCurso.has(p.id) ? 'disabled aria-busy="true"' : ''}>${opcionesEstado}</select></td>
         <td data-label="" class="ped-acciones">
           <button type="button" class="admin-btn admin-btn-ghost btn-ver-detalle" data-id="${idSeguro}">Ver detalles</button>
           ${permisosActuales.eliminarPedidos ? `<button type="button" class="admin-btn admin-btn-ghost btn-borrar-pedido" data-id="${idSeguro}">Eliminar</button>` : ''}
@@ -922,9 +932,73 @@ document.getElementById('btnExportarPedidosCSV').addEventListener('click', () =>
 const modalDetallePedido = document.getElementById('modalDetallePedido');
 const ETIQUETAS_ESTADO_PAGO = { pendiente: 'Pendiente de cobro', por_verificar: 'Por verificar', pagado: 'Pagado' };
 
+/* Valor en pesos SOLO si el pedido lo trae guardado; si no, un guion (nunca un $0 inventado). */
+function dineroDetalle(v) {
+  return (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '—' : dineroPedido(v);
+}
+
+/* Cada valor llega YA escapado (HTML seguro). Se omiten las filas sin dato. */
 function filasDetalle(pares) {
   const filas = pares.filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '');
-  return filas.length ? `<dl class="dp-grid">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : '<p class="admin-foto-hint">Sin datos.</p>';
+  return filas.length
+    ? `<dl class="dp-grid">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
+    : '<p class="admin-foto-hint">Sin datos registrados.</p>';
+}
+
+/* Casillas de resumen (etiqueta + valor) del encabezado del detalle. */
+function fichasDetalle(pares) {
+  return pares
+    .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+    .map(([k, v]) => `<div class="dp-ficha"><span class="dp-ficha-k">${k}</span><span class="dp-ficha-v">${v}</span></div>`)
+    .join('');
+}
+
+const COLOR_HEX_DETALLE = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+function chipColorDetalle(color) {
+  const c = String(color == null ? '' : color).trim();
+  if (!c) return '';
+  const muestra = COLOR_HEX_DETALLE.test(c) ? `<i class="dp-muestra" style="background:${c}"></i>` : '';
+  return `<span class="dp-chip">${muestra}${escaparHtml(COLOR_HEX_DETALLE.test(c) ? c.toUpperCase() : c)}</span>`;
+}
+
+/* Cada prenda del carrito se guarda como una línea (1 unidad). Las líneas idénticas
+   (mismo producto, talla, color y precio) se muestran juntas con "×N"; N es solo el
+   conteo de líneas guardadas, no un dato nuevo. */
+function agruparItemsDetalle(items) {
+  const grupos = [];
+  const porClave = new Map();
+  items.forEach(it => {
+    if (!it || typeof it !== 'object') return;
+    const clave = [it.id ?? it.nombre, it.talla, it.color, it.precio].join('|');
+    if (porClave.has(clave)) { porClave.get(clave).cantidad++; return; }
+    const g = { item: it, cantidad: 1 };
+    porClave.set(clave, g);
+    grupos.push(g);
+  });
+  return grupos;
+}
+
+function filaProductoDetalle({ item: it, cantidad }) {
+  const foto = String(it.foto || '').trim();
+  const fotoOk = foto && !/^\s*(javascript|vbscript):/i.test(foto);
+  const imagen = fotoOk
+    ? `<img class="dp-foto-img" src="${escaparHtml(foto)}" alt="${escaparHtml(it.nombre || 'Producto')}" loading="lazy">`
+    : '';
+  const chips = [
+    it.talla ? `<span class="dp-chip">Talla ${escaparHtml(it.talla)}</span>` : '',
+    chipColorDetalle(it.color),
+    `<span class="dp-chip dp-chip-cant">×${cantidad}</span>`,
+  ].join('');
+  const tienePrecio = it.precio !== null && it.precio !== undefined && it.precio !== '' && !isNaN(Number(it.precio));
+  const precio = tienePrecio
+    ? `<span class="dp-prod-precio mono">${dineroPedido(Number(it.precio) * cantidad)}</span>${cantidad > 1 ? `<span class="dp-prod-unit mono">${dineroPedido(it.precio)} c/u</span>` : ''}`
+    : '<span class="dp-prod-precio mono">—</span>';
+  return `
+    <li class="dp-prod">
+      <div class="dp-foto${imagen ? '' : ' dp-foto-vacia'}">${imagen}</div>
+      <div class="dp-prod-info"><b class="dp-prod-nombre">${escaparHtml(it.nombre) || 'Producto'}</b><div class="dp-chips">${chips}</div></div>
+      <div class="dp-prod-total">${precio}</div>
+    </li>`;
 }
 
 function abrirDetallePedido(id) {
@@ -934,46 +1008,57 @@ function abrirDetallePedido(id) {
   const estado = estadoPedido(p);
   const infoEstado = ESTADOS_PEDIDO[estado];
   const d = p.fecha ? new Date(p.fecha) : null;
+  const fechaValida = d && !isNaN(d.getTime());
+  const items = Array.isArray(p.items) ? p.items.filter(it => it && typeof it === 'object') : [];
 
   document.getElementById('detallePedidoTitulo').textContent = numero ? `Pedido #${numero}` : 'Detalle del pedido';
-  document.getElementById('detallePedidoFecha').textContent = d && !isNaN(d.getTime()) ? d.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' }) : '';
+  document.getElementById('detallePedidoFecha').textContent = fechaValida ? d.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' }) : '';
   document.getElementById('detallePedidoEstado').innerHTML = `<span class="pedido-estado-pill estado-pill-${estado}">${infoEstado.emoji} ${infoEstado.label}</span>`;
 
+  /* ---- información del pedido (solo campos que existen en este pedido) ---- */
+  const estadoPagoClase = p.estado_pago === 'pagado' ? 'ok' : (p.estado_pago === 'por_verificar' ? 'aviso' : '');
+  const fichas = fichasDetalle([
+    ['Método de pago', p.metodo_pago ? escaparHtml(etiquetaMetodoPago(p)) : ''],
+    ['Estado del pago', p.estado_pago ? `<span class="dp-pago ${estadoPagoClase}">${escaparHtml(ETIQUETAS_ESTADO_PAGO[p.estado_pago] || p.estado_pago)}</span>` : ''],
+    ['Prendas', items.length ? String(items.length) : ''],
+    ['ID interno', `<span class="mono dp-id">${escaparHtml(p.id)}</span>`],
+  ]);
+
+  /* ---- cliente y entrega ---- */
   const correo = p.email_cliente ? `<a class="ped-tel" href="mailto:${escaparHtml(p.email_cliente)}">${escaparHtml(p.email_cliente)}</a>` : '';
   const telefono = p.telefono_cliente ? enlaceTelefonoPedido(p.telefono_cliente) : '';
-  const seccionCliente = filasDetalle([['Nombre', escaparHtml(p.nombre_cliente)], ['Correo', correo], ['Teléfono', telefono]]);
+  const seccionCliente = filasDetalle([['Nombre', escaparHtml(p.nombre_cliente)], ['Teléfono', telefono], ['Correo', correo]]);
 
+  const ciudad = [p.envio_municipio, p.envio_departamento].filter(Boolean).join(', ');
   const seccionEnvio = filasDetalle([
-    ['Dirección', escaparHtml(p.envio_direccion)], ['Edificio / apto', escaparHtml(p.envio_edificio)],
-    ['Barrio', escaparHtml(p.envio_barrio)], ['Vereda', escaparHtml(p.envio_vereda)],
-    ['Municipio', escaparHtml(p.envio_municipio)], ['Departamento', escaparHtml(p.envio_departamento)],
+    ['Dirección', escaparHtml([p.envio_direccion, p.envio_edificio].filter(Boolean).join(' · '))],
+    ['Barrio', escaparHtml(p.envio_barrio)],
+    ['Vereda', escaparHtml(p.envio_vereda)],
+    ['Ciudad', escaparHtml(ciudad)],
     ['Referencia', escaparHtml(p.envio_referencia)],
   ]);
 
-  const seccionPago = filasDetalle([
-    ['Método', escaparHtml(etiquetaMetodoPago(p))],
-    ['Estado del pago', p.estado_pago ? escaparHtml(ETIQUETAS_ESTADO_PAGO[p.estado_pago] || p.estado_pago) : ''],
-  ]);
-
+  /* ---- productos ---- */
   let productos;
-  if (Array.isArray(p.items) && p.items.length) {
-    productos = p.items.map(it => {
-      const variante = [it.talla ? `Talla ${it.talla}` : '', it.color ? it.color : ''].filter(Boolean).join(' · ');
-      return `<div class="dp-item"><div><b>${escaparHtml(it.nombre) || 'Producto'}</b>${variante ? `<span class="ped-sub">${escaparHtml(variante)}</span>` : ''}</div><span class="mono">${dineroPedido(it.precio)}</span></div>`;
-    }).join('');
+  if (items.length) {
+    productos = `<ul class="dp-prods">${agruparItemsDetalle(items).map(filaProductoDetalle).join('')}</ul>`;
   } else if (p.detalle) {
-    productos = String(p.detalle).split(' | ').map(t => `<div class="dp-item"><div><b>${escaparHtml(t)}</b></div></div>`).join('');
+    // pedidos antiguos: solo se guardó el texto "Producto (talla) | Producto (talla)"
+    productos = `<ul class="dp-prods">${String(p.detalle).split(' | ').map(t => `<li class="dp-prod dp-prod-texto"><div class="dp-prod-info"><b class="dp-prod-nombre">${escaparHtml(t)}</b></div></li>`).join('')}</ul>`;
   } else {
     productos = '<p class="admin-foto-hint">Sin productos registrados.</p>';
   }
 
+  /* ---- totales: tal cual quedaron guardados, sin recalcular ---- */
+  const filaTotal = (etiqueta, valor) => valor === null || valor === undefined || valor === '' ? '' : `<div><span>${etiqueta}</span><span class="mono">${dineroDetalle(valor)}</span></div>`;
   const totales = `
     <div class="dp-totales">
-      ${p.subtotal != null ? `<div><span>Subtotal</span><span class="mono">${dineroPedido(p.subtotal)}</span></div>` : ''}
-      ${p.costo_envio != null ? `<div><span>Envío</span><span class="mono">${dineroPedido(p.costo_envio)}</span></div>` : ''}
-      <div class="dp-total-final"><span>Total</span><span class="mono">${dineroPedido(p.total)}</span></div>
+      ${filaTotal('Subtotal', p.subtotal)}
+      ${filaTotal('Envío', p.costo_envio)}
+      <div class="dp-total-final"><span>Total</span><span class="mono">${dineroDetalle(p.total)}</span></div>
     </div>`;
 
+  /* ---- historial de estados (ya existía) ---- */
   const historial = Array.isArray(p.historial_estados) ? p.historial_estados : [];
   const seccionHistorial = historial.length
     ? [...historial].reverse().map(h => {
@@ -983,12 +1068,19 @@ function abrirDetallePedido(id) {
       }).join('')
     : '<p class="admin-foto-hint">Todavía no hay cambios de estado registrados para este pedido.</p>';
 
-  document.getElementById('detallePedidoCuerpo').innerHTML = `
-    <section class="dp-sec"><h4>Cliente</h4>${seccionCliente}</section>
-    <section class="dp-sec"><h4>Envío</h4>${seccionEnvio}</section>
-    <section class="dp-sec"><h4>Pago</h4>${seccionPago}</section>
+  const cuerpo = document.getElementById('detallePedidoCuerpo');
+  cuerpo.innerHTML = `
+    <div class="dp-fichas">${fichas}</div>
+    <div class="dp-dos-col">
+      <section class="dp-sec"><h4>Cliente</h4>${seccionCliente}</section>
+      <section class="dp-sec"><h4>Entrega</h4>${seccionEnvio}</section>
+    </div>
     <section class="dp-sec"><h4>Productos</h4>${productos}${totales}</section>
     <section class="dp-sec"><h4>Historial de estados</h4>${seccionHistorial}</section>`;
+  // si una foto ya no existe, se muestra el recuadro vacío en vez del icono roto
+  cuerpo.querySelectorAll('img.dp-foto-img').forEach(img => {
+    img.addEventListener('error', () => { img.parentElement.classList.add('dp-foto-vacia'); img.remove(); }, { once: true });
+  });
   modalDetallePedido.classList.add('open');
   modalDetallePedido.querySelector('.admin-modal').scrollTop = 0;
 }
@@ -1028,23 +1120,64 @@ document.getElementById('tablaPedidosBody').addEventListener('click', (e) => {
 });
 document.getElementById('btnCerrarModalHistorialPedido').addEventListener('click', () => modalHistorialPedido.classList.remove('open'));
 
-/* ---------- cambiar el estado de un pedido desde la tabla ---------- */
+/* ---------- cambiar el estado de un pedido desde la tabla ----------
+   - Un solo guardado a la vez por pedido (candado + select deshabilitado).
+   - Si falla, se avisa con la causa y el selector vuelve al estado anterior.
+   - Solo cambia "estado" (y su historial): nunca el pago, precios ni productos.
+   - Cancelar pide confirmación (un toque equivocado en el selector no debe cancelar). */
+function selectEstadoPedido(id) {
+  return [...document.querySelectorAll('#tablaPedidosBody .select-estado-pedido')].find(el => el.dataset.id === id) || null;
+}
+function ponerSelectEstado(select, estado) {
+  if (!select) return;
+  select.value = estado;
+  select.className = `admin-input select-estado-pedido estado-select-${estado}`;
+}
 document.getElementById('tablaPedidosBody').addEventListener('change', async (e) => {
   const select = e.target.closest('.select-estado-pedido');
   if (!select) return;
   const id = select.dataset.id;
   const nuevoEstado = select.value;
-  select.disabled = true;
-  const res = await actualizarEstadoPedidoAdmin(id, nuevoEstado);
-  select.disabled = false;
-  if (!res.ok) { showToast(res.msg, true); return; }
-  const pedidoLocal = pedidosCache.find(p => p.id === id);
-  if (pedidoLocal) {
-    pedidoLocal.estado = nuevoEstado;
-    pedidoLocal.historial_estados = [...(pedidoLocal.historial_estados || []), res.entradaHistorial];
+  const pedido = pedidosCache.find(p => p.id === id);
+  const estadoPrevio = pedido ? estadoPedido(pedido) : null;
+
+  if (!pedido) { showToast('No se encontró el pedido. Recarga la lista.', true); return; }
+  if (cambiosEstadoEnCurso.has(id)) { ponerSelectEstado(select, estadoPrevio); return; }
+  if (!permisosActuales.pedidos) { ponerSelectEstado(select, estadoPrevio); showToast('No tienes permiso para cambiar el estado de los pedidos.', true); return; }
+  if (nuevoEstado === estadoPrevio) return;
+  if (!ESTADOS_PEDIDO[nuevoEstado]) { ponerSelectEstado(select, estadoPrevio); return; }
+  if (nuevoEstado === 'cancelado' && !confirm(`¿Cancelar el pedido #${numerosPedidoCache.get(id) || ''}?\n\nQuedará marcado como cancelado y dejará de contar en el total vendido.`)) {
+    ponerSelectEstado(select, estadoPrevio);
+    return;
   }
-  select.className = `admin-input select-estado-pedido estado-select-${nuevoEstado}`;
-  showToast('Estado del pedido actualizado ✓');
+
+  cambiosEstadoEnCurso.add(id);
+  select.disabled = true;
+  select.setAttribute('aria-busy', 'true');
+  select.classList.add('guardando');
+  let res;
+  try {
+    res = await actualizarEstadoPedidoAdmin(id, nuevoEstado);
+  } catch (err) {
+    console.error(err);
+    res = { ok: false, msg: 'No se pudo guardar el estado. El pedido sigue como estaba.' };
+  } finally {
+    cambiosEstadoEnCurso.delete(id);
+  }
+
+  if (!res.ok) {
+    const actual = selectEstadoPedido(id); // la tabla pudo repintarse mientras se guardaba
+    ponerSelectEstado(actual, estadoPrevio);
+    if (actual) { actual.disabled = false; actual.removeAttribute('aria-busy'); actual.classList.remove('guardando'); }
+    showToast(res.msg, true);
+    return;
+  }
+
+  pedido.estado = nuevoEstado;
+  if (res.entradaHistorial) pedido.historial_estados = [...(pedido.historial_estados || []), res.entradaHistorial];
+  aplicarFiltrosPedidos(); // repinta fila, contadores y "total vendido" con el estado ya guardado
+  const etiqueta = ESTADOS_PEDIDO[nuevoEstado].label;
+  showToast(res.sinCambio ? `El pedido ya estaba en «${etiqueta}».` : `Estado actualizado a «${etiqueta}» ✓`);
 });
 
 /* ---------- eliminar un pedido (pide la contraseña del panel) ---------- */

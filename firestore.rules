@@ -134,18 +134,36 @@ service cloud.firestore {
         && (!('historial_estados' in despues) || (despues.historial_estados is list && despues.historial_estados.size() <= 200));
     }
 
+    /* Lo ÚNICO que un admin puede cambiar en un pedido ya creado: su estado
+       de gestión (y el historial de esos cambios). Productos, precios,
+       subtotal, envío, total, datos del cliente, fecha y "estado_pago" quedan
+       intocables: el pago NO se marca desde el panel. El historial solo
+       puede crecer (no se borran entradas anteriores). */
+    function gestionPedidoValida() {
+      let antes = resource.data;
+      let despues = request.resource.data;
+      return despues.diff(antes).affectedKeys().hasOnly(['estado', 'historial_estados'])
+        && despues.estado in ['pendiente', 'confirmado', 'enviado', 'entregado', 'cancelado']
+        && (!('historial_estados' in despues)
+            || (despues.historial_estados is list
+                && despues.historial_estados.size() <= 200
+                && (!('historial_estados' in antes)
+                    || antes.historial_estados.toSet().difference(despues.historial_estados.toSet()).size() == 0)));
+    }
+
     // Pedidos:
     // - "get" (leer UNO) abierto: lo usa seguimiento.html.
     // - "list" (todos) solo admin: así nadie saca la lista de clientes.
     // - "create" abierto (checkout sin cuenta) pero validado.
-    // - update/delete solo admin.
+    // - update solo admin y SOLO estado/historial (gestionPedidoValida); delete solo admin.
     match /pedidos/{pedidoId} {
       allow get: if true;
       allow list: if isAdmin();
       // El id debe ser un id automático de Firestore (20 letras/números): el checkout
       // lo reutiliza al reintentar, y así un mismo intento nunca crea dos pedidos.
       allow create: if pedidoId.matches('[A-Za-z0-9]{20}') && pedidoValido();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() && gestionPedidoValida();
+      allow delete: if isAdmin();
     }
 
     // Descuento de stock en el checkout: el navegador del cliente (que
