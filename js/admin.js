@@ -810,7 +810,11 @@ function aplicarFiltrosPedidos() {
         <td data-label="Contacto">${p.email_cliente || ''}<br><span style="color:var(--gray);">${p.telefono_cliente || ''}</span></td>
         <td data-label="Productos">${p.detalle || '—'}</td>
         <td data-label="Envío">${envioTexto || '—'}</td>
+<<<<<<< HEAD
         <td data-label="Pago">${etiquetaMetodoPago(p)}</td>
+=======
+        <td data-label="Pago">${p.metodo_pago === 'tarjeta' ? `Tarjeta •••• ${p.tarjeta_final || ''}` : (p.metodo_pago === 'pse' ? `PSE · ${p.pse_banco || ''}` : 'Contraentrega')}</td>
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
         <td data-label="Total" class="mono"><b>$${(Number(p.total) || 0).toLocaleString('es-CO')}</b></td>
         <td data-label="Estado"><select class="admin-input select-estado-pedido estado-select-${estadoActual}" data-id="${p.id}">${opcionesEstado}</select></td>
         <td data-label="">
@@ -862,7 +866,11 @@ document.getElementById('btnExportarPedidosCSV').addEventListener('click', () =>
   const filas = pedidosFiltradosActuales.map(p => {
     const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CO') : '';
     const envioTexto = [p.envio_direccion, p.envio_barrio, p.envio_municipio].filter(Boolean).join(', ');
+<<<<<<< HEAD
     const pago = etiquetaMetodoPago(p);
+=======
+    const pago = p.metodo_pago === 'tarjeta' ? `Tarjeta ****${p.tarjeta_final || ''}` : (p.metodo_pago === 'pse' ? `PSE · ${p.pse_banco || ''}` : 'Contraentrega');
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
     const numero = numerosPedidoCache.get(p.id) || '';
     return [`#${numero}`, fecha, p.nombre_cliente || '', p.email_cliente || '', p.telefono_cliente || '', p.detalle || '', envioTexto, pago, Number(p.total) || 0, ESTADOS_PEDIDO[estadoPedido(p)].label];
   });

@@ -748,6 +748,7 @@ async function crearPedido(datosCliente) {
     telefono_cliente: telefono,
     metodo_pago: metodo,
     tarjeta_final: datosCliente.tarjetaFinal || null,
+<<<<<<< HEAD
     pse_banco: pse ? _textoLimpio(pse.banco, 60) : null,
     pse_tipo_persona: pse ? (pse.persona === 'juridica' ? 'juridica' : 'natural') : null,
     envio_departamento: _textoLimpio(envio.departamento, 60),
@@ -758,6 +759,17 @@ async function crearPedido(datosCliente) {
     envio_direccion: direccion,
     envio_edificio: _textoLimpio(envio.edificio, 80),
     envio_referencia: _textoLimpio(envio.referencia, 300),
+=======
+    pse_banco: datosCliente.pse ? datosCliente.pse.banco : null,
+    pse_tipo_persona: datosCliente.pse ? datosCliente.pse.persona : null,
+    pse_documento: datosCliente.pse ? `${datosCliente.pse.docTipo} ${datosCliente.pse.docNum}` : null,
+    envio_municipio: envio.municipio || '',
+    envio_barrio: envio.barrio || '',
+    envio_vereda: envio.vereda || '',
+    envio_direccion: envio.direccion || '',
+    envio_edificio: envio.edificio || '',
+    envio_referencia: envio.referencia || '',
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
     costo_envio: costoEnvioPedido,
     items: carrito.map(i => ({ id: String(i.id), nombre: i.nombre, talla: i.talla, color: i.color, precio: i.precio, foto: i.foto || null })),
     detalle: carrito.map(i => `${i.nombre} (${i.talla})`).join(" | "),

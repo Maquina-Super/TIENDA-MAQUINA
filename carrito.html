@@ -105,6 +105,7 @@ const BANCOS_PSE = [
   'Banco Agrario','Banco Falabella','Banco Pichincha','Banco W','Bancoomeva','Banco Santander',
   'GNB Sudameris','Banco Serfinanza','Lulo Bank','Nu Colombia','Nequi','Daviplata','Movii','Dale!'
 ];
+<<<<<<< HEAD
 const DEPARTAMENTOS_CO = [
   'Amazonas','Antioquia','Arauca','Atlántico','Bogotá D.C.','Bolívar','Boyacá','Caldas','Caquetá','Casanare','Cauca','Cesar',
   'Chocó','Córdoba','Cundinamarca','Guainía','Guaviare','Huila','La Guajira','Magdalena','Meta','Nariño','Norte de Santander',
@@ -113,6 +114,8 @@ const DEPARTAMENTOS_CO = [
 /* Borrador del formulario (sessionStorage) y marca de "pedido ya confirmado" */
 const CLAVE_BORRADOR = 'maquina_checkout_borrador';
 let pedidoConfirmado = false;
+=======
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
 const NEQUI_NUMERO  = '';   // ej: '3001234567'
 const NEQUI_TITULAR = '';   // ej: 'MAQUINA S.A.S.'
 const PAGO_NEQUI_ACTIVO = !!(NEQUI_NUMERO.trim() && NEQUI_TITULAR.trim());
@@ -505,6 +508,7 @@ function pintarCarrito() {
                   <div class="ck-rev-text" id="ckRevEntrega"></div>
                 </section>
               </div>
+<<<<<<< HEAD
 
               <h3 class="ck-sec-title">¿Cómo quieres pagar?</h3>
               <div class="metodo-pago-grid" role="radiogroup" aria-label="Método de pago">
@@ -546,6 +550,137 @@ function pintarCarrito() {
                   <span class="metodo-card-sub">Transferencia a nuestro Nequi</span>
                 </button>
                 ` : ''}
+=======
+              <div class="step-body">
+                <div class="metodo-pago-grid">
+                  ${PAGO_TARJETA_ACTIVO ? `
+                  <button type="button" class="metodo-card" data-metodo="tarjeta">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgIconoTarjeta()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">Tarjeta</span>
+                    <span class="metodo-card-sub">Visa · Mastercard · Débito</span>
+                  </button>
+                  ` : ''}
+                  <button type="button" class="metodo-card" data-metodo="contraentrega">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgCamion()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">Pago contraentrega</span>
+                    <span class="metodo-card-sub">Paga cuando recibas tu pedido</span>
+                  </button>
+                  ${PAGO_PSE_ACTIVO ? `
+                  <button type="button" class="metodo-card" data-metodo="pse">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgIconoBanco()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">PSE</span>
+                    <span class="metodo-card-sub">Débito desde tu cuenta bancaria</span>
+                  </button>
+                  ` : ''}
+                  ${PAGO_NEQUI_ACTIVO ? `
+                  <button type="button" class="metodo-card" data-metodo="nequi">
+                    <span class="metodo-card-top">
+                      <span class="metodo-card-icono">${svgIconoNequi()}</span>
+                      <span class="metodo-radio" aria-hidden="true"></span>
+                    </span>
+                    <span class="metodo-card-nombre">Nequi</span>
+                    <span class="metodo-card-sub">Pago rápido y seguro</span>
+                  </button>
+                  ` : ''}
+                </div>
+
+                <div class="campos-tarjeta" id="camposTarjeta">
+                  <div class="tarjeta-visual" id="tarjetaVisual">
+                    <div class="tarjeta-cara tarjeta-frente">
+                      <div class="tarjeta-top">
+                        <span class="tarjeta-chip">▮▮</span>
+                        <span class="tarjeta-marca" id="tarjetaMarca">⚡ MAQUINA PAY</span>
+                      </div>
+                      <div class="tarjeta-numero" id="tarjetaNumeroVista">•••• •••• •••• ••••</div>
+                      <div class="tarjeta-bottom">
+                        <div>
+                          <div class="tarjeta-mini-label">TITULAR</div>
+                          <div class="tarjeta-titular" id="tarjetaTitularVista">TU NOMBRE AQUÍ</div>
+                        </div>
+                        <div>
+                          <div class="tarjeta-mini-label">VENCE</div>
+                          <div class="tarjeta-venc" id="tarjetaVencVista">MM/AA</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tarjeta-cara tarjeta-reverso">
+                      <div class="tarjeta-banda"></div>
+                      <div class="tarjeta-cvv-box">
+                        <span id="tarjetaCvvVista">•••</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <input type="text" id="tarjetaNumero" placeholder="Número de la tarjeta" inputmode="numeric" maxlength="19">
+                  <input type="text" id="tarjetaTitular" placeholder="Nombre igual que en la tarjeta">
+                  <div class="campo-fila">
+                    <input type="text" id="tarjetaVencimiento" placeholder="MM/AA" inputmode="numeric" maxlength="5">
+                    <input type="text" id="tarjetaCvv" placeholder="CVV" inputmode="numeric" maxlength="4">
+                  </div>
+                  <p class="tarjeta-nota">🔒 Tu info va segura, cero drama. (Pago simulado — demo sin pasarela ni banco real todavía.)</p>
+                </div>
+
+                <div class="campos-tarjeta campos-pse" id="camposPse">
+                  <select id="pseBanco" aria-label="Banco">
+                    <option value="" disabled selected>Selecciona tu banco</option>
+                    ${BANCOS_PSE.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('')}
+                  </select>
+                  <div class="campo-fila">
+                    <select id="psePersona" aria-label="Tipo de persona">
+                      <option value="natural" selected>Persona natural</option>
+                      <option value="juridica">Persona jurídica</option>
+                    </select>
+                    <select id="pseDocTipo" aria-label="Tipo de documento">
+                      <option value="CC" selected>C.C.</option>
+                      <option value="CE">C.E.</option>
+                      <option value="NIT">NIT</option>
+                      <option value="PP">Pasaporte</option>
+                    </select>
+                  </div>
+                  <input type="text" id="pseDocNum" placeholder="Número de documento" inputmode="numeric" maxlength="15" autocomplete="off">
+                  <p class="tarjeta-nota">Al confirmar, registramos tu pedido con el banco elegido. Queda pendiente hasta que se confirme tu pago por PSE.</p>
+                </div>
+
+                <div class="campos-tarjeta campos-nequi" id="camposNequi">
+                  <div class="nequi-datos-box">
+                    <div class="nequi-datos-header">📲 Transfiere a este Nequi</div>
+                    <div class="nequi-dato-fila">
+                      <span class="nequi-dato-label">Número</span>
+                      <span class="nequi-dato-valor" id="nequiNumeroTxt">${esc(NEQUI_NUMERO)}</span>
+                      <button type="button" class="nequi-copiar" data-copiar="nequiNumeroTxt">Copiar</button>
+                    </div>
+                    <div class="nequi-dato-fila">
+                      <span class="nequi-dato-label">A nombre de</span>
+                      <span class="nequi-dato-valor" id="nequiTitularTxt">${esc(NEQUI_TITULAR)}</span>
+                    </div>
+                    <div class="nequi-dato-fila nequi-dato-total">
+                      <span class="nequi-dato-label">Valor exacto a enviar</span>
+                      <span class="nequi-dato-valor" id="nequiValorTxt">$0</span>
+                      <button type="button" class="nequi-copiar" data-copiar="nequiValorTxt">Copiar</button>
+                    </div>
+                  </div>
+                  <label class="nequi-check-fila">
+                    <input type="checkbox" id="nequiConfirmado">
+                    <span>Ya hice la transferencia por este valor exacto</span>
+                  </label>
+                  <p class="tarjeta-nota">Cuando confirmes el pedido, revisamos la transferencia y lo alistamos para enviar. Tu pedido queda en estado pendiente hasta que confirmemos la transferencia.</p>
+                </div>
+
+                <!-- Único botón de acción del paso 3: vive en el resumen de la
+                     derecha ("Finalizar compra"). Este queda oculto visualmente
+                     pero sigue siendo el submit del formulario, para que
+                     Enter dentro de los campos de tarjeta también confirme. -->
+                <button type="submit" class="btn-pagar btn-pagar-oculto" tabindex="-1" aria-hidden="true">Confirmar pedido</button>
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
               </div>
               <div class="campo-error-msg" id="errMetodoPago"></div>
 
@@ -1214,6 +1349,7 @@ function pintarCarrito() {
 
   /* ---- método de pago ---- */
   const chips = wrap.querySelectorAll('.metodo-card');
+<<<<<<< HEAD
   const camposTarjeta = $('camposTarjeta');
   const camposNequi = $('camposNequi');
   const camposPse = $('camposPse');
@@ -1229,6 +1365,53 @@ function pintarCarrito() {
     guardarBorrador();
   }
   chips.forEach(chip => chip.addEventListener('click', () => elegirMetodo(chip)));
+=======
+  const camposTarjeta = document.getElementById('camposTarjeta');
+  const camposNequi = document.getElementById('camposNequi');
+  const camposPse = document.getElementById('camposPse');
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      metodoPago = chip.dataset.metodo;
+      camposTarjeta.classList.toggle('open', metodoPago === 'tarjeta');
+      camposNequi.classList.toggle('open', metodoPago === 'nequi');
+      if (camposPse) camposPse.classList.toggle('open', metodoPago === 'pse');
+      if (metodoPago === 'nequi') {
+        // Total a transferir: lo mismo que ya se muestra en el resumen del pedido.
+        const totalTxt = document.getElementById('totalValor');
+        document.getElementById('nequiValorTxt').textContent = totalTxt ? totalTxt.textContent : '$0';
+      }
+      actualizarEstadoFinalizar();
+    });
+  });
+
+  /* ---- "Finalizar compra": habilitado solo cuando los 3 pasos están
+    completos (datos + dirección + método de pago). Si falta algo, se ve
+    apagado y el texto de abajo dice qué falta — pero se puede seguir
+     tocando: lleva directo al paso que falta, igual que antes. ---- */
+  function actualizarEstadoFinalizar() {
+    const btn = document.getElementById('btnFinalizar');
+    const hint = document.getElementById('finalizarHint');
+    if (!btn) return;
+    const faltan = [];
+    if (!paso1Completo()) faltan.push('tus datos');
+    if (!paso2Completo()) faltan.push('tu dirección');
+    if (!metodoPago) faltan.push('el método de pago');
+    const listo = faltan.length === 0;
+    btn.classList.toggle('is-incompleto', !listo);
+    btn.setAttribute('aria-disabled', String(!listo));
+    if (hint) hint.textContent = listo ? '' : 'Falta: ' + faltan.join(', ') + '.';
+  }
+  /* contraentrega queda elegido de entrada (si hay un único método, también) */
+  const chipInicial = wrap.querySelector('.metodo-card[data-metodo="contraentrega"]') || chips[0];
+  if (chipInicial) chipInicial.click();
+  wrap.addEventListener('input', actualizarEstadoFinalizar);
+  wrap.addEventListener('change', actualizarEstadoFinalizar);
+  actualizarEstadoFinalizar(); // estado inicial del botón, ya con "metodoPago" declarado
+
+  /* ---- botón "Copiar" de los datos de Nequi ---- */
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
   wrap.querySelectorAll('.nequi-copiar').forEach(btn => {
     btn.addEventListener('click', () => {
       const texto = $(btn.dataset.copiar).textContent.trim();
@@ -1386,7 +1569,50 @@ function pintarCarrito() {
         if (m1) throw Object.assign(new Error('bloqueo'), { code: 'BLOQUEO_LOCAL', motivo: m1 });
         if (a1.subtotal !== a0.subtotal) throw Object.assign(new Error('Actualizamos los precios de tu carrito. Revisa el nuevo total y vuelve a confirmar.'), { code: 'PRECIO_CAMBIO' });
       }
+<<<<<<< HEAD
       const e = lineasEntrega();
+=======
+      let tarjetaFinal = null;
+      if (metodoPago === 'tarjeta') {
+        const numLimpio = inNumero.value.replace(/\D/g, '');
+        if (numLimpio.length < 16 || !inTitular.value.trim() || inVenc.value.length < 5 || inCvv.value.length < 3) {
+          showToastCarrito('Revisa los datos de tu tarjeta.');
+          return;
+        }
+        tarjetaFinal = numLimpio.slice(-4);
+      }
+      let pse = null;
+      if (metodoPago === 'pse') {
+        const banco = document.getElementById('pseBanco');
+        const docNum = document.getElementById('pseDocNum');
+        const numLimpio = docNum.value.replace(/\D/g, '');
+        if (!banco.value) { banco.classList.add('campo-error'); showToastCarrito('Selecciona tu banco para pagar con PSE.'); return; }
+        if (numLimpio.length < 5) { docNum.classList.add('campo-error'); showToastCarrito('Escribe tu número de documento.'); return; }
+        pse = {
+          banco: banco.value,
+          persona: document.getElementById('psePersona').value,
+          docTipo: document.getElementById('pseDocTipo').value,
+          docNum: numLimpio,
+        };
+      }
+      if (metodoPago === 'nequi') {
+        const chk = document.getElementById('nequiConfirmado');
+        if (!chk || !chk.checked) {
+          showToastCarrito('Confirma que ya hiciste la transferencia por Nequi.');
+          return;
+        }
+      }
+
+      // Antes de intentar cobrar, confirma que hay internet — si no,
+      // avisamos de una vez en vez de dejar al cliente mirando el
+      // overlay de "comprobando pago" sin que nada pase.
+      if (!navigator.onLine) {
+        actualizarAvisoOffline();
+        showToastCarrito('No tienes conexión a internet. Conéctate e intenta de nuevo.');
+        return;
+      }
+
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
       const envio = {
         departamento: selDepto.value,
         municipio: municipioElegidoNombre,
@@ -1398,6 +1624,7 @@ function pintarCarrito() {
         edificio: $('edificioCliente').value.trim(),
         referencia: $('referenciaCliente').value.trim(),
       };
+<<<<<<< HEAD
       const pse = metodoPago === 'pse' ? { banco: $('pseBanco').value, persona: $('psePersona').value } : null;
       const tarjetaFinal = metodoPago === 'tarjeta' && inNumero ? inNumero.value.replace(/\D/g, '').slice(-4) : null;
       const [pedido] = await Promise.all([
@@ -1414,6 +1641,42 @@ function pintarCarrito() {
       ponerOcupado(false);                 // se libera el candado solo si NO se creó el pedido
       mostrarErrorPedido(err);
     }
+=======
+
+      enviandoPedido = true;
+      if (btnPagar) { btnPagar.disabled = true; btnPagar.textContent = 'Procesando...'; }
+      const btnFinalizarProc = document.getElementById('btnFinalizar');
+      if (btnFinalizarProc) btnFinalizarProc.disabled = true;
+      mostrarOverlay(metodoPago);
+
+      setTimeout(async () => {
+        try {
+          const pedido = await crearPedido({ nombre, email, telefono, metodoPago, tarjetaFinal, envio, pse });
+          mostrarExito(nombre, pedido.codigo_pedido, pedido.items, metodoPago, {
+            subtotal: pedido.subtotal, envio: pedido.costo_envio, total: pedido.total,
+          });
+          document.getElementById('cartCount').textContent = 0;
+          // No reactivamos el botón: el pedido ya quedó hecho y el
+          // carrito se va a vaciar / redibujar.
+        } catch (err) {
+          console.error('Error al confirmar el pedido:', err);
+          enviandoPedido = false;
+          if (btnPagar) { btnPagar.disabled = false; btnPagar.textContent = 'Confirmar pedido'; }
+          if (btnFinalizarProc) btnFinalizarProc.disabled = false;
+
+          if (!navigator.onLine) {
+            mostrarError('Se perdió la conexión a internet justo al pagar. No te preocupes, no se cobró nada — conéctate e intenta de nuevo.');
+          } else if (err && err.code === 'SIN_STOCK') {
+            mostrarError(err.message || 'Uno de los productos de tu carrito ya se agotó. Vuelve al carrito y ajusta la cantidad.');
+          } else if (err && err.code === 'SIN_PRODUCTO') {
+            mostrarError('Uno de los productos de tu carrito ya no está disponible. Vuelve al carrito y quítalo.');
+          } else {
+            mostrarError('No se pudo procesar tu pedido por un problema de conexión con el servidor. Intenta de nuevo en un momento.');
+          }
+        }
+      }, 1600);
+    });
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
   }
 
   /* ---- arranque ---- */
@@ -1853,6 +2116,128 @@ function pintarEstadoBarra() {
 
 pintarCarrito();
 _primeraPintura = false;
+<<<<<<< HEAD
+=======
+
+/* ---- animación de "pago" (igual que en el proyecto original) ---- */
+function mostrarOverlay(metodoPago) {
+  const overlay = document.getElementById('pago-overlay');
+  overlay.classList.add('activo');
+  iniciarParticulas();
+  const msgs = ['Registrando tu pedido ⚡','Verificando tus datos','Casi, casi...','Sellando el pedido'];
+  document.getElementById('pago-status-txt').textContent = msgs[0];
+  document.querySelector('.ring-icon').textContent = '📦';
+  let mi = 0;
+  const st = document.getElementById('pago-status-txt');
+  overlay._iv = setInterval(() => { st.textContent = msgs[++mi % msgs.length]; }, 700);
+}
+
+function cerrarOverlay() {
+  const overlay = document.getElementById('pago-overlay');
+  clearInterval(overlay._iv);
+  overlay.classList.remove('activo');
+  document.getElementById('estado-verificando').style.cssText = 'display:flex;opacity:1;';
+  document.getElementById('estado-exito').style.display = 'none';
+  document.getElementById('estado-error').style.display = 'none';
+}
+
+function mostrarExito(nombreCliente, pedidoId, items, metodoPago, resumen) {
+  clearInterval(document.getElementById('pago-overlay')._iv);
+  const ver = document.getElementById('estado-verificando');
+  ver.style.transition = 'opacity 0.4s'; ver.style.opacity = '0';
+  setTimeout(() => {
+    ver.style.display = 'none';
+    const ex = document.getElementById('estado-exito');
+    ex.style.display = 'flex';
+    const esContraentrega = metodoPago === 'contraentrega';
+    document.querySelector('.check-circle').textContent = esContraentrega ? '📦' : '✅';
+    const esNequi = metodoPago === 'nequi';
+    const esPse = metodoPago === 'pse';
+    document.querySelector('.exito-titulo').textContent = esContraentrega ? '¡Pedido confirmado! 📦' : ((esNequi || esPse) ? '¡Pedido recibido! ⚡' : '¡Pago exitoso! ⚡');
+    document.querySelector('.exito-sub').textContent = esContraentrega
+      ? 'Ya estamos organizando tu pedido — pagas cuando te llegue 🚀'
+      : (esPse
+        ? (PSE_URL_PAGO ? 'Tu pedido quedó pendiente de pago. Completa el pago por PSE con el botón de abajo.' : 'Tu pedido quedó pendiente de pago por PSE. Te enviamos el enlace de pago a tu correo para completarlo.')
+      : esNequi
+        ? 'Vamos a verificar tu transferencia por Nequi y te confirmamos el pedido por correo.'
+        : 'Tu pago se realizó correctamente — ya casi vuela para tu casa 🚀');
+    document.getElementById('gracias-nombre').textContent = '✨ ¡Muchas gracias, ' + nombreCliente + '! ✨';
+    document.getElementById('exito-pedido').textContent = pedidoId ? `PEDIDO #${pedidoId}` : 'PEDIDO REGISTRADO';
+    document.getElementById('exito-correo').textContent = 'Te mandamos la confirmación con el detalle y las fotos a tu correo ✉️';
+    // Muestra qué se compró (con foto) para que quede clarísimo que
+    // el pago sí se aplicó al pedido correcto.
+    const wrapItems = document.getElementById('exito-items');
+    if (wrapItems) {
+      wrapItems.innerHTML = (items || []).map(it => `
+        <div class="exito-item">
+          ${it.foto ? `<img src="${it.foto}" alt="${it.nombre}" loading="lazy">` : ''}
+          <div class="exito-item-info">
+            <div class="exito-item-nombre">${it.nombre}</div>
+            <div class="exito-item-meta">Talla ${it.talla || '—'} · $${Number(it.precio || 0).toLocaleString('es-CO')}</div>
+          </div>
+        </div>`).join('');
+    }
+    // Subtotal, envío y total del pedido
+    const cajaTotales = document.getElementById('exito-totales');
+    if (cajaTotales) {
+      cajaTotales.innerHTML = resumen ? `
+        <div class="exito-totales-fila"><span>Subtotal</span><span>${fmtDinero(resumen.subtotal)}</span></div>
+        <div class="exito-totales-fila"><span>Envío</span><span>${resumen.envio ? fmtDinero(resumen.envio) : 'Gratis'}</span></div>
+        <div class="exito-totales-total"><span>${esContraentrega ? 'Total a pagar al recibir' : (esPse ? 'Total a pagar por PSE' : 'Total')}</span><span>${fmtDinero(resumen.total)}</span></div>
+        ${esPse && PSE_URL_PAGO ? `<a class="btn-seguir" style="margin-top:14px;justify-content:center" href="${esc(PSE_URL_PAGO)}" target="_blank" rel="noopener"><span>Ir a pagar con PSE</span></a>` : ''}` : '';
+    }
+    document.querySelectorAll('.stepper-step').forEach(s => { s.classList.add('is-done'); s.classList.remove('is-active'); s.querySelector('.stepper-circle').textContent = '✓'; });
+    document.querySelectorAll('.stepper-line').forEach(l => l.classList.add('is-done'));
+    lanzarConfeti();
+    pintarCarrito();
+  }, 400);
+}
+
+function mostrarError(msg) {
+  clearInterval(document.getElementById('pago-overlay')._iv);
+  const ver = document.getElementById('estado-verificando');
+  ver.style.transition = 'opacity 0.4s'; ver.style.opacity = '0';
+  setTimeout(() => {
+    ver.style.display = 'none';
+    document.getElementById('estado-error').style.display = 'flex';
+    document.getElementById('error-msg-txt').textContent = msg;
+  }, 400);
+}
+
+function iniciarParticulas() {
+  const canvas = document.getElementById('pago-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = innerWidth; canvas.height = innerHeight;
+  const pts = Array.from({length:40}, () => ({
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    r: Math.random()*1.4+0.3, vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5,
+    a: Math.random()*0.4+0.1
+  }));
+  (function frame() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pts.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(255,214,0,${p.a})`; ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      if (p.x<0||p.x>canvas.width) p.vx*=-1;
+      if (p.y<0||p.y>canvas.height) p.vy*=-1;
+    });
+    if (document.getElementById('pago-overlay').classList.contains('activo')) requestAnimationFrame(frame);
+  })();
+}
+
+function lanzarConfeti() {
+  const colores = ['#FFD600','#F4F4F4','#0D0D0D','#ffe95c','#6B7280','#FFD600'];
+  const card = document.querySelector('.pago-card');
+  for (let i=0; i<50; i++) setTimeout(() => {
+    const d = document.createElement('div');
+    d.className = 'confeti-dot';
+    d.style.cssText = `left:${Math.random()*100}%;top:${5+Math.random()*25}%;background:${colores[Math.floor(Math.random()*colores.length)]};animation-delay:${Math.random()*0.6}s;width:${5+Math.random()*9}px;height:${5+Math.random()*9}px;border-radius:${Math.random()>.5?'50%':'2px'};`;
+    card.appendChild(d);
+    setTimeout(() => d.remove(), 2400);
+  }, i*35);
+}
+>>>>>>> f3e7733dd6ee91fdc981b30d32e8a931b0cf0a23
 </script>
 
 </body>
