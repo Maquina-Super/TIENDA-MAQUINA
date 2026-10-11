@@ -97,7 +97,7 @@ Interruptores al inicio del <script> de carrito.html:
                                antes decia "300 000 0000")
 Contraentrega funciona siempre. Para volver al diseno anterior quita
 los <link> maquina-ui.css, inicio.css y carrito-pro.css de carrito.html.
-Copia del archivo original: carrito.original.html (en esta entrega).
+Si necesitas el carrito anterior, esta en el historial de git (carrito.original.html, antes de borrarse).
 
 
 ==========================================================

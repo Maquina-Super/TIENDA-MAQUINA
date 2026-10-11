@@ -50,9 +50,9 @@ TE FALTA A TI, para que quede publicado de verdad:
    cuenta de Firebase). El panel se encarga solo de autorizarla en
    Firestore, ver el bloque "HECHO" de arriba.
 
-El archivo FIRESTORE_REGLAS.txt de abajo quedó desactualizado (era
-la guía de la versión con reglas abiertas). El archivo que manda
-ahora es firestore.rules, en la raíz del proyecto.
+El archivo FIRESTORE_REGLAS.txt es una copia exacta de firestore.rules
+(raíz del proyecto), para poder pegarlo en la consola de Firebase.
+Si cambias las reglas, edita firestore.rules y vuelve a copiarlo.
 =========================================================
 
 =========================================================
