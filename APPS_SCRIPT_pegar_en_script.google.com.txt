@@ -3,16 +3,23 @@
    Reemplaza TODO el contenido de tu archivo .gs por esto.
 
    Qué hace según el aviso que mande la tienda:
-     pedido_nuevo               -> escribe la fila en Sheets + correo
+     pedido_nuevo               -> escribe la fila en Sheets + correo (SOLO usa el id del aviso:
+                                   todos los datos se leen del pedido real en Firestore)
      pedido_estado              -> refleja el estado del pedido en la columna "Estado del pedido"
                                    (lee el estado REAL en Firestore; solo escribe esa celda)
-     pedido_eliminado           -> borra esa fila de la hoja
-     codigo_panel_recuperacion  -> manda el código del panel por correo
-     aviso_drop_nuevo           -> correo del drop a todo el Voltage Club
+     pedido_eliminado           -> borra esa fila de la hoja (SOLO si trae token de admin
+                                   y el pedido ya no existe en Firestore)
+     codigo_panel_recuperacion  -> manda el código del panel por correo (el código y el
+                                   destinatario salen de Firestore, no del aviso)
+     aviso_drop_nuevo           -> correo del drop al Voltage Club (SOLO con token de admin;
+                                   los destinatarios se leen de Firestore, no del aviso)
      voltage_club_bienvenida    -> correo de bienvenida al suscribirse
      contacto_nuevo             -> escribe la fila en la pestaña "Contactos" + correo
      contactos_sincronizar      -> reenvía contactos que faltaron (sin duplicar)
      contacto_estado            -> actualiza el estado en la pestaña "Contactos"
+
+   Protección de cuota: los correos tienen límites por dirección y globales, y una
+   reserva de cuota diaria que solo usan las confirmaciones de pedidos (ver 1b y 4c).
 
    Esta versión une las dos anteriores:
      - Conserva el borrado robusto de pedidos (código como texto, candado).
@@ -23,7 +30,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-11 pedidos-estado-sync";
+const VERSION_SCRIPT = "2026-10-12 pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -55,6 +62,23 @@ const TIENDA_URL = "https://maquina-super.github.io/TIENDA-MAQUINA";
 // Vacío = el correo de la cuenta dueña del script.
 const DESTINO_CONTACTO = '';
 
+/* ---------- 1b) LÍMITES DE CORREO (protegen la cuota diaria de Gmail) ----------
+   Gmail gratis permite ~100 destinatarios al día (cada copia oculta cuenta como uno).
+   - RESERVA_CUOTA_PEDIDOS: cuota que SOLO pueden usar los correos de confirmación de
+     pedidos. Los demás tipos (bienvenida, contacto, drop, código del panel) no
+     envían si al hacerlo la cuota restante quedaría por debajo de esta reserva.
+   - LIMITES_ENVIO: máximo de correos por ventana (en segundos; tope de Google: 21600)
+       porCorreo = por dirección (destinatario o remitente del formulario)
+       global    = en total para ese tipo de aviso. */
+const RESERVA_CUOTA_PEDIDOS = 30;
+const LIMITES_ENVIO = {
+  pedido_nuevo:              { porCorreo: 5,    global: 100, ventana: 3600,  prioritario: true },
+  voltage_club_bienvenida:   { porCorreo: 1,    global: 30,  ventana: 21600 },
+  contacto_nuevo:            { porCorreo: 5,    global: 30,  ventana: 3600  },
+  codigo_panel_recuperacion: { porCorreo: 1,    global: 10,  ventana: 600   },
+  aviso_drop_nuevo:          { porCorreo: null, global: 5,   ventana: 3600  },
+};
+
 /* ---------- 2) doPost: recibe los avisos de la tienda ---------- */
 function doPost(e) {
   let datos = null;
@@ -62,20 +86,23 @@ function doPost(e) {
     datos = JSON.parse(e.postData.contents);
 
     if (datos.tipo === 'pedido_nuevo') {
+      // Del aviso solo se usa el ID. Fila y correo se arman con el pedido REAL de Firestore:
+      // lo que el navegador diga (pago, total, correo, código...) se ignora.
+      const pedidoReal = leerPedidoRealParaAviso(datos.pedido);
       // Si el pedido ya estaba en la hoja (reintento del cliente), no se duplica ni se reenvía el correo.
-      if (guardarPedidoEnSheet(datos.pedido)) enviarCorreoConfirmacion(datos.pedido);
+      if (pedidoReal && guardarPedidoEnSheet(pedidoReal)) enviarCorreoConfirmacion(pedidoReal);
     }
     if (datos.tipo === 'pedido_estado') {
       actualizarEstadoPedidoEnSheet(datos.id);
     }
     if (datos.tipo === 'pedido_eliminado') {
-      eliminarPedidoDeSheet(datos.id);
+      eliminarPedidoDeSheet(datos.id, datos.idToken);
     }
     if (datos.tipo === 'codigo_panel_recuperacion') {
-      enviarCorreoCodigoPanel(datos.correo, datos.codigo);
+      enviarCorreoCodigoPanel(datos.correo); // el código NO se acepta del aviso: se lee de Firestore
     }
     if (datos.tipo === 'aviso_drop_nuevo') {
-      enviarAvisoDropVoltageClub(datos.correos, datos.asunto, datos.mensaje);
+      enviarAvisoDropVoltageClub(datos.idToken, datos.asunto, datos.mensaje); // los correos NO se aceptan del aviso
     }
     if (datos.tipo === 'voltage_club_bienvenida') {
       enviarBienvenidaVoltageClub(datos.correo);
@@ -157,6 +184,136 @@ function correoPropio() {
   return Session.getEffectiveUser().getEmail();
 }
 
+/* ---------- 4b) SEGURIDAD DE LOS AVISOS ----------
+   Este script es una web app pública: cualquiera que tenga la URL puede mandarle
+   un POST con lo que quiera. Por eso los avisos peligrosos NO confían en lo que
+   trae la petición:
+     - Acciones de admin (borrar fila, avisar drop): la petición trae el "idToken"
+       de Firebase del admin. El script lo reenvía a Firestore; las reglas
+       (isAdmin) deciden. Si Firestore dice 401/403, no es admin y no se hace nada.
+     - Recuperar código: destinatario y código se leen de Firestore (panel_codigos),
+       nunca del aviso, y hay un límite de 1 correo cada 10 min por dirección. */
+
+function firestoreUrl(ruta) {
+  return 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
+    '/databases/(default)/documents/' + ruta;
+}
+
+/* GET a Firestore; con idToken actúa como ese usuario (las reglas aplican). */
+function firestoreLeer(ruta, idToken) {
+  const opciones = { muteHttpExceptions: true };
+  if (idToken) opciones.headers = { Authorization: 'Bearer ' + idToken };
+  return UrlFetchApp.fetch(firestoreUrl(ruta), opciones);
+}
+
+/* ¿Es un JWT con pinta válida? (filtro barato; la validación real la hace Firestore) */
+function tokenPlausible(t) {
+  return typeof t === 'string' && t.length <= 4096 && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(t);
+}
+
+/* true solo si Firestore deja a ese token LISTAR "pedidos" (regla: solo admin). */
+function esAdminConToken(idToken) {
+  if (!tokenPlausible(idToken)) return false;
+  const resp = firestoreLeer('pedidos?pageSize=1', idToken);
+  return resp.getResponseCode() === 200;
+}
+
+const REGEX_CORREO = /^[^@\s,;<>\/]+@[^@\s,;<>\/]+\.[^@\s,;<>\/]+$/;
+
+/* ---------- 4c) LÍMITES DE ENVÍO Y CUOTA DE CORREO ---------- */
+
+/* ¿Queda cuota para mandar "cantidad" destinatarios? Los que no son pedidos dejan
+   siempre RESERVA_CUOTA_PEDIDOS libres para las confirmaciones de pedidos. */
+function hayCuotaCorreo(cantidad, prioritario) {
+  const restante = MailApp.getRemainingDailyQuota();
+  return restante - cantidad >= (prioritario ? 0 : RESERVA_CUOTA_PEDIDOS);
+}
+
+/* Cuenta un envío en una ventana fija. Devuelve false si ya se llegó al máximo. */
+function consumirCupo(cache, clave, max, ventanaSeg) {
+  const ahora = Date.now();
+  let r = null;
+  try { r = JSON.parse(cache.get(clave)); } catch (e) { r = null; }
+  if (!r || typeof r.t0 !== 'number' || ahora - r.t0 >= ventanaSeg * 1000) r = { n: 0, t0: ahora };
+  if (r.n >= max) return false;
+  r.n++;
+  const ttl = Math.max(1, Math.min(21600, Math.ceil(ventanaSeg - (ahora - r.t0) / 1000)));
+  cache.put(clave, JSON.stringify(r), ttl);
+  return true;
+}
+
+/* Llamar JUSTO ANTES de cada MailApp.sendEmail de un aviso de la tienda.
+   true = se puede enviar (y queda contado); false = hay que omitir el correo.
+   Orden: 1) cuota diaria  2) tope por dirección  3) tope global del tipo. */
+function puedoEnviar(tipo, clave, cantidad) {
+  const cfg = LIMITES_ENVIO[tipo];
+  if (!cfg) return true;
+  if (!hayCuotaCorreo(cantidad || 1, !!cfg.prioritario)) {
+    console.warn(tipo + ': no se envía, la cuota diaria de correos está baja (queda ' + MailApp.getRemainingDailyQuota() + ').');
+    return false;
+  }
+  const cache = CacheService.getScriptCache();
+  const candado = LockService.getScriptLock();
+  let tengoCandado = false;
+  try { candado.waitLock(5000); tengoCandado = true; } catch (e) { /* límite "mejor esfuerzo": sin candado se sigue */ }
+  try {
+    const k = String(clave === null || clave === undefined ? '' : clave).trim().toLowerCase();
+    if (cfg.porCorreo && k) {
+      const kc = 'lim_' + tipo + '_' + Utilities.base64EncodeWebSafe(k).slice(0, 150);
+      if (!consumirCupo(cache, kc, cfg.porCorreo, cfg.ventana)) { console.warn(tipo + ': límite por dirección alcanzado, se omite el correo.'); return false; }
+    }
+    if (!consumirCupo(cache, 'lim_' + tipo + '_*', cfg.global, cfg.ventana)) { console.warn(tipo + ': límite global alcanzado, se omite el correo.'); return false; }
+    return true;
+  } finally {
+    if (tengoCandado) candado.releaseLock();
+  }
+}
+
+/* ---------- 4d) PEDIDO REAL DESDE FIRESTORE ----------
+   La API REST de Firestore devuelve cada valor con su tipo ({stringValue: ...},
+   {integerValue: "5"}, {mapValue: ...}). Estas funciones lo vuelven a objeto normal. */
+function firestoreValor(v) {
+  if (v === null || typeof v !== 'object') return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return Number(v.doubleValue);
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(firestoreValor);
+  if ('mapValue' in v) return firestoreAObjeto(v.mapValue.fields || {});
+  return null; // nullValue y tipos que la tienda no usa
+}
+
+function firestoreAObjeto(campos) {
+  const o = {};
+  Object.keys(campos || {}).forEach(function (k) { o[k] = firestoreValor(campos[k]); });
+  return o;
+}
+
+/* Lee el pedido completo de Firestore (lectura pública del documento, como seguimiento.html).
+   Devuelve null si no existe. Agrega "id" y "codigo_pedido" (los últimos 6 del id, en
+   mayúsculas: así lo calcula la tienda, no se guarda en Firestore). */
+function leerPedidoFirestore(id) {
+  const resp = firestoreLeer('pedidos/' + encodeURIComponent(id));
+  const code = resp.getResponseCode();
+  if (code === 404) return null;
+  if (code !== 200) throw new Error('Firestore respondió ' + code + ' al leer el pedido.');
+  const pedido = firestoreAObjeto(JSON.parse(resp.getContentText()).fields);
+  pedido.id = id;
+  pedido.codigo_pedido = id.slice(-6).toUpperCase();
+  return pedido;
+}
+
+/* De lo que manda el navegador solo se toma el ID; el resto lo pone Firestore.
+   Devuelve null (y no se hace nada) si el id no es válido o el pedido no existe. */
+function leerPedidoRealParaAviso(pedidoDelAviso) {
+  const id = String(pedidoDelAviso && pedidoDelAviso.id !== undefined && pedidoDelAviso.id !== null ? pedidoDelAviso.id : '').trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(id)) { console.warn('pedido_nuevo: id ausente o inválido, se ignora.'); return null; }
+  const pedido = leerPedidoFirestore(id);
+  if (!pedido) { console.warn('pedido_nuevo: el pedido ' + id + ' no existe en Firestore, se ignora.'); return null; }
+  return pedido;
+}
+
 /* ---------- 5) PEDIDOS EN LA HOJA ---------- */
 function guardarPedidoEnSheet(pedido) {
   if (!pedido) return;
@@ -185,15 +342,18 @@ function guardarPedidoEnSheet(pedido) {
       .filter(Boolean).join(', ');
     const municipio = [pedido.envio_municipio, pedido.envio_departamento].filter(Boolean).join(', ');
 
+    // Los textos vienen de lo que escribió el cliente: textoSeguroHoja evita que una celda
+    // que empiece con = + - @ se ejecute como fórmula en la hoja.
+    const fechaPedido = new Date(pedido.fecha || Date.now());
     const fila = [
       String(pedido.codigo_pedido || pedido.id || ''),                 // A - N° Pedido (texto)
-      new Date(pedido.fecha || Date.now()),                            // B - Fecha
-      pedido.nombre_cliente || '',                                     // C - Cliente
-      pedido.email_cliente || '',                                      // D - Correo
-      pedido.telefono_cliente || '',                                   // E - Teléfono
-      detalle,                                                         // F - Productos
-      municipio,                                                       // G - Municipio y departamento
-      direccion,                                                       // H - Dirección
+      isNaN(fechaPedido.getTime()) ? new Date() : fechaPedido,         // B - Fecha
+      textoSeguroHoja(pedido.nombre_cliente),                          // C - Cliente
+      textoSeguroHoja(pedido.email_cliente),                           // D - Correo
+      textoSeguroHoja(pedido.telefono_cliente),                        // E - Teléfono
+      textoSeguroHoja(detalle),                                        // F - Productos
+      textoSeguroHoja(municipio),                                      // G - Municipio y departamento
+      textoSeguroHoja(direccion),                                      // H - Dirección
       nombreMetodoPago(pedido.metodo_pago, pedido),                    // I - Método de pago
       pedido.subtotal || 0,                                            // J - Subtotal
       pedido.costo_envio || 0,                                         // K - Envío
@@ -308,8 +468,19 @@ function registrarErrorPedido(tipo, id, err) {
   }
 }
 
-function eliminarPedidoDeSheet(id) {
-  if (!id) { console.warn('pedido_eliminado llegó sin id.'); return; }
+function eliminarPedidoDeSheet(id, idToken) {
+  const idTxt = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9_-]{6,60}$/.test(idTxt)) { console.warn('pedido_eliminado: id ausente o inválido, se ignora.'); return; }
+
+  // 1) Solo un admin puede pedir esto (Firestore valida el token con las reglas).
+  if (!esAdminConToken(idToken)) { console.warn('pedido_eliminado rechazado: no trae token de admin válido.'); return; }
+
+  // 2) El pedido tiene que haber sido borrado ya de Firestore (404). Si todavía existe,
+  //    no se toca la hoja. (Si Firestore falla con otro código, lanza error y queda anotado.)
+  if (leerEstadoPedidoFirestore(idTxt) !== null) {
+    console.warn('pedido_eliminado rechazado: el pedido ' + idTxt + ' todavía existe en Firestore.');
+    return;
+  }
 
   const candado = LockService.getScriptLock();
   candado.waitLock(20000);
@@ -317,7 +488,7 @@ function eliminarPedidoDeSheet(id) {
     const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
     if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
 
-    const idCompleto = normalizarCodigo(id);
+    const idCompleto = normalizarCodigo(idTxt);
     const codigo = idCompleto.slice(-6);
     const codigoSinCeros = sinCerosIniciales(codigo);
 
@@ -521,6 +692,11 @@ function registrarErrorContacto(c, err) {
 /* Confirmación de pedido al cliente (pagado o pendiente). */
 function enviarCorreoConfirmacion(pedido) {
   if (!pedido || !pedido.email_cliente) return;
+  // Si se pasa del límite o no hay cuota, la fila YA quedó en la hoja; el fallo se anota
+  // en "Errores_Pedidos" para que sepas a quién falta confirmarle el pedido.
+  if (!puedoEnviar('pedido_nuevo', pedido.email_cliente, 1)) {
+    throw new Error('El correo de confirmación NO se envió (límite de envíos o cuota diaria agotada). La fila sí quedó en la hoja.');
+  }
 
   const codigo = pedido.codigo_pedido || pedido.id;
   const items = pedido.items || [];
@@ -619,9 +795,26 @@ function enviarCorreoConfirmacion(pedido) {
   });
 }
 
-/* Código de acceso al panel. */
-function enviarCorreoCodigoPanel(correo, codigo) {
-  if (!correo || !codigo) return;
+/* Código de acceso al panel.
+   Solo recibe el CORREO. El código y la confirmación de que ese correo es de un
+   usuario del panel se leen de Firestore (panel_codigos/<correo>); lo que mande el
+   navegador como "código" se ignora. Así nadie puede usar este endpoint para
+   mandar un texto cualquiera a una dirección cualquiera. Límite: 1 correo cada
+   10 minutos por dirección (evita usarlo para llenarle el buzón a alguien). */
+function enviarCorreoCodigoPanel(correoEntrada) {
+  const correo = String(correoEntrada === null || correoEntrada === undefined ? '' : correoEntrada).trim().toLowerCase();
+  if (!correo || correo.length > 160 || !REGEX_CORREO.test(correo)) return;
+
+  const resp = firestoreLeer('panel_codigos/' + encodeURIComponent(correo));
+  const estadoHttp = resp.getResponseCode();
+  if (estadoHttp === 404) { console.warn('codigo_panel_recuperacion: ese correo no está en el panel.'); return; }
+  if (estadoHttp !== 200) throw new Error('Firestore respondió ' + estadoHttp + ' al leer el código del panel.');
+  const campo = (JSON.parse(resp.getContentText()).fields || {}).codigo || {};
+  const codigo = String(campo.stringValue !== undefined ? campo.stringValue : (campo.integerValue !== undefined ? campo.integerValue : '')).trim();
+  if (!/^\d{6}$/.test(codigo)) { console.warn('codigo_panel_recuperacion: el código guardado no tiene el formato esperado.'); return; }
+
+  if (!puedoEnviar('codigo_panel_recuperacion', correo, 1)) return; // 1 cada 10 min por dirección
+
   MailApp.sendEmail({
     to: correo,
     subject: 'MAQUINA — Tu código de acceso al panel',
@@ -637,16 +830,56 @@ function enviarCorreoCodigoPanel(correo, codigo) {
   });
 }
 
-/* Aviso de drop al Voltage Club, en tandas (por la cuota diaria de Gmail). */
-function enviarAvisoDropVoltageClub(correos, asunto, mensaje) {
-  if (!correos || !correos.length) return;
+/* Lista de correos del Voltage Club leída de Firestore COMO el admin (con su token).
+   Devuelve null si Firestore rechaza el token (no es admin). Descarta cualquier
+   valor que no sea un correo simple (así un "a@b.com,otro@x.com" guardado en la
+   colección no puede colar destinatarios extra en el bcc). */
+function leerCorreosVoltageClub(idToken) {
+  const correos = {};
+  let pagina = '';
+  do {
+    const resp = firestoreLeer('voltage_club?pageSize=300' + (pagina ? '&pageToken=' + encodeURIComponent(pagina) : ''), idToken);
+    const estadoHttp = resp.getResponseCode();
+    if (estadoHttp === 401 || estadoHttp === 403) return null;
+    if (estadoHttp !== 200) throw new Error('Firestore respondió ' + estadoHttp + ' al leer el Voltage Club.');
+    const cuerpo = JSON.parse(resp.getContentText());
+    (cuerpo.documents || []).forEach(function (d) {
+      const c = d.fields && d.fields.correo && d.fields.correo.stringValue;
+      const limpio = String(c || '').trim().toLowerCase();
+      if (limpio && limpio.length <= 160 && REGEX_CORREO.test(limpio)) correos[limpio] = true;
+    });
+    pagina = cuerpo.nextPageToken || '';
+  } while (pagina);
+  return Object.keys(correos);
+}
+
+/* Aviso de drop al Voltage Club, en tandas (por la cuota diaria de Gmail).
+   Solo con token de admin; los destinatarios se leen de Firestore. El asunto y el
+   mensaje sí vienen del panel (es lo que escribe el admin), con tope de tamaño. */
+function enviarAvisoDropVoltageClub(idToken, asuntoEntrada, mensajeEntrada) {
+  const asunto = String(asuntoEntrada === null || asuntoEntrada === undefined ? '' : asuntoEntrada).trim();
+  const mensaje = String(mensajeEntrada === null || mensajeEntrada === undefined ? '' : mensajeEntrada).trim();
   if (!asunto || !mensaje) return;
+  if (asunto.length > 150 || mensaje.length > 5000) { console.warn('aviso_drop_nuevo: asunto o mensaje demasiado largo, se ignora.'); return; }
+  if (!tokenPlausible(idToken)) { console.warn('aviso_drop_nuevo rechazado: no trae token de admin.'); return; }
+
+  const correos = leerCorreosVoltageClub(idToken);
+  if (correos === null) { console.warn('aviso_drop_nuevo rechazado: Firestore no reconoce al token como admin.'); return; }
+  if (!correos.length) return;
+
+  if (!puedoEnviar('aviso_drop_nuevo', '*', 1)) return; // máx. 5 avisos de drop por hora
 
   const MAX_POR_TANDA = 45;
   const propio = correoPropio();
   let enviados = 0;
   for (let i = 0; i < correos.length; i += MAX_POR_TANDA) {
     const tanda = correos.slice(i, i + MAX_POR_TANDA);
+    // Cada tanda gasta (tanda + 1) de la cuota diaria. Se corta antes de tocar la
+    // reserva de los correos de pedidos.
+    if (!hayCuotaCorreo(tanda.length + 1, false)) {
+      console.warn('Aviso de drop: cuota diaria insuficiente; faltan ' + (correos.length - enviados) + ' correos por enviar.');
+      break;
+    }
     try {
       MailApp.sendEmail({
         to: propio,
@@ -661,11 +894,28 @@ function enviarAvisoDropVoltageClub(correos, asunto, mensaje) {
     }
   }
   console.log('Aviso de drop: ' + enviados + ' de ' + correos.length + ' correos enviados.');
+
+  // La tienda no ve la respuesta del script (no-cors): si quedó incompleto, te lo dice por correo.
+  if (enviados < correos.length && MailApp.getRemainingDailyQuota() >= 1) {
+    try {
+      MailApp.sendEmail({
+        to: propio,
+        subject: 'MAQUINA — ⚠️ El aviso del drop quedó incompleto',
+        body: 'El aviso "' + asunto + '" se envió a ' + enviados + ' de ' + correos.length + ' suscriptores del Voltage Club.\n\n' +
+              'Se detuvo para no gastar la cuota diaria de Gmail que se reserva para confirmar pedidos.\n' +
+              'Cuota que queda hoy: ' + MailApp.getRemainingDailyQuota() + '. La cuota se renueva cada 24 horas.\n' +
+              'No lo vuelvas a mandar completo: los primeros ya lo recibieron.',
+        name: 'MAQUINA',
+      });
+    } catch (e3) { console.error('No se pudo avisar que el drop quedó incompleto: ' + e3.message); }
+  }
 }
 
 /* Bienvenida al Voltage Club. */
-function enviarBienvenidaVoltageClub(correo) {
-  if (!correo) return;
+function enviarBienvenidaVoltageClub(correoEntrada) {
+  const correo = String(correoEntrada === null || correoEntrada === undefined ? '' : correoEntrada).trim().toLowerCase();
+  if (!correo || correo.length > 160 || !REGEX_CORREO.test(correo)) return;
+  if (!puedoEnviar('voltage_club_bienvenida', correo, 1)) return;
 
   const cuerpoTexto =
     '¡Hola! ⚡\n\n' +
@@ -703,6 +953,7 @@ function enviarBienvenidaVoltageClub(correo) {
    Al darle "Responder" le contestas directo al cliente. */
 function enviarCorreoContacto(d) {
   if (!d || !d.correo || !d.mensaje) return;
+  if (!puedoEnviar('contacto_nuevo', d.correo, 1)) return; // el mensaje ya quedó en Firestore y en la hoja
   const destino = DESTINO_CONTACTO || correoPropio();
 
   const texto =

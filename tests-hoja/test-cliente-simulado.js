@@ -8,7 +8,7 @@ function entorno(docs, { falla } = {}) {
   const ref = id => ({ id, _id: id });
   const fbDb = {
     collection: () => ({
-      doc: id => ref(id),
+      doc: id => Object.assign(ref(id), { delete: async () => { delete docs[id]; } }),
       orderBy: () => { throw new Error('ya no se debe usar orderBy en pedidos'); },
       get: async () => { if (falla) throw Object.assign(new Error('x'), { code: falla }); return { docs: Object.entries(docs).map(([id, d]) => ({ id, data: () => ({ ...d }) })) }; },
     }),
@@ -20,7 +20,7 @@ function entorno(docs, { falla } = {}) {
   const ctx = {
     console: { log() {}, warn() {}, error() {} }, document: { querySelectorAll: () => [], querySelector: () => null, getElementById: () => null, addEventListener() {}, createElement: () => ({ style: {}, classList: { add() {}, remove() {} }, setAttribute() {}, appendChild() {} }), body: { appendChild() {} }, head: { appendChild() {} }, readyState: 'complete' },
     window: {}, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-    fbDb, fbAuth: { currentUser: { uid: 'u1' }, onAuthStateChanged() {} }, crypto: {}, TextEncoder, setTimeout, clearTimeout, setInterval: () => 0, Date, Promise, JSON, Math, Object, Array, Map, Set, String, Number, Error, RegExp, isNaN, parseInt, parseFloat,
+    fbDb, fbAuth: { currentUser: { uid: 'u1', getIdToken: async () => 'tok.en.admin' }, onAuthStateChanged() {} }, crypto: {}, TextEncoder, setTimeout, clearTimeout, setInterval: () => 0, Date, Promise, JSON, Math, Object, Array, Map, Set, String, Number, Error, RegExp, isNaN, parseInt, parseFloat,
     firebase: { firestore: { FieldValue: { arrayUnion: v => ({ __v: v }), increment: n => n, delete: () => null } } },
     fetch: async (url, o) => { avisos.push(JSON.parse(o.body)); },
     navigator: {}, location: { href: '' }, addEventListener() {}, alert() {}, confirm: () => true,
@@ -64,5 +64,28 @@ const flush = () => new Promise(r => setImmediate(r));
     const l = await E.run('obtenerPedidosAdmin()');
     assert.strictEqual(l.length, 0); assert.strictEqual(E.run('errorLecturaPedidos && errorLecturaPedidos.code'), 'permission-denied');
   });
+
+  console.log('\nAvisos al Apps Script (seguridad)');
+  await t('borrar pedido: el aviso lleva el token del admin', async () => {
+    const E = entorno({ P1: { estado: 'pendiente' } });
+    const r = await E.run('eliminarPedidoAdmin("P1")'); await flush();
+    assert.ok(r.ok); assert.strictEqual(E.avisos.length, 1);
+    assert.deepStrictEqual(E.avisos[0], { tipo: 'pedido_eliminado', id: 'P1', idToken: 'tok.en.admin' });
+  });
+  await t('aviso del drop: lleva token, asunto y mensaje, y NO la lista de correos', async () => {
+    const E = entorno({});
+    E.run('obtenerSuscriptoresVoltageClub = async () => [{ correo: "a@b.com" }, { correo: "c@d.com" }]');
+    const r = await E.run('avisarDropVoltageClub("Drop", "Sale hoy")'); await flush();
+    assert.ok(r.ok && r.cantidad === 2); assert.strictEqual(E.avisos.length, 1);
+    assert.deepStrictEqual(E.avisos[0], { tipo: 'aviso_drop_nuevo', idToken: 'tok.en.admin', asunto: 'Drop', mensaje: 'Sale hoy' });
+    assert.ok(!('correos' in E.avisos[0]));
+  });
+  await t('aviso del drop sin sesión de admin: no se envía nada', async () => {
+    const E = entorno({});
+    E.run('obtenerSuscriptoresVoltageClub = async () => [{ correo: "a@b.com" }]; fbAuth.currentUser = null');
+    const r = await E.run('avisarDropVoltageClub("Drop", "Sale hoy")'); await flush();
+    assert.ok(!r.ok && /sesi/i.test(r.msg)); assert.strictEqual(E.avisos.length, 0);
+  });
+
   console.log(`\n${ok} pruebas OK` + (process.exitCode ? '  —  HAY FALLOS' : ''));
 })();

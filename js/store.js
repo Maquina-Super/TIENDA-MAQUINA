@@ -49,6 +49,14 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwoYELoUZftVoV
     un problema. Nunca bloquea la compra: si falla el envío del aviso
     (ej. no configuraste APPS_SCRIPT_URL, o no hay internet), solo se
     registra en la consola y la tienda sigue funcionando normal. */
+/** Token de sesión del admin logueado en el panel (Firebase Auth). El Apps
+    Script lo reenvía a Firestore para comprobar que de verdad es admin antes
+    de borrar filas o mandar el aviso del drop. Devuelve null si no hay sesión. */
+async function tokenAdminParaAviso() {
+  try { return (fbAuth && fbAuth.currentUser) ? await fbAuth.currentUser.getIdToken() : null; }
+  catch (e) { return null; }
+}
+
 function enviarAviso(payload) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT") return;
   fetch(APPS_SCRIPT_URL, {
@@ -1019,7 +1027,10 @@ async function actualizarEstadoPedidoAdmin(id, estado) {
 async function eliminarPedidoAdmin(id) {
   try {
     await fbDb.collection('pedidos').doc(id).delete();
-    enviarAviso({ tipo: 'pedido_eliminado', id });
+    // El Apps Script solo borra la fila si el aviso trae el token de un admin
+    // y el pedido ya no existe en Firestore (ya se borró arriba).
+    const idToken = await tokenAdminParaAviso();
+    enviarAviso({ tipo: 'pedido_eliminado', id, idToken });
     return { ok: true };
   } catch (e) {
     return { ok: false, msg: 'No hay conexión a internet.' };
@@ -1348,7 +1359,11 @@ async function avisarDropVoltageClub(asuntoInput, mensajeInput) {
   const correos = suscriptores.map(s => s.correo).filter(Boolean);
   if (!correos.length) return { ok: false, msg: 'Todavía no hay nadie en el Voltage Club.' };
 
-  enviarAviso({ tipo: 'aviso_drop_nuevo', correos, asunto, mensaje });
+  // La lista de correos NO viaja en el aviso: el Apps Script la lee de Firestore
+  // con este mismo token (solo un admin puede). Aquí solo se usó para contar.
+  const idToken = await tokenAdminParaAviso();
+  if (!idToken) return { ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
+  enviarAviso({ tipo: 'aviso_drop_nuevo', idToken, asunto, mensaje });
   return { ok: true, cantidad: correos.length };
 }
 
@@ -2243,7 +2258,8 @@ async function recuperarCodigoPanelPorCorreo(correoInput) {
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify({ tipo: 'codigo_panel_recuperacion', correo, codigo: doc.data().codigo }),
+        // Solo el correo: el Apps Script lee el código de Firestore él mismo.
+        body: JSON.stringify({ tipo: 'codigo_panel_recuperacion', correo }),
       }).catch(() => {});
     }
   } catch (e) {
