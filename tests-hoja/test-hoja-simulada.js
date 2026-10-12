@@ -420,4 +420,90 @@ t('los items y totales del correo salen del documento de Firestore (con foto, ta
   const c = E7.correos[0]; assert.ok(/Hoodie Voltage — talla M — \$140\.000/.test(c.body)); assert.ok(/https:\/\/x\.test\/h\.jpg/.test(c.htmlBody));
 });
 
+console.log('\n8) Estado de pago y sincronizar pedidos con la hoja');
+const J = txt => JSON.parse(txt);
+t('pedido_pago: escribe SOLO la columna M con el pago REAL de Firestore (no crea filas ni toca lo demás)', () => {
+  const E8 = crearEntorno([], ENC); const H = E8.hojas.Pedidos;
+  E8.post(pedidoNuevo('PAGO01'));
+  assert.strictEqual(H.grid[1][12], 'Pendiente (contraentrega)');
+  const previo = copia(H.grid);
+  E8.firestore[ID('PAGO01')].estado_pago = 'pagado';
+  E8.firestore[ID('PAGO01')].historial_pagos = [{ estado_pago: 'pagado', usuario: 'admin', fecha: '2026-10-12T10:00:00Z' }];
+  assert.strictEqual(E8.post({ tipo: 'pedido_pago', id: ID('PAGO01') }), 'ok');
+  assert.deepStrictEqual(celdasDistintas(previo, H.grid), [[2, 13]]);
+  assert.strictEqual(H.grid[1][12], 'Pagado'); assert.strictEqual(H.getLastRow(), 2); assert.strictEqual(E8.correos.length, 1); // el único correo es el de la confirmación del pedido
+});
+t('pedido_pago: volver a \"por verificar\" vuelve a reflejarse; repetir el aviso no cambia nada', () => {
+  const E8 = crearEntorno([], ENC); const H = E8.hojas.Pedidos;
+  const a = pedidoNuevo('PAGO02'); a.pedido.metodo_pago = 'nequi'; E8.post(a);
+  E8.firestore[ID('PAGO02')].estado_pago = 'pagado'; E8.post({ tipo: 'pedido_pago', id: ID('PAGO02') });
+  E8.firestore[ID('PAGO02')].estado_pago = 'por_verificar'; E8.post({ tipo: 'pedido_pago', id: ID('PAGO02') });
+  assert.strictEqual(H.grid[1][12], 'Por verificar (transferencia Nequi)');
+  const previo = copia(H.grid); E8.post({ tipo: 'pedido_pago', id: ID('PAGO02') }); E8.post({ tipo: 'pedido_pago', id: ID('PAGO02') });
+  assert.deepStrictEqual(celdasDistintas(previo, H.grid), []);
+});
+t('pedido_pago: lo que diga el aviso se ignora (un \"pagado\" falso no marca nada)', () => {
+  const E8 = crearEntorno([], ENC); const H = E8.hojas.Pedidos;
+  E8.post(pedidoNuevo('PAGO03'));
+  E8.post({ tipo: 'pedido_pago', id: ID('PAGO03'), estado_pago: 'pagado', pedido: { estado_pago: 'pagado' } });
+  assert.strictEqual(H.grid[1][12], 'Pendiente (contraentrega)');
+});
+t('pedido_pago: id inválido, pedido inexistente o que no está en la hoja: no escribe nada (y lo anota)', () => {
+  const E8 = crearEntorno([], ENC); const H = E8.hojas.Pedidos;
+  E8.post(pedidoNuevo('PAGO04'));
+  const previo = copia(H.grid);
+  E8.post({ tipo: 'pedido_pago', id: 'corto' }); E8.post({ tipo: 'pedido_pago' }); E8.post({ tipo: 'pedido_pago', id: ID('NOEXIS') });
+  E8.firestore[ID('HUERFA')] = { estado: 'pendiente', estado_pago: 'pagado' };            // existe en Firestore pero nunca llegó a la hoja
+  E8.post({ tipo: 'pedido_pago', id: ID('HUERFA') });
+  assert.deepStrictEqual(celdasDistintas(previo, H.grid), []); assert.strictEqual(H.getLastRow(), 2);
+  const err = E8.hojas.Errores_Pedidos; assert.ok(err && err.grid.some(f => /HUERFA/.test(String(f[2]))), 'debe quedar en Errores_Pedidos');
+});
+
+t('pedidos_sincronizar: sin token, con token de cliente o inventado -> rechazado y no escribe nada', () => {
+  const E8 = crearEntorno([], ENC); const H = E8.hojas.Pedidos;
+  E8.firestore[ID('SYN001')] = pedidoNuevo('SYN001').pedido; delete E8.firestore[ID('SYN001')].id; delete E8.firestore[ID('SYN001')].codigo_pedido;
+  [undefined, TOKEN_CLIENTE, 'no-es-token'].forEach(tok => {
+    const r = J(E8.post({ tipo: 'pedidos_sincronizar', ids: [ID('SYN001')], idToken: tok }));
+    assert.strictEqual(r.ok, false);
+  });
+  assert.strictEqual(H.getLastRow(), 1); assert.strictEqual(E8.correos.length, 0);
+});
+t('pedidos_sincronizar: agrega los pedidos que faltan SIN correo, los que ya están no se duplican', () => {
+  const E8 = crearEntorno([hist('AAA111', 150000, 'VIP')], ENC); const H = E8.hojas.Pedidos;
+  ['SYN002', 'SYN003'].forEach(c => { const d = pedidoNuevo(c).pedido; delete d.id; delete d.codigo_pedido; E8.firestore[ID(c)] = d; });
+  E8.firestore[ID('AAA111')] = { estado: 'enviado', estado_pago: 'pagado' };
+  const ids = [ID('SYN002'), ID('SYN003'), ID('AAA111')];
+  const r = J(E8.post({ tipo: 'pedidos_sincronizar', ids, idToken: ADMIN_TOKEN }));
+  assert.deepStrictEqual(r, { ok: true, agregados: 2, actualizados: 1, inexistentes: 0, errores: 0 });
+  assert.strictEqual(H.getLastRow(), 4); assert.strictEqual(E8.correos.length, 0, 'no debe mandar correos a los clientes');
+  const r2 = J(E8.post({ tipo: 'pedidos_sincronizar', ids, idToken: ADMIN_TOKEN }));       // repetir no duplica
+  assert.deepStrictEqual(r2, { ok: true, agregados: 0, actualizados: 3, inexistentes: 0, errores: 0 });
+  assert.strictEqual(H.getLastRow(), 4);
+});
+t('pedidos_sincronizar: deja al día \"Estado del pedido\" y no pisa la columna M escrita a mano si el pago no se gestionó en el panel', () => {
+  const E8 = crearEntorno([hist('AAA111', 150000, 'VIP'), hist('BBB222', 90000, '')], ENC); const H = E8.hojas.Pedidos;
+  E8.firestore[ID('AAA111')] = { estado: 'entregado', estado_pago: 'pendiente' };            // M dice \"Pagado\" (escrito a mano): se respeta
+  E8.firestore[ID('BBB222')] = { estado: 'confirmado', estado_pago: 'pagado', metodo_pago: 'nequi', historial_pagos: [{ estado_pago: 'pagado', usuario: 'admin', fecha: 'f' }] };
+  H.grid[2][12] = 'Por verificar (transferencia Nequi)';                                     // BBB222 se gestionó en el panel: manda Firestore
+  J(E8.post({ tipo: 'pedidos_sincronizar', ids: [ID('AAA111'), ID('BBB222')], idToken: ADMIN_TOKEN }));
+  assert.strictEqual(H.grid[1][14], 'Entregado'); assert.strictEqual(H.grid[2][14], 'Confirmado');
+  assert.strictEqual(H.grid[1][12], 'Pagado'); assert.strictEqual(H.grid[2][12], 'Pagado');
+  assert.strictEqual(H.grid[1][13], 'VIP', 'la columna ajena N no se toca'); assert.strictEqual(H.grid[1][11], 150000);
+});
+t('pedidos_sincronizar: un pedido que falla no frena a los demás y queda en Errores_Pedidos; los inexistentes se cuentan', () => {
+  const E8 = crearEntorno([], ENC); const H = E8.hojas.Pedidos;
+  const d = pedidoNuevo('SYN004').pedido; delete d.id; delete d.codigo_pedido; E8.firestore[ID('SYN004')] = d;
+  E8.firestore[ID('MALO01')] = 'ERROR500';
+  const r = J(E8.post({ tipo: 'pedidos_sincronizar', ids: [ID('MALO01'), ID('SYN004'), ID('NOEXI2'), 'raro', 123], idToken: ADMIN_TOKEN }));
+  assert.deepStrictEqual(r, { ok: true, agregados: 1, actualizados: 0, inexistentes: 1, errores: 1 });
+  assert.strictEqual(H.getLastRow(), 2);
+  assert.ok(E8.hojas.Errores_Pedidos.grid.some(f => /pedidos_sincronizar/.test(String(f[1])) && /MALO01/.test(String(f[2]))));
+});
+t('pedidos_sincronizar: procesa como máximo 15 ids por llamada', () => {
+  const E8 = crearEntorno([], ENC);
+  const ids = []; for (let i = 0; i < 20; i++) { const c = 'LOT' + String(i).padStart(3, '0'); const d = pedidoNuevo(c).pedido; delete d.id; delete d.codigo_pedido; E8.firestore[ID(c)] = d; ids.push(ID(c)); }
+  const r = J(E8.post({ tipo: 'pedidos_sincronizar', ids, idToken: ADMIN_TOKEN }));
+  assert.strictEqual(r.agregados, 15); assert.strictEqual(E8.hojas.Pedidos.getLastRow(), 16);
+});
+
 console.log(`\n${ok} pruebas OK` + (process.exitCode ? '  —  HAY FALLOS' : '')); 

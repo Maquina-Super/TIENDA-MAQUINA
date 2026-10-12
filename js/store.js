@@ -979,8 +979,8 @@ async function obtenerPedidosAdmin() {
     Si el pedido ya estaba en ese estado (otro admin lo cambió, o fue
     un doble clic) no escribe nada y no duplica el historial. Solo toca
     "estado" e "historial_estados": jamás precios, productos, totales
-    ni "estado_pago" (el pago solo se da por hecho con confirmación
-    del sistema de pago, no desde este selector). Las reglas de
+    ni "estado_pago" (el pago se confirma aparte, con
+    actualizarPagoPedidoAdmin, desde el detalle del pedido). Las reglas de
     Firestore (gestionPedidoValida) lo exigen también en el servidor.
 
     Devuelve { ok:true, sinCambio, entradaHistorial } o { ok:false, msg }
@@ -1019,6 +1019,109 @@ async function actualizarEstadoPedidoAdmin(id, estado) {
     }
     return { ok: false, msg: 'No se pudo guardar el estado. El pedido sigue como estaba.' };
   }
+}
+
+/* Estados de pago que acepta Firestore (ver gestionPedidoValida en firestore.rules). */
+const ESTADOS_PAGO_VALIDOS = ['pendiente', 'por_verificar', 'pagado'];
+
+/** Cambia el ESTADO DE PAGO de un pedido (pendiente / por_verificar / pagado).
+    Lo usa el panel admin desde el detalle del pedido. Igual que el estado:
+    - es una transacción que lee el valor REAL de Firestore; si ya estaba así
+      (doble clic u otro admin) no escribe nada ni duplica el historial.
+    - deja quién lo cambió y cuándo en "historial_pagos" (solo puede crecer).
+    - solo toca "estado_pago" e "historial_pagos": jamás precios, productos ni
+      totales (las reglas de Firestore lo exigen también en el servidor).
+    - avisa a la hoja (pedido_pago): el Apps Script lee el pago REAL de Firestore
+      y actualiza la columna "Estado de pago" de ese pedido.
+    Devuelve { ok:true, sinCambio, entradaHistorial } o { ok:false, msg }. */
+async function actualizarPagoPedidoAdmin(id, estadoPago) {
+  if (!ESTADOS_PAGO_VALIDOS.includes(estadoPago)) return { ok: false, msg: 'Estado de pago inválido.' };
+  if (!id) return { ok: false, msg: 'No se encontró el pedido.' };
+  if (typeof fbAuth !== 'undefined' && !fbAuth.currentUser) {
+    return { ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
+  }
+  const usuario = usuarioAdminActual() || 'desconocido';
+  const entradaHistorial = { estado_pago: estadoPago, usuario, fecha: new Date().toISOString() };
+  const ref = fbDb.collection('pedidos').doc(id);
+  try {
+    const sinCambio = await fbDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw Object.assign(new Error('El pedido no existe'), { code: 'pedido-no-existe' });
+      if (snap.data().estado_pago === estadoPago) return true; // ya estaba así: no se escribe nada
+      tx.update(ref, {
+        estado_pago: estadoPago,
+        historial_pagos: firebase.firestore.FieldValue.arrayUnion(entradaHistorial),
+      });
+      return false;
+    });
+    if (!sinCambio) enviarAviso({ tipo: 'pedido_pago', id, usuario });
+    return { ok: true, sinCambio, entradaHistorial: sinCambio ? null : entradaHistorial };
+  } catch (e) {
+    console.error('Error cambiando el estado de pago del pedido:', e);
+    const code = (e && e.code) || '';
+    if (code === 'permission-denied') return { ok: false, msg: 'No tienes permiso para cambiar el pago de los pedidos.' };
+    if (code === 'unauthenticated') return { ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
+    if (code === 'pedido-no-existe' || code === 'not-found') return { ok: false, msg: 'Este pedido ya no existe. Recarga la lista de pedidos.' };
+    if (code === 'unavailable' || code === 'deadline-exceeded' || code === 'network-request-failed') {
+      return { ok: false, msg: 'Sin conexión: el pago NO se cambió. Inténtalo de nuevo.' };
+    }
+    return { ok: false, msg: 'No se pudo guardar el pago. El pedido sigue como estaba.' };
+  }
+}
+
+/** Reenvía a la hoja "Pedidos" los pedidos que se le pasen (desde el panel): agrega
+    los que faltan (SIN mandar correo al cliente) y deja al día la columna "Estado del
+    pedido" (y el estado de pago si se gestionó desde el panel). Se puede pulsar las
+    veces que haga falta: el Apps Script lee Firestore y no duplica filas.
+    Va en tandas pequeñas y con el token del admin (el script comprueba que lo sea).
+    A diferencia de enviarAviso, intenta LEER la respuesta del script para saber de
+    verdad qué pasó; si el navegador no deja leerla (CORS), reenvía la tanda con
+    "no-cors" y lo dice en el resultado (confirmados < total).
+    alProgreso(hechos, total) es opcional. Devuelve:
+    { ok, msg?, total, confirmados, sinConfirmar, fallidos, agregados, actualizados, inexistentes, errores } */
+async function sincronizarPedidosConHoja(pedidos, alProgreso) {
+  const ids = (pedidos || []).map(p => String((p && p.id) || '')).filter(id => /^[A-Za-z0-9]{20}$/.test(id));
+  const res = { ok: true, total: ids.length, confirmados: 0, sinConfirmar: 0, fallidos: 0, agregados: 0, actualizados: 0, inexistentes: 0, errores: 0 };
+  if (!ids.length) return res;
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT") {
+    return { ...res, ok: false, msg: 'La conexión con la hoja no está configurada (APPS_SCRIPT_URL).' };
+  }
+  const idToken = await tokenAdminParaAviso();
+  if (!idToken) return { ...res, ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
+
+  const TANDA = 8;
+  let intentarLeer = true;
+  for (let i = 0; i < ids.length; i += TANDA) {
+    const lote = ids.slice(i, i + TANDA);
+    const cuerpo = JSON.stringify({ tipo: 'pedidos_sincronizar', ids: lote, idToken });
+    let atendido = false;
+    if (intentarLeer) {
+      try {
+        const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: cuerpo });
+        const j = JSON.parse(await resp.text());
+        if (j && j.ok === false) return { ...res, ok: false, msg: j.error || 'La hoja rechazó la sincronización.' };
+        if (j && j.ok === true) {
+          res.confirmados += lote.length;
+          res.agregados += Number(j.agregados) || 0;
+          res.actualizados += Number(j.actualizados) || 0;
+          res.inexistentes += Number(j.inexistentes) || 0;
+          res.errores += Number(j.errores) || 0;
+          atendido = true;
+        } else { intentarLeer = false; }
+      } catch (e) { intentarLeer = false; } // el navegador no deja leer la respuesta: se reenvía a ciegas
+    }
+    if (!atendido) {
+      try {
+        await fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: cuerpo });
+        res.sinConfirmar += lote.length;
+      } catch (e) {
+        console.error('No se pudo enviar la tanda a la hoja:', e);
+        res.fallidos += lote.length;
+      }
+    }
+    if (typeof alProgreso === 'function') alProgreso(Math.min(i + TANDA, ids.length), ids.length);
+  }
+  return res;
 }
 
 /** Borra un pedido de Firestore por completo. Quien llama a esto ya

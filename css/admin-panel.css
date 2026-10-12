@@ -688,3 +688,7 @@
   .dp-prod-total{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:baseline;border-top:1px dashed var(--adm-line);padding-top:8px;text-align:left;}
   .dp-prod-texto{grid-template-columns:minmax(0,1fr);}
 }
+
+/* ---- confirmar pago (detalle del pedido) ---- */
+.dp-pago-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;}
+.dp-pago-form select{flex:1 1 200px;min-width:0;}

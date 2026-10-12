@@ -1075,15 +1075,37 @@ function abrirDetallePedido(id) {
       }).join('')
     : '<p class="admin-foto-hint">Todavía no hay cambios de estado registrados para este pedido.</p>';
 
+  /* ---- pago: confirmar / cambiar el estado de pago (solo con permiso de pedidos) ---- */
+  const estadoPagoActual = ESTADOS_PAGO_VALIDOS.includes(p.estado_pago) ? p.estado_pago : 'pendiente';
+  const seccionPago = permisosActuales.pedidos
+    ? `<section class="dp-sec"><h4>Confirmar pago</h4>
+        <div class="dp-pago-form">
+          <select id="dpPagoSelect" class="admin-input" aria-label="Estado del pago">${ESTADOS_PAGO_VALIDOS.map(k => `<option value="${k}"${k === estadoPagoActual ? ' selected' : ''}>${escaparHtml(ETIQUETAS_ESTADO_PAGO[k])}</option>`).join('')}</select>
+          <button type="button" class="admin-btn" id="dpPagoGuardar" data-id="${escaparHtml(p.id)}">Guardar pago</button>
+        </div>
+        <p class="admin-foto-hint">Marca \"Pagado\" solo cuando ya verificaste el dinero. Queda en el historial con tu usuario y se refleja en la hoja de cálculo.</p>
+      </section>`
+    : '';
+  const historialPagos = Array.isArray(p.historial_pagos) ? p.historial_pagos : [];
+  const seccionHistorialPagos = historialPagos.length
+    ? `<section class="dp-sec"><h4>Historial de pagos</h4>${[...historialPagos].reverse().map(h => {
+        const f = h.fecha ? new Date(h.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+        const clase = h.estado_pago === 'pagado' ? 'ok' : (h.estado_pago === 'por_verificar' ? 'aviso' : '');
+        return `<div class="historial-fila"><span class="dp-pago ${clase}">${escaparHtml(ETIQUETAS_ESTADO_PAGO[h.estado_pago] || h.estado_pago || '—')}</span><span class="historial-usuario">${escaparHtml(h.usuario || 'desconocido')}</span><span class="historial-fecha mono">${escaparHtml(f)}</span></div>`;
+      }).join('')}</section>`
+    : '';
+
   const cuerpo = document.getElementById('detallePedidoCuerpo');
   cuerpo.innerHTML = `
     <div class="dp-fichas">${fichas}</div>
+    ${seccionPago}
     <div class="dp-dos-col">
       <section class="dp-sec"><h4>Cliente</h4>${seccionCliente}</section>
       <section class="dp-sec"><h4>Entrega</h4>${seccionEnvio}</section>
     </div>
     <section class="dp-sec"><h4>Productos</h4>${productos}${totales}</section>
-    <section class="dp-sec"><h4>Historial de estados</h4>${seccionHistorial}</section>`;
+    <section class="dp-sec"><h4>Historial de estados</h4>${seccionHistorial}</section>
+    ${seccionHistorialPagos}`;
   // si una foto ya no existe, se muestra el recuadro vacío en vez del icono roto
   cuerpo.querySelectorAll('img.dp-foto-img').forEach(img => {
     img.addEventListener('error', () => { img.parentElement.classList.add('dp-foto-vacia'); img.remove(); }, { once: true });
@@ -1105,6 +1127,102 @@ document.getElementById('tablaPedidosBody').addEventListener('click', (e) => {
 document.getElementById('btnCerrarModalDetallePedido').addEventListener('click', cerrarDetallePedido);
 modalDetallePedido.addEventListener('click', (e) => { if (e.target === modalDetallePedido) cerrarDetallePedido(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalDetallePedido.classList.contains('open')) cerrarDetallePedido(); });
+
+/* ---------- confirmar / cambiar el pago de un pedido (desde el detalle) ----------
+   - Un solo guardado a la vez por pedido.
+   - Marcar \"Pagado\" (o quitarlo) pide confirmación: un toque equivocado no debe dar un pago por recibido.
+   - Solo cambia \"estado_pago\" (y su historial): nunca precios, productos ni totales. */
+const pagosEnCurso = new Set();
+document.getElementById('detallePedidoCuerpo').addEventListener('click', async (e) => {
+  const btn = e.target.closest('#dpPagoGuardar');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const select = document.getElementById('dpPagoSelect');
+  const pedido = pedidosCache.find(x => x.id === id);
+  if (!pedido || !select) { showToast('No se encontró el pedido. Recarga la lista.', true); return; }
+  if (!permisosActuales.pedidos) { showToast('No tienes permiso para cambiar el pago de los pedidos.', true); return; }
+  if (pagosEnCurso.has(id)) return;
+  const nuevo = select.value;
+  const previo = ESTADOS_PAGO_VALIDOS.includes(pedido.estado_pago) ? pedido.estado_pago : 'pendiente';
+  if (!ESTADOS_PAGO_VALIDOS.includes(nuevo)) return;
+  if (nuevo === previo) { showToast('El pago ya está en ese estado.'); return; }
+  const numero = numerosPedidoCache.get(id) || '';
+  if (nuevo === 'pagado' && !(await confirmarAccion({
+    titulo: `¿Confirmar el pago del pedido #${numero}?`,
+    textoOk: 'Sí, marcar como pagado',
+    textoCancelar: 'No, volver',
+    mensaje: `Vas a registrar que recibiste ${dineroDetalle(pedido.total)}. Quedará en el historial con tu usuario.`
+  }))) return;
+  if (previo === 'pagado' && !(await confirmarAccion({
+    titulo: `¿Quitar la marca de pagado del pedido #${numero}?`,
+    peligro: true,
+    textoOk: 'Sí, quitar',
+    textoCancelar: 'No, volver',
+    mensaje: 'El pedido dejará de figurar como pagado. El cambio queda en el historial.'
+  }))) return;
+
+  pagosEnCurso.add(id);
+  btn.disabled = true; select.disabled = true;
+  let res;
+  try {
+    res = await actualizarPagoPedidoAdmin(id, nuevo);
+  } catch (err) {
+    console.error(err);
+    res = { ok: false, msg: 'No se pudo guardar el pago. El pedido sigue como estaba.' };
+  } finally {
+    pagosEnCurso.delete(id);
+  }
+  if (!res.ok) {
+    btn.disabled = false; select.disabled = false;
+    select.value = previo;
+    showToast(res.msg, true);
+    return;
+  }
+  pedido.estado_pago = nuevo;
+  if (res.entradaHistorial) pedido.historial_pagos = [...(pedido.historial_pagos || []), res.entradaHistorial];
+  const modal = modalDetallePedido.querySelector('.admin-modal');
+  const scroll = modal ? modal.scrollTop : 0;
+  abrirDetallePedido(id); // se repinta con lo que quedó guardado
+  if (modal) modal.scrollTop = scroll;
+  showToast(res.sinCambio ? 'El pago ya estaba así.' : `Pago actualizado: ${ETIQUETAS_ESTADO_PAGO[nuevo]}.`);
+});
+
+/* ---------- sincronizar los pedidos con la hoja de cálculo ----------
+   Reenvía a Google Sheets los pedidos cargados: agrega los que falten (sin correo al cliente)
+   y deja al día el estado. Se puede pulsar las veces que haga falta: no duplica filas. */
+const btnSincronizarPedidosHoja = document.getElementById('btnSincronizarPedidosHoja');
+if (btnSincronizarPedidosHoja) btnSincronizarPedidosHoja.addEventListener('click', async () => {
+  if (!permisosActuales.pedidos) { showToast('No tienes permiso para sincronizar los pedidos.', true); return; }
+  if (!pedidosCache.length) { showToast('No hay pedidos para sincronizar.', true); return; }
+  if (typeof sincronizarPedidosConHoja !== 'function') { showToast('La sincronización no está disponible.', true); return; }
+  const textoOriginal = btnSincronizarPedidosHoja.textContent;
+  btnSincronizarPedidosHoja.disabled = true;
+  try {
+    const r = await sincronizarPedidosConHoja(pedidosCache, (hechos, total) => {
+      btnSincronizarPedidosHoja.textContent = `Sincronizando ${hechos}/${total}…`;
+    });
+    if (!r.ok) { showToast(r.msg || 'No se pudo sincronizar con la hoja.', true); return; }
+    if (r.fallidos) {
+      showToast(`No se pudieron enviar ${r.fallidos} de ${r.total} pedidos (¿sin conexión?). Inténtalo de nuevo.`, true);
+    } else if (r.sinConfirmar === 0) {
+      const partes = [`${r.agregados} agregados a la hoja`, `${r.actualizados} ya estaban y se revisaron`];
+      if (r.inexistentes) partes.push(`${r.inexistentes} ya no existen`);
+      if (r.errores) {
+        showToast(`Hoja sincronizada con ${r.errores} error(es): ${partes.join(', ')}. Mira la pestaña Errores_Pedidos de la hoja.`, true);
+      } else {
+        showToast(`Hoja al día: ${partes.join(', ')}.`);
+      }
+    } else {
+      showToast(`Enviados ${r.total} pedidos a la hoja, pero el navegador no puede leer la respuesta de Google. Revisa la hoja y la pestaña Errores_Pedidos en unos segundos.`);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('No se pudo sincronizar con la hoja.', true);
+  } finally {
+    btnSincronizarPedidosHoja.textContent = textoOriginal;
+    btnSincronizarPedidosHoja.disabled = false;
+  }
+});
 
 /* ---------- ver el historial de cambios de estado de un pedido ---------- */
 const modalHistorialPedido = document.getElementById('modalHistorialPedido');

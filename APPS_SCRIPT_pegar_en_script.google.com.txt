@@ -7,6 +7,10 @@
                                    todos los datos se leen del pedido real en Firestore)
      pedido_estado              -> refleja el estado del pedido en la columna "Estado del pedido"
                                    (lee el estado REAL en Firestore; solo escribe esa celda)
+     pedido_pago                -> refleja el estado de pago en la columna M "Estado de pago"
+                                   (lee el pago REAL en Firestore; solo escribe esa celda)
+     pedidos_sincronizar        -> (botón del panel, SOLO con token de admin) agrega a la hoja los pedidos
+                                   que faltan SIN mandar correo y deja al día estado/pago; responde en JSON
      pedido_eliminado           -> borra esa fila de la hoja (SOLO si trae token de admin
                                    y el pedido ya no existe en Firestore)
      codigo_panel_recuperacion  -> manda el código del panel por correo (el código y el
@@ -30,7 +34,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-12 pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+const VERSION_SCRIPT = "2026-10-12 pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -49,6 +53,8 @@ const SHEET_TAB_ERRORES_PEDIDOS = "Errores_Pedidos";
 // Estado del pedido en la hoja: se escribe en UNA columna extra al final de "Pedidos"
 // (después de la última columna que ya uses). Nunca toca las columnas A-M existentes.
 const TITULO_COLUMNA_ESTADO_PEDIDO = "Estado del pedido";
+// Columna M de "Pedidos" = "Estado de pago" (la que se escribe al crear la fila).
+const COLUMNA_ESTADO_PAGO = 13;
 const ESTADOS_PEDIDO_TXT = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
 
 // Proyecto de Firestore de la tienda. El estado se LEE de ahí (fuente de verdad):
@@ -82,6 +88,7 @@ const LIMITES_ENVIO = {
 /* ---------- 2) doPost: recibe los avisos de la tienda ---------- */
 function doPost(e) {
   let datos = null;
+  let respuesta = 'ok';
   try {
     datos = JSON.parse(e.postData.contents);
 
@@ -94,6 +101,13 @@ function doPost(e) {
     }
     if (datos.tipo === 'pedido_estado') {
       actualizarEstadoPedidoEnSheet(datos.id);
+    }
+    if (datos.tipo === 'pedido_pago') {
+      actualizarPagoPedidoEnSheet(datos.id);
+    }
+    if (datos.tipo === 'pedidos_sincronizar') {
+      // Responde con JSON para que el panel sepa qué pasó de verdad (agregados, errores...).
+      respuesta = JSON.stringify(sincronizarPedidos(datos.ids, datos.idToken));
     }
     if (datos.tipo === 'pedido_eliminado') {
       eliminarPedidoDeSheet(datos.id, datos.idToken);
@@ -118,13 +132,16 @@ function doPost(e) {
     }
     // 'problema' no hace nada aquí (no rompe nada).
 
-    return ContentService.createTextOutput('ok');
+    return ContentService.createTextOutput(respuesta);
   } catch (err) {
     // La tienda usa "no-cors": el error solo se ve en "Ejecuciones".
     console.error(err);
     // Los avisos de pedidos que fallan quedan anotados en la pestaña "Errores_Pedidos".
     if (datos && typeof datos.tipo === 'string' && datos.tipo.indexOf('pedido_') === 0) {
       registrarErrorPedido(datos.tipo, datos.id || (datos.pedido && (datos.pedido.codigo_pedido || datos.pedido.id)), err);
+    }
+    if (datos && datos.tipo === 'pedidos_sincronizar') {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Falló la sincronización: ' + err.message }));
     }
     return ContentService.createTextOutput('error: ' + err.message);
   }
@@ -448,6 +465,80 @@ function actualizarEstadoPedidoEnSheet(id) {
   } finally {
     candado.releaseLock();
   }
+}
+
+/* ---------- 5b) ESTADO DE PAGO EN LA HOJA + SINCRONIZAR PEDIDOS ----------
+   - pedido_pago: el admin cambió el pago en el panel. Se lee el pago REAL de Firestore y se
+     escribe UNA celda: la columna M ("Estado de pago") de la fila de ese pedido.
+   - pedidos_sincronizar: botón "Sincronizar pedidos con la hoja" del panel. Para cada pedido:
+       * si NO está en la hoja, se agrega la fila (SIN mandar correo al cliente);
+       * se deja al día la columna "Estado del pedido";
+       * la columna M solo se toca si el pago se gestionó desde el panel (historial_pagos): así
+         no se pisa lo que hayas escrito a mano en pedidos viejos.
+     Solo la puede pedir un admin (token), se puede repetir sin duplicar y responde en JSON. */
+
+/* Filas de la hoja cuyo N° de pedido (columna A) coincide con el código. */
+function filasDelPedido(hoja, codigo) {
+  const ultima = hoja.getLastRow();
+  const filas = [];
+  if (ultima >= 2) {
+    const colA = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+    for (let i = 0; i < colA.length; i++) {
+      if (normalizarCodigo(colA[i][0]) === codigo) filas.push(i + 2);
+    }
+  }
+  return filas;
+}
+
+/* Escribe en la hoja el estado y/o el pago REALES (los del pedido leído de Firestore).
+   Si el pedido no está en la hoja (o sale en 2 filas) NO adivina: lanza error. */
+function escribirEstadoYPagoDePedido(pedido, escribirEstado, escribirPago) {
+  const codigo = normalizarCodigo(String(pedido.id).slice(-6));
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+    const filas = filasDelPedido(hoja, codigo);
+    if (filas.length === 0) throw new Error('El pedido ' + codigo + ' no está en la hoja; no se creó ninguna fila.');
+    if (filas.length > 1) throw new Error('El código ' + codigo + ' aparece en ' + filas.length + ' filas; no se cambió ninguna para no equivocarse de pedido.');
+    if (escribirEstado) {
+      const estado = ESTADOS_PEDIDO_TXT[pedido.estado] ? pedido.estado : 'pendiente'; // sin campo = pendiente
+      escribirEstadoEnFila(hoja, filas[0], ESTADOS_PEDIDO_TXT[estado]);
+    }
+    if (escribirPago) hoja.getRange(filas[0], COLUMNA_ESTADO_PAGO).setValue(textoEstadoPago(pedido));
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+function actualizarPagoPedidoEnSheet(id) {
+  const idCompleto = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(idCompleto)) { console.warn('pedido_pago: id inválido, se ignora.'); return; }
+  const pedido = leerPedidoFirestore(idCompleto); // el pago sale de Firestore, no del aviso
+  if (!pedido) { console.warn('pedido_pago: el pedido ' + idCompleto + ' no existe en Firestore.'); return; }
+  escribirEstadoYPagoDePedido(pedido, false, true);
+  console.log('Pedido ' + pedido.codigo_pedido + ': pago "' + textoEstadoPago(pedido) + '" escrito en la hoja.');
+}
+
+function sincronizarPedidos(ids, idToken) {
+  if (!esAdminConToken(idToken)) return { ok: false, error: 'Sin permiso: entra de nuevo al panel e inténtalo otra vez.' };
+  const lista = (Array.isArray(ids) ? ids : []).map(String).filter(function (id) { return /^[A-Za-z0-9]{20}$/.test(id); }).slice(0, 15);
+  const r = { ok: true, agregados: 0, actualizados: 0, inexistentes: 0, errores: 0 };
+  lista.forEach(function (id) {
+    try {
+      const pedido = leerPedidoFirestore(id);
+      if (!pedido) { r.inexistentes++; return; }
+      const agregado = guardarPedidoEnSheet(pedido) === true; // inserta la fila si falta; NO manda correo
+      const pagoDelPanel = Array.isArray(pedido.historial_pagos) && pedido.historial_pagos.length > 0;
+      escribirEstadoYPagoDePedido(pedido, true, pagoDelPanel);
+      if (agregado) r.agregados++; else r.actualizados++;
+    } catch (err) {
+      r.errores++;
+      registrarErrorPedido('pedidos_sincronizar', String(id).slice(-6).toUpperCase(), err);
+    }
+  });
+  return r;
 }
 
 /* Anota el fallo de un aviso de pedido (sin datos personales). */
