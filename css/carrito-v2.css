@@ -192,7 +192,7 @@ body.carrito-page{
   background:rgba(138,240,78,.1);border:1px solid rgba(138,240,78,.35);animation:cvFloat 3.6s ease-in-out infinite;
 }
 .cart-empty-bag svg{width:40px;height:40px;}
-.cart-empty-art .spark{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--cv-warn);animation:cvTwinkle 2.4s ease-in-out infinite;}
+.cart-empty-art .spark{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--cv-ok);animation:cvTwinkle 2.4s ease-in-out infinite;}
 .cart-empty-art .s1{top:10px;right:22px;}
 .cart-empty-art .s2{bottom:18px;left:12px;animation-delay:.8s;background:var(--cv-ok);}
 .cart-empty-art .s3{top:46px;left:2px;width:5px;height:5px;animation-delay:1.5s;}

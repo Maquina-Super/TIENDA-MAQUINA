@@ -4,7 +4,7 @@
    --------------------------------------------------------------------------
    · Se carga DESPUÉS de css/estilos.css y solo la usa admin.html.
    · No cambia ningún ID, clase usada por JS ni lógica: solo apariencia.
-   · Paleta: negro / gris carbón + verde neón (#a8ff3d, el mismo del login).
+   · Paleta: negro / gris carbón + verde neón (#8af04e, el mismo del login).
    ========================================================================== */
 
 /* ---------- 1. Paleta (sobrescribe las variables --adm-* de estilos.css) ---------- */
@@ -14,17 +14,17 @@
   --adm-surface:#111410;
   --adm-surface-2:#171b15;
   --adm-line:#232820;
-  --adm-line-soft:rgba(168,255,61,.06);
+  --adm-line-soft:rgba(138,240,78,.06);
   --adm-text:#eef2ea;
   --adm-text-dim:#8f9a8b;
-  --adm-lime:#a8ff3d;
+  --adm-lime:#8af04e;
   --adm-lime-ink:#0a1204;
-  --adm-violet:#a8ff3d;          /* antes violeta: ahora el foco/hover usa el verde de marca */
+  --adm-violet:#8af04e;          /* antes violeta: ahora el foco/hover usa el verde de marca */
   --adm-blue:#6cb8ff;
   --adm-pink:#ff6fae;
   --adm-amber:#ffb545;
   --adm-red:#ff5c6c;
-  --adm-green:#a8ff3d;
+  --adm-green:#8af04e;
 
   --ap-sidebar-w:244px;
   --ap-radius:14px;
@@ -43,7 +43,7 @@
 /* ---------- 3. Estructura general ---------- */
 .admin-page{
   background:
-    radial-gradient(800px 420px at 100% -5%, rgba(168,255,61,.07), transparent 60%),
+    radial-gradient(800px 420px at 100% -5%, rgba(138,240,78,.07), transparent 60%),
     var(--adm-bg);
   min-height:100vh;
 }
@@ -72,7 +72,7 @@
 }
 .ap-brand,.ap-brand-sm{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--adm-text);}
 .ap-brand{padding:4px 10px 18px;margin-bottom:6px;border-bottom:1px solid var(--adm-line);}
-.ap-brand .logo-mark,.ap-brand-sm .logo-mark{color:var(--adm-lime);font-size:22px;text-shadow:0 0 18px rgba(168,255,61,.5);}
+.ap-brand .logo-mark,.ap-brand-sm .logo-mark{color:var(--adm-lime);font-size:22px;text-shadow:0 0 18px rgba(138,240,78,.5);}
 .ap-brand .logo-text,.ap-brand-sm .logo-text{
   font-family:var(--ap-font-display);font-weight:700;font-size:26px;letter-spacing:.04em;color:var(--adm-text);line-height:1;
 }
@@ -100,12 +100,12 @@
 #adminDashView .admin-tab-btn:hover{background:rgba(255,255,255,.04);color:var(--adm-text);}
 #adminDashView .admin-tab-btn:hover .ap-ico{color:var(--adm-lime);}
 #adminDashView .admin-tab-btn.active{
-  background:linear-gradient(90deg,rgba(168,255,61,.16),rgba(168,255,61,.04));
-  color:var(--adm-lime);box-shadow:inset 0 0 0 1px rgba(168,255,61,.22);
+  background:linear-gradient(90deg,rgba(138,240,78,.16),rgba(138,240,78,.04));
+  color:var(--adm-lime);box-shadow:inset 0 0 0 1px rgba(138,240,78,.22);
 }
 #adminDashView .admin-tab-btn.active::before{
   content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--adm-lime);
-  box-shadow:0 0 12px rgba(168,255,61,.7);
+  box-shadow:0 0 12px rgba(138,240,78,.7);
 }
 #adminDashView .admin-tab-btn.active .ap-ico{color:var(--adm-lime);}
 #pedidosBadge{margin-left:auto;opacity:1;font-family:var(--ap-font-mono);font-size:11px;}
@@ -134,11 +134,11 @@
 .admin-btn:active{transform:translateY(1px);}
 .admin-btn-primary{
   background:var(--adm-lime);color:var(--adm-lime-ink);border-color:var(--adm-lime);
-  box-shadow:0 0 0 0 rgba(168,255,61,0);
+  box-shadow:0 0 0 0 rgba(138,240,78,0);
 }
-.admin-btn-primary:hover{transform:none;background:#bdff66;box-shadow:0 6px 24px rgba(168,255,61,.28);}
+.admin-btn-primary:hover{transform:none;background:#bdff66;box-shadow:0 6px 24px rgba(138,240,78,.28);}
 .admin-btn-ghost{background:transparent;color:var(--adm-text);border-color:var(--adm-line);}
-.admin-btn-ghost:hover{background:rgba(168,255,61,.07);border-color:rgba(168,255,61,.55);color:var(--adm-lime);}
+.admin-btn-ghost:hover{background:rgba(138,240,78,.07);border-color:rgba(138,240,78,.55);color:var(--adm-lime);}
 .admin-btn-dark{background:transparent;color:#ff8a96;border-color:rgba(255,92,108,.4);}
 .admin-btn-dark:hover{background:#ff5c6c;border-color:#ff5c6c;color:#fff;opacity:1;transform:none;}
 .admin-btn-xs{padding:7px 12px;font-size:13px;margin-right:0;}
@@ -183,7 +183,7 @@
   background:var(--adm-surface);border:1px solid var(--adm-line);border-radius:var(--ap-radius);
   border-left:1px solid var(--adm-line);transition:border-color .15s ease,transform .15s ease;
 }
-#adminStats .ap-kpi:hover{border-color:rgba(168,255,61,.35);}
+#adminStats .ap-kpi:hover{border-color:rgba(138,240,78,.35);}
 #adminStats .ap-kpi .ap-kpi-ico{
   display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;margin:0;border-radius:12px;font-size:23px;line-height:1;
   background:rgba(255,255,255,.05);color:var(--adm-text);text-transform:none;letter-spacing:0;
@@ -197,7 +197,7 @@
   display:block;margin-top:6px;font-size:11px;font-family:var(--ap-font-mono);letter-spacing:.07em;text-transform:uppercase;
   color:var(--adm-text-dim);line-height:1.35;
 }
-#adminStats .ap-kpi.ap-kpi-ok .ap-kpi-ico{background:rgba(168,255,61,.12);color:var(--adm-lime);}
+#adminStats .ap-kpi.ap-kpi-ok .ap-kpi-ico{background:rgba(138,240,78,.12);color:var(--adm-lime);}
 #adminStats .ap-kpi-ok b{color:var(--adm-lime);}
 #adminStats .ap-kpi.ap-kpi-low .ap-kpi-ico{background:rgba(255,181,69,.13);color:var(--adm-amber);}
 #adminStats .ap-kpi-low b{color:var(--adm-amber);}
@@ -225,7 +225,7 @@
 /* ---------- 10. Barra de herramientas de inventario ---------- */
 #adminDashView .ap-inv-card.admin-card{padding:0;overflow:hidden;}
 .ap-inv-card > .admin-inv-hint{
-  margin:0;padding:14px 22px;background:rgba(168,255,61,.04);border-bottom:1px solid var(--adm-line);max-width:none;font-size:12.5px;
+  margin:0;padding:14px 22px;background:rgba(138,240,78,.04);border-bottom:1px solid var(--adm-line);max-width:none;font-size:12.5px;
 }
 .ap-toolbar{
   display:grid;grid-template-columns:minmax(220px,1fr) 190px 190px auto;gap:12px;align-items:center;padding:18px 22px 6px;
@@ -240,7 +240,7 @@
   font-family:'Work Sans',system-ui,sans-serif;transition:border-color .15s ease,box-shadow .15s ease;
 }
 .admin-page input:focus,.admin-page select:focus,.admin-page textarea:focus{
-  outline:none;border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(168,255,61,.14);
+  outline:none;border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(138,240,78,.14);
 }
 .admin-page input::placeholder,.admin-page textarea::placeholder{color:#5f6b5b;}
 #adminDashView .admin-buscar{
@@ -263,7 +263,7 @@
 }
 .admin-table th.th-ordenable:hover{color:var(--adm-lime);}
 .admin-table td{border-bottom:1px solid var(--adm-line);color:var(--adm-text);}
-.admin-table tbody tr:hover,#tablaProductos tbody tr:hover{background:rgba(168,255,61,.045);}
+.admin-table tbody tr:hover,#tablaProductos tbody tr:hover{background:rgba(138,240,78,.045);}
 #tablaProductos tbody td{padding:14px 12px;}
 #tablaProductos tbody tr:last-child td{border-bottom:0;}
 #tablaProductos tr.fila-inactiva td:not(.td-acciones):not(.td-estado){opacity:.5;}
@@ -293,13 +293,13 @@
   border:1px solid transparent;
 }
 .estado-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
-.estado-pill.ok{background:rgba(168,255,61,.12);color:var(--adm-lime);border-color:rgba(168,255,61,.25);}
+.estado-pill.ok{background:rgba(138,240,78,.12);color:var(--adm-lime);border-color:rgba(138,240,78,.25);}
 .estado-pill.low{background:rgba(255,181,69,.12);color:var(--adm-amber);border-color:rgba(255,181,69,.3);}
 .estado-pill.out{background:rgba(255,92,108,.12);color:var(--adm-red);border-color:rgba(255,92,108,.3);}
 .estado-pill-pendiente{background:rgba(255,181,69,.14);color:var(--adm-amber);}
 .estado-pill-confirmado{background:rgba(108,184,255,.14);color:var(--adm-blue);}
 .estado-pill-enviado{background:rgba(190,160,255,.14);color:#c9b6ff;}
-.estado-pill-entregado{background:rgba(168,255,61,.14);color:var(--adm-lime);}
+.estado-pill-entregado{background:rgba(138,240,78,.14);color:var(--adm-lime);}
 .estado-pill-cancelado{background:rgba(255,92,108,.14);color:var(--adm-red);}
 
 /* acciones de fila (siguen siendo .btn-editar-fila / .btn-borrar-fila) */
@@ -310,7 +310,7 @@
   background:transparent;border:1px solid var(--adm-line);color:var(--adm-text);border-radius:var(--ap-radius-sm);
 }
 #adminDashView #tablaProductos .td-acciones .ap-bi{display:inline-flex;font-size:16px;}
-#adminDashView #tablaProductos .td-acciones .btn-editar-fila{border-color:rgba(168,255,61,.4);color:var(--adm-lime);}
+#adminDashView #tablaProductos .td-acciones .btn-editar-fila{border-color:rgba(138,240,78,.4);color:var(--adm-lime);}
 #adminDashView #tablaProductos .td-acciones .btn-editar-fila:hover{background:var(--adm-lime);color:var(--adm-lime-ink);border-color:var(--adm-lime);}
 #adminDashView #tablaProductos .td-acciones .btn-borrar-fila{border-color:rgba(255,92,108,.4);color:#ff8a96;margin-right:0;}
 #adminDashView #tablaProductos .td-acciones .btn-borrar-fila:hover{background:#ff5c6c;border-color:#ff5c6c;color:#fff;}
@@ -342,10 +342,10 @@
 .admin-pagination-info b{color:var(--adm-lime);}
 
 /* ---------- 13. Formulario "Agregar producto" ---------- */
-.admin-add-card{border-color:rgba(168,255,61,.28);background:linear-gradient(180deg,#12160f,#0e110c);}
+.admin-add-card{border-color:rgba(138,240,78,.28);background:linear-gradient(180deg,#12160f,#0e110c);}
 .admin-add-grid input,.admin-add-grid select{padding:13px 14px;font-size:14px;}
 .admin-foto-picker{
-  border:1.5px dashed rgba(168,255,61,.35);border-radius:var(--ap-radius-sm);background:rgba(168,255,61,.03);color:var(--adm-text-dim);
+  border:1.5px dashed rgba(138,240,78,.35);border-radius:var(--ap-radius-sm);background:rgba(138,240,78,.03);color:var(--adm-text-dim);
 }
 .admin-foto-picker:hover{border-color:var(--adm-lime);color:var(--adm-lime);}
 .admin-add-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
@@ -353,7 +353,7 @@
   display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin-top:10px;
   background:var(--adm-bg-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);cursor:pointer;
 }
-.pe-check:hover{border-color:rgba(168,255,61,.4);}
+.pe-check:hover{border-color:rgba(138,240,78,.4);}
 .admin-page input[type="checkbox"]{accent-color:var(--adm-lime);}
 
 /* ---------- 14. Modales ---------- */
@@ -364,8 +364,8 @@
 }
 .admin-modal h3{font-family:var(--ap-font-display);font-weight:700;font-size:24px;letter-spacing:.04em;text-transform:uppercase;}
 .pe-modal{
-  background:linear-gradient(180deg,#12150f,#0b0d0a);border:1px solid rgba(168,255,61,.28);border-radius:18px;
-  box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 60px rgba(168,255,61,.07);
+  background:linear-gradient(180deg,#12150f,#0b0d0a);border:1px solid rgba(138,240,78,.28);border-radius:18px;
+  box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 60px rgba(138,240,78,.07);
 }
 .pe-head{border-bottom:1px solid var(--adm-line);}
 .pe-head h3{font-family:var(--ap-font-display);font-weight:700;font-size:28px;letter-spacing:.03em;text-transform:uppercase;}
@@ -373,7 +373,7 @@
 .pe-x{border-radius:10px;}
 .pe-x:hover{color:var(--adm-lime);border-color:var(--adm-lime);}
 .pe-input{background:var(--adm-bg-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);color:var(--adm-text);}
-.pe-input:focus{border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(168,255,61,.14);outline:none;}
+.pe-input:focus{border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(138,240,78,.14);outline:none;}
 .pe-det{border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);background:rgba(255,255,255,.02);}
 .pe-foot{border-top:1px solid var(--adm-line);}
 .pe-foot .admin-btn,.pe-confirm-btns .admin-btn{font-family:var(--ap-font-display);font-size:16px;letter-spacing:.06em;}
@@ -381,7 +381,7 @@
 
 /* ---------- 15. Avisos (toast) ---------- */
 .toast{
-  background:#10140d;color:var(--adm-text);border:1px solid rgba(168,255,61,.45);border-radius:12px;
+  background:#10140d;color:var(--adm-text);border:1px solid rgba(138,240,78,.45);border-radius:12px;
   box-shadow:0 14px 40px rgba(0,0,0,.6);
 }
 .toast .dot{background:var(--adm-lime);}
@@ -392,8 +392,8 @@
 .admin-resumen-grid{gap:var(--ap-gap);}
 .admin-filtros-pedidos{gap:10px;}
 .admin-permiso-item{background:var(--adm-bg-2);border:1px solid var(--adm-line);border-radius:var(--ap-radius-sm);}
-.admin-permiso-item:hover{border-color:rgba(168,255,61,.4);}
-.admin-permiso-pill{background:rgba(168,255,61,.12);color:var(--adm-lime);}
+.admin-permiso-item:hover{border-color:rgba(138,240,78,.4);}
+.admin-permiso-pill{background:rgba(138,240,78,.12);color:var(--adm-lime);}
 
 /* ==========================================================================
    RESPONSIVE
@@ -534,7 +534,7 @@
 #tablaPedidos .ped-acciones{white-space:nowrap;}
 #tablaPedidos .ped-acciones .admin-btn{min-height:36px;padding:0 14px;font-size:13px;margin-right:6px;}
 #tablaPedidos .ped-acciones .admin-btn:last-child{margin-right:0;}
-#tablaPedidos .ped-acciones .btn-ver-detalle{border-color:rgba(168,255,61,.4);color:var(--adm-lime);}
+#tablaPedidos .ped-acciones .btn-ver-detalle{border-color:rgba(138,240,78,.4);color:var(--adm-lime);}
 #tablaPedidos .ped-acciones .btn-ver-detalle:hover{background:var(--adm-lime);color:var(--adm-lime-ink);border-color:var(--adm-lime);}
 #tablaPedidos .ped-acciones .btn-borrar-pedido{color:#d9959d;border-color:var(--adm-line);}
 #tablaPedidos .ped-acciones .btn-borrar-pedido:hover{background:#ff5c6c;border-color:#ff5c6c;color:#fff;}
@@ -593,7 +593,7 @@
 .dp-prod-nombre{display:block;font-size:14px;line-height:1.3;overflow-wrap:anywhere;}
 .dp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
 .dp-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;border:1px solid var(--adm-line);background:var(--adm-bg-2);font-size:11.5px;color:var(--adm-text);white-space:nowrap;}
-.dp-chip-cant{color:var(--adm-lime);border-color:rgba(168,255,61,.3);font-weight:700;}
+.dp-chip-cant{color:var(--adm-lime);border-color:rgba(138,240,78,.3);font-weight:700;}
 .dp-muestra{display:inline-block;width:11px;height:11px;border-radius:50%;border:1px solid rgba(255,255,255,.35);}
 .dp-prod-total{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;}
 .dp-prod-precio{font-size:14px;font-weight:700;color:var(--adm-text);white-space:nowrap;}

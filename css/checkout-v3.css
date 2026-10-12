@@ -75,7 +75,7 @@
 /* ---------- tarjetas de revisión (paso 3) ---------- */
 .ck-card{margin:0 0 14px;padding:16px;border-radius:14px;background:var(--c-surface-2);border:1px solid var(--c-line);min-width:0;}
 .ck-card header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
-.ck-card h3{margin:0;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-yellow);font-weight:700;}
+.ck-card h3{margin:0;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-accent);font-weight:700;}
 .ck-edit{
   background:none;border:0;padding:6px 8px;margin:-6px -8px;border-radius:8px;cursor:pointer;
   font-size:13px;font-weight:600;color:var(--ck-ok);text-decoration:underline;text-underline-offset:3px;

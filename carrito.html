@@ -14,16 +14,17 @@
 <meta property="og:description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega o con PSE.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/carrito.html">
-<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/portada.jpg">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/estilos.css?v=rev1">
 <link rel="stylesheet" href="css/maquina-ui.css?v=9">
 <link rel="stylesheet" href="css/inicio.css?v=2">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="css/carrito.css">
-<link rel="stylesheet" href="css/carrito-pro.css?v=1">
-<link rel="stylesheet" href="css/carrito-v2.css?v=1">
-<link rel="stylesheet" href="css/checkout-v3.css?v=1">
+<link rel="stylesheet" href="css/carrito.css?v=rev1">
+<link rel="stylesheet" href="css/carrito-pro.css?v=rev1">
+<link rel="stylesheet" href="css/carrito-v2.css?v=rev1">
+<link rel="stylesheet" href="css/checkout-v3.css?v=rev1">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 </head>
 <body class="carrito-page">
 
@@ -31,8 +32,8 @@
 
 <main class="cart-page">
   <header class="cart-hero">
-    <h1>Carrito de compras</h1>
-    <p>Revisa tus productos antes de continuar.</p>
+    <h1 id="carritoTituloPagina">Carrito de compras</h1>
+    <p id="carritoSubPagina">Revisa tus productos antes de continuar.</p>
   </header>
 
   <div class="carrito-wrap" id="carritoWrap">
@@ -42,7 +43,7 @@
 
 <div id="site-footer"></div>
 
-<div class="toast" id="toast"><span class="dot"></span><span id="toastText">Aviso</span></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"><span class="dot"></span><span id="toastText">Aviso</span></div>
 
 <div id="ck-overlay" class="ck-overlay" hidden data-estado="">
   <div class="ck-ov-card" role="alertdialog" aria-modal="true" aria-labelledby="ckOvTitulo" aria-describedby="ckOvMsg" tabindex="-1">
@@ -63,7 +64,7 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
-<script src="js/store.js"></script>
+<script src="js/store.js?v=7"></script>
 <script src="js/carrito-core.js"></script>
 <script src="js/layout.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -292,7 +293,7 @@ function htmlFilaInterior(g) {
   }
 
   return `
-    <a class="cart-item-media" ${enlace ? `href="${enlace}"` : 'aria-hidden="true" tabindex="-1"'}>${foto}${i.descuentoPct > 0 && !noVendible ? `<span class="cart-item-badge">-${i.descuentoPct}%</span>` : ''}</a>
+    <a class="cart-item-media" ${enlace ? `href="${enlace}" aria-label="Ver ${esc(g.nombre)}"` : 'aria-hidden="true" tabindex="-1"'}>${foto}${i.descuentoPct > 0 && !noVendible ? `<span class="cart-item-badge">-${i.descuentoPct}%</span>` : ''}</a>
     <div class="cart-item-info">
       <div class="cart-item-top">
         <div class="cart-item-heading">
@@ -382,7 +383,7 @@ function pintarCarrito() {
 
         <div class="pagar-box pagar-box-abajo ck-box" id="ckBox">
           <div class="ck-head">
-            <span class="pagar-box-eyebrow" id="ckEyebrow">Paso 1 de 3</span>
+            <span class="pagar-box-eyebrow" id="ckEyebrow">Paso 1 de 4</span>
             <h2 id="ckTitulo" tabindex="-1">Tus datos</h2>
             <p class="ck-sub" id="ckSub">Los usamos solo para confirmar y entregar tu pedido.</p>
           </div>
@@ -911,9 +912,9 @@ function pintarCarrito() {
   const formPago = $('form-pago');
   const paneles = [...wrap.querySelectorAll('.ck-panel')];
   const PASOS = {
-    1: { eyebrow: 'Paso 1 de 3', titulo: 'Tus datos', sub: 'Los usamos solo para confirmar y entregar tu pedido.', cta: 'Continuar a entrega' },
-    2: { eyebrow: 'Paso 2 de 3', titulo: 'Dirección y entrega', sub: 'Dinos dónde recibirás tu pedido.', cta: 'Revisar mi pedido' },
-    3: { eyebrow: 'Paso 3 de 3', titulo: 'Resumen y pago', sub: 'Revisa todo y elige cómo pagar.', cta: 'Confirmar pedido' },
+    1: { eyebrow: 'Paso 1 de 4', titulo: 'Tus datos', sub: 'Los usamos solo para confirmar y entregar tu pedido.', cta: 'Continuar a entrega' },
+    2: { eyebrow: 'Paso 2 de 4', titulo: 'Dirección y entrega', sub: 'Dinos dónde recibirás tu pedido.', cta: 'Revisar mi pedido' },
+    3: { eyebrow: 'Paso 3 de 4', titulo: 'Resumen y pago', sub: 'Revisa todo y elige cómo pagar.', cta: 'Confirmar pedido' },
   };
   const textoAccion = (n) => (n === 3 ? 'Confirmar pedido' : 'Continuar');
 
@@ -1229,6 +1230,20 @@ function pintarCarrito() {
     guardarBorrador();
   }
   chips.forEach(chip => chip.addEventListener('click', () => elegirMetodo(chip)));
+  // Teclado (patrón "radiogroup"): flechas, Inicio y Fin mueven y eligen el método visible siguiente/anterior
+  chips.forEach(chip => chip.addEventListener('keydown', (e) => {
+    const teclas = ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'];
+    if (!teclas.includes(e.key)) return;
+    const visibles = Array.from(chips).filter(c => !c.hidden && c.offsetParent !== null);
+    if (visibles.length < 2) return;
+    e.preventDefault();
+    let i = visibles.indexOf(chip);
+    if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = visibles.length - 1;
+    else i = (i + (e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1) + visibles.length) % visibles.length;
+    visibles[i].focus();
+    elegirMetodo(visibles[i]);
+  }));
   wrap.querySelectorAll('.nequi-copiar').forEach(btn => {
     btn.addEventListener('click', () => {
       const texto = $(btn.dataset.copiar).textContent.trim();
@@ -1683,6 +1698,10 @@ function mostrarConfirmacion(pedido, metodo) {
   pedidoConfirmado = true;
   try { sessionStorage.removeItem(CLAVE_BORRADOR); } catch (e) { /* nada */ }
   cerrarOverlay();
+  // el encabezado de la página deja de hablar de "revisar el carrito"
+  const _h1 = document.getElementById('carritoTituloPagina'), _sub = document.getElementById('carritoSubPagina');
+  if (_h1) _h1.textContent = 'Gracias por tu compra';
+  if (_sub) _sub.textContent = 'Guarda tu número de pedido para consultarlo cuando quieras.';
   const wrap = document.getElementById('carritoWrap');
   const ce = metodo === 'contraentrega', pse = metodo === 'pse', nq = metodo === 'nequi';
   const total = fmtDinero(pedido.total);

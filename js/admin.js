@@ -162,7 +162,7 @@ function pintarCostosEnvio() {
     <tr>
       <td>${z.nombre}</td>
       <td>
-        <input type="number" class="admin-input input-costo-envio" data-zona="${z.id}"
+        <input type="number" class="admin-input input-costo-envio" data-zona="${z.id}" aria-label="Costo de envío para ${z.nombre}"
           value="${Number(z.costo) || 0}" min="0" step="500" style="width:140px;">
       </td>
     </tr>
@@ -243,9 +243,11 @@ document.getElementById('btnEnviarAvisoDrop').addEventListener('click', async ()
   const asunto = document.getElementById('avisarDropAsunto').value;
   const mensaje = document.getElementById('avisarDropMensaje').value;
   if (_correosVoltageClub.length > 90) {
-    const sigue = confirm(
-      `Son ${_correosVoltageClub.length} correos. Gmail gratis deja mandar más o menos 100 destinatarios al día en total (contando también los correos de pedidos y de códigos del panel). ¿Seguro que quieres mandarlo ya?`
-    );
+    const sigue = await confirmarAccion({
+      titulo: 'Enviar a muchos correos',
+      textoOk: 'Sí, enviar ya',
+      mensaje: `Son ${_correosVoltageClub.length} correos. Gmail gratis deja mandar más o menos 100 destinatarios al día en total (contando también los correos de pedidos y de códigos del panel). ¿Seguro que quieres mandarlo ya?`
+    });
     if (!sigue) return;
   }
   const btn = document.getElementById('btnEnviarAvisoDrop');
@@ -570,7 +572,12 @@ document.getElementById('tablaUsuariosPanelBody').addEventListener('click', asyn
     );
     if (codigo === null) return;
     if (!(await verificarCodigoDesarrollador(codigo))) { return; }
-    if (!confirm(`¿Eliminar a "${etiqueta}"? No se puede deshacer. Esto le quita el acceso real a Firestore y borra su perfil/permisos del panel, pero NO borra su cuenta de Firebase Authentication (eso, si quieres, se hace aparte desde la consola de Firebase).`)) return;
+    if (!(await confirmarAccion({
+      titulo: `¿Eliminar a "${etiqueta}"?`,
+      peligro: true,
+      textoOk: 'Sí, eliminar',
+      mensaje: `No se puede deshacer. Esto le quita el acceso real a Firestore y borra su perfil/permisos del panel, pero NO borra su cuenta de Firebase Authentication (eso, si quieres, se hace aparte desde la consola de Firebase).`
+    }))) return;
     btnEliminar.disabled = true;
     const res = await eliminarUsuarioAdminPanel(usuario, btnEliminar.dataset.correo);
     btnEliminar.disabled = false;
@@ -1146,7 +1153,13 @@ document.getElementById('tablaPedidosBody').addEventListener('change', async (e)
   if (!permisosActuales.pedidos) { ponerSelectEstado(select, estadoPrevio); showToast('No tienes permiso para cambiar el estado de los pedidos.', true); return; }
   if (nuevoEstado === estadoPrevio) return;
   if (!ESTADOS_PEDIDO[nuevoEstado]) { ponerSelectEstado(select, estadoPrevio); return; }
-  if (nuevoEstado === 'cancelado' && !confirm(`¿Cancelar el pedido #${numerosPedidoCache.get(id) || ''}?\n\nQuedará marcado como cancelado y dejará de contar en el total vendido.`)) {
+  if (nuevoEstado === 'cancelado' && !(await confirmarAccion({
+    titulo: `¿Cancelar el pedido #${numerosPedidoCache.get(id) || ''}?`,
+    peligro: true,
+    textoOk: 'Sí, cancelar pedido',
+    textoCancelar: 'No, volver',
+    mensaje: 'Quedará marcado como cancelado y dejará de contar en el total vendido.'
+  }))) {
     ponerSelectEstado(select, estadoPrevio);
     return;
   }

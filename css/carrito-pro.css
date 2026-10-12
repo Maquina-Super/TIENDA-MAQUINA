@@ -4,7 +4,7 @@
    Se carga DESPUÉS de carrito.css. Solo cambia la presentación:
    no toca ids, clases que usa el JavaScript ni la lógica.
    · Verde neón (#8af04e) = color principal (acciones, totales).
-   · Amarillo (#FFD600)   = secundario (detalles e indicadores).
+   · Ámbar (#FFD600) solo para advertencias (sin conexión, stock bajo).
    · Fondos negro / gris oscuro, igual que el resto de la tienda.
    Para volver al diseño anterior: quita este <link> de carrito.html.
    ============================================================ */
@@ -13,7 +13,7 @@ body.carrito-page{
   --acento:#8af04e;--acento-2:#b6ff3c;--acento-ink:#0a0a0a;
   --c-bg:#0a0a0a;--c-surface:#121212;--c-surface-2:#171717;--c-line:#262626;--c-line-2:#3a3a3a;
   --c-ink:#f2f2f0;--c-gray:#9b9b97;--c-gray-2:#b4b4b0;
-  --c-green:#8af04e;--c-yellow:#FFD600;
+  --c-green:#8af04e;--c-accent:#8af04e;
   --line:#262626;--gray:#9b9b97;--forest:#8af04e;--forest-dark:#b9f79a;
   --cp-radius:14px;
   background:var(--c-bg);background-image:none;color:var(--c-ink);
@@ -33,7 +33,6 @@ body.carrito-page{
 .carrito-page .nav-links a.active::after{background:var(--c-green);}
 .carrito-page .nav .cart-pill,.carrito-page .nav .cart-pill:hover{background:transparent;border-color:var(--c-line-2);color:var(--c-ink);}
 .carrito-page .nav .cart-pill .icon-btn{color:var(--c-ink);}
-.carrito-page .nav .cart-count{background:var(--c-yellow);color:#0a0a0a;}
 .carrito-page .nav .logo-mark,.carrito-page .nav .logo-text em{color:var(--c-green);}
 .carrito-page .nav .logo-text{color:var(--c-ink);}
 
@@ -113,7 +112,7 @@ body.carrito-page{
 .carrito-info-card{background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--cp-radius);padding:6px 18px;}
 .carrito-info-card .info-item{display:flex;gap:14px;align-items:flex-start;padding:14px 0;}
 .carrito-info-card .info-item + .info-item{border-top:1px solid var(--c-line);}
-.carrito-info-card svg{width:22px;height:22px;flex-shrink:0;color:var(--c-yellow);margin-top:1px;}
+.carrito-info-card svg{width:22px;height:22px;flex-shrink:0;color:var(--c-accent);margin-top:1px;}
 .carrito-info-card b{display:block;font-size:13.5px;font-weight:600;color:var(--c-ink);}
 .carrito-info-card span{display:block;font-size:12.5px;color:var(--c-gray);margin-top:2px;line-height:1.4;}
 .carrito-info-card a{color:var(--c-green);text-decoration:underline;text-underline-offset:3px;}
@@ -123,7 +122,7 @@ body.carrito-page{
   background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--cp-radius);box-shadow:none;
   color:var(--c-ink);margin-top:clamp(18px,2.4vw,28px);padding:clamp(18px,2.4vw,28px);
 }
-.carrito-page .pagar-box-eyebrow{background:transparent;color:var(--c-yellow);padding:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;box-shadow:none;}
+.carrito-page .pagar-box-eyebrow{background:transparent;color:var(--c-accent);padding:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;box-shadow:none;}
 .carrito-page .pagar-box h2{color:var(--c-ink);font-size:clamp(22px,2.4vw,28px);text-transform:uppercase;margin-top:6px;}
 .carrito-page .checkout-step{border-color:var(--c-line);}
 .carrito-page .step-header{color:var(--c-ink);}
@@ -161,7 +160,7 @@ body.carrito-page{
   display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"ico nom rad" "ico sub rad";column-gap:14px;align-items:center;text-align:left;padding:14px 16px;
 }
 .carrito-page .metodo-card-top{display:contents;}
-.carrito-page .metodo-card-icono{grid-area:ico;color:var(--c-yellow);width:28px;height:28px;}
+.carrito-page .metodo-card-icono{grid-area:ico;color:var(--c-accent);width:28px;height:28px;}
 .carrito-page .metodo-radio{grid-area:rad;}
 .carrito-page .metodo-card-nombre{grid-area:nom;color:var(--c-ink);font-size:15px;font-weight:600;}
 .carrito-page .metodo-card-sub{grid-area:sub;color:var(--c-gray);font-size:12.5px;}
@@ -174,18 +173,18 @@ body.carrito-page{
 .carrito-page .nequi-datos-box{background:var(--c-surface-2);border:1px solid var(--c-line-2);color:var(--c-ink);}
 .carrito-page .nequi-copiar{background:transparent;border:1px solid var(--c-line-2);color:var(--c-ink);}
 .carrito-page .tarjeta-nota{color:var(--c-gray);}
-.carrito-page .aviso-offline{background:rgba(255,214,0,.1);color:var(--c-yellow);border:1px solid rgba(255,214,0,.3);}
+.carrito-page .aviso-offline{background:rgba(255,214,0,.1);color:#ffd600;border:1px solid rgba(255,214,0,.3);}
 
 /* ---------- carrito vacío ---------- */
 .carrito-page .cart-empty{
   max-width:520px;margin:clamp(8px,3vw,32px) auto 0;padding:clamp(32px,5vw,52px) 24px;text-align:center;
   background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--cp-radius);box-shadow:none;
 }
-.carrito-page .cart-empty-icon{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:rgba(255,214,0,.1);color:var(--c-yellow);border:1px solid rgba(255,214,0,.3);display:grid;place-items:center;}
+.carrito-page .cart-empty-icon{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:rgba(138,240,78,.1);color:var(--c-accent);border:1px solid rgba(138,240,78,.3);display:grid;place-items:center;}
 .carrito-page .cart-empty-icon svg{width:28px;height:28px;}
 .carrito-page .cart-empty h2{color:var(--c-ink);font-size:clamp(24px,3vw,32px);text-transform:uppercase;margin-bottom:8px;}
 .carrito-page .cart-empty p{color:var(--c-gray);margin-bottom:22px;}
-.carrito-page .cart-empty .btn-finalizar.btn-inline{background:var(--c-yellow);color:#0a0a0a;}
+.carrito-page .cart-empty .btn-finalizar.btn-inline{background:var(--c-accent);color:#0a0a0a;}
 .carrito-page .cart-empty .btn-finalizar.btn-inline:hover{background:#ffe433;}
 
 /* ---------- confirmación (ventana final) ---------- */
@@ -198,7 +197,7 @@ body.carrito-page{
 .carrito-page footer.footer-contacto{background:var(--c-surface);}
 .carrito-page .footer-col h4{color:var(--c-green);}
 .carrito-page .footer-cta-btn{background:var(--c-green);color:#0a0a0a;}
-.carrito-page .footer-cta-bolt{color:var(--c-yellow);}
+.carrito-page .footer-cta-bolt{color:var(--c-accent);}
 
 /* ============================================================
    RESPONSIVO

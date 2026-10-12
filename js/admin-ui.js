@@ -73,3 +73,52 @@
     });
   }
 })();
+
+/* ============================================================
+   confirmarAccion({ titulo, mensaje, textoOk, textoCancelar, peligro })
+   → Promise<boolean>
+   Reemplaza al confirm() del navegador por un diálogo con la
+   identidad de la tienda. Accesible: role="alertdialog", foco
+   atrapado, Escape cancela y el foco vuelve a donde estaba.
+   ============================================================ */
+window.confirmarAccion = function (opts) {
+  opts = opts || {};
+  return new Promise(function (resolve) {
+    var previo = document.activeElement;
+    var fondo = document.createElement('div');
+    fondo.className = 'mq-confirm-fondo';
+    var caja = document.createElement('div');
+    caja.className = 'mq-confirm' + (opts.peligro ? ' es-peligro' : '');
+    caja.setAttribute('role', 'alertdialog');
+    caja.setAttribute('aria-modal', 'true');
+    caja.setAttribute('aria-labelledby', 'mqConfirmTitulo');
+    caja.setAttribute('aria-describedby', 'mqConfirmTexto');
+    var h = document.createElement('h3'); h.id = 'mqConfirmTitulo'; h.textContent = opts.titulo || '¿Seguro?';
+    var p = document.createElement('p'); p.id = 'mqConfirmTexto'; p.textContent = opts.mensaje || '';
+    var fila = document.createElement('div'); fila.className = 'mq-confirm-botones';
+    var bNo = document.createElement('button'); bNo.type = 'button'; bNo.className = 'mq-confirm-no'; bNo.textContent = opts.textoCancelar || 'Cancelar';
+    var bSi = document.createElement('button'); bSi.type = 'button'; bSi.className = 'mq-confirm-si'; bSi.textContent = opts.textoOk || 'Confirmar';
+    fila.appendChild(bNo); fila.appendChild(bSi);
+    caja.appendChild(h); caja.appendChild(p); caja.appendChild(fila);
+    fondo.appendChild(caja); document.body.appendChild(fondo);
+    function cerrar(valor) {
+      document.removeEventListener('keydown', teclas, true);
+      fondo.remove();
+      if (previo && previo.focus) { try { previo.focus(); } catch (e) {} }
+      resolve(valor);
+    }
+    function teclas(e) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(false); }
+      else if (e.key === 'Tab') {
+        var f = [bNo, bSi], i = f.indexOf(document.activeElement);
+        e.preventDefault();
+        f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+      }
+    }
+    document.addEventListener('keydown', teclas, true);
+    bNo.addEventListener('click', function () { cerrar(false); });
+    bSi.addEventListener('click', function () { cerrar(true); });
+    fondo.addEventListener('mousedown', function (e) { if (e.target === fondo) cerrar(false); });
+    (opts.peligro ? bNo : bSi).focus();   // en acciones peligrosas el foco empieza en "Cancelar"
+  });
+};

@@ -14,11 +14,12 @@
 <meta property="og:description" content="Crea tu cuenta en MAQUINA para seguir tus pedidos y guardar tus favoritos.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/registro.html">
-<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/portada.jpg">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0a0a0a">
-<link rel="stylesheet" href="css/estilos.css?v=5">
+<link rel="stylesheet" href="css/estilos.css?v=rev1">
 <link rel="stylesheet" href="css/maquina-ui.css?v=9">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 <style>
 /* ---- personaje estático (sin animación) ---- */
 .auth-figure svg{ overflow:visible; }
@@ -64,8 +65,8 @@
 
         <label style="color:var(--gray);font-size:.78rem;margin-bottom:6px;display:block;">¿Cómo quieres verificar tu cuenta?</label>
         <div class="method-toggle" id="methodToggle">
-          <div class="method-option active" data-method="correo"><span class="m-ic">📧</span> Correo</div>
-          <div class="method-option" data-method="telefono"><span class="m-ic">📱</span> Teléfono</div>
+          <div class="method-option active" data-method="correo" role="button" tabindex="0"><span class="m-ic">📧</span> Correo</div>
+          <div class="method-option" data-method="telefono" role="button" tabindex="0"><span class="m-ic">📱</span> Teléfono</div>
         </div>
 
         <div class="auth-field">
@@ -147,7 +148,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js?v=4"></script>
-<script src="js/store.js?v=4"></script>
+<script src="js/store.js?v=7"></script>
 
 <!-- ============================================================
      EmailJS — para enviar el código de verificación por CORREO
@@ -451,5 +452,13 @@ formOtp.addEventListener('submit', async function (e) {
 });
 </script>
 
+<script>
+/* Accesibilidad: el selector Correo/Teléfono también se maneja con teclado */
+document.querySelectorAll('.method-option').forEach(function (o) {
+  o.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); o.click(); }
+  });
+});
+</script>
 </body>
 </html>
