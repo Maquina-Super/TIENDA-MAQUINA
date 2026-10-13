@@ -1,0 +1,17 @@
+CAMBIOS EN EL PANEL — Voltage Club y Costos de envío
+=====================================================
+Copia estos 5 archivos sobre tu proyecto (misma ruta):
+
+  admin.html                     (modificado)
+  js/admin.js                    (modificado)
+  js/admin-ui.js                 (modificado)
+  js/store.js                    (modificado: solo se AÑADIÓ código, nada se quitó)
+  css/admin-club-envios.css      (NUEVO)
+
+No hay que tocar firestore.rules ni el Apps Script.
+
+Qué cambió
+- Voltage Club sigue en Resumen, rediseñado (estadísticas, buscador, filtros, copiar, CSV, borrar).
+- Costos de envío ahora tiene su propia pestaña "Envíos" en el menú lateral.
+- Los costos siguen en Firestore: config/envio (mismas claves). Se añadió el campo "actualizado" (fecha).
+- Los correos del Voltage Club siguen en la colección voltage_club (sin campos nuevos).

@@ -512,10 +512,14 @@ function guardarConfigDropAdmin(cambios) {
     memoria de js/products.js. carrito.html debe hacer
     "await cargarConfigEnvio()" al iniciar, igual que se hace con
     cargarConfigDrop(). */
+let _envioActualizadoMs = null;   // cuándo se guardaron por última vez los costos (null = nunca desde el panel)
 async function cargarConfigEnvio() {
   try {
     const doc = await fbDb.collection('config').doc('envio').get();
-    if (doc.exists) setZonasEnvioCache(doc.data().zonas);
+    if (doc.exists) {
+      setZonasEnvioCache(doc.data().zonas);
+      _envioActualizadoMs = Number(doc.data().actualizado) || null;
+    }
   } catch (e) {
     console.error('Error cargando la configuración de envío:', e);
   }
@@ -527,6 +531,42 @@ function guardarConfigEnvioAdmin(zonas) {
   setZonasEnvioCache(zonas);
   fbDb.collection('config').doc('envio').set({ zonas: zonasEnvio(), costos: [...new Set(zonasEnvio().map(z => Number(z.costo) || 0))] }, { merge: true })
     .catch(e => console.error('Error guardando la configuración de envío en la nube:', e));
+  return zonasEnvio();
+}
+
+/** Fecha (ms) del último guardado de costos de envío, o null si nunca se guardó desde el panel. */
+function fechaActualizacionEnvio() { return _envioActualizadoMs; }
+
+/** Guarda SOLO las zonas indicadas en `cambios` ({ idZona: nuevoCosto }) y ESPERA la
+    confirmación de Firestore (lanza error si falla). Se hace en una transacción: se lee
+    lo que hay guardado ahora mismo y solo se cambia el costo de las zonas editadas, así
+    ninguna otra zona se toca (ni siquiera si otra persona la cambió mientras tanto).
+    Los pedidos ya hechos guardan su propio costo_envio y no se modifican. */
+async function guardarConfigEnvioConfirmado(cambios) {
+  const ids = Object.keys(cambios || {});
+  if (!ids.length) return zonasEnvio();
+  ids.forEach(id => {
+    const v = cambios[id];
+    if (!Number.isInteger(v) || v < 0) throw new Error('Costo no válido para la zona ' + id);
+  });
+  const ref = fbDb.collection('config').doc('envio');
+  const ahora = Date.now();
+  let resultado = null;
+  await fbDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const guardadas = snap.exists && Array.isArray(snap.data().zonas) && snap.data().zonas.length
+      ? snap.data().zonas : zonasEnvio();
+    const zonas = guardadas.map(z => (ids.includes(z.id) ? { ...z, costo: cambios[z.id] } : z));
+    ids.forEach(id => {
+      if (zonas.some(z => z.id === id)) return;
+      const base = zonasEnvio().find(z => z.id === id);
+      if (base) zonas.push({ ...base, costo: cambios[id] });
+    });
+    tx.set(ref, { zonas, costos: [...new Set(zonas.map(z => Number(z.costo) || 0))], actualizado: ahora }, { merge: true });
+    resultado = zonas;
+  });
+  setZonasEnvioCache(resultado);
+  _envioActualizadoMs = ahora;
   return zonasEnvio();
 }
 
@@ -1434,8 +1474,17 @@ async function suscribirVoltageClub(email) {
    Firestore (solo funciona si quien llama es admin, por las
    reglas). Se usa en el panel. */
 async function obtenerSuscriptoresVoltageClub() {
-  const snap = await fbDb.collection('voltage_club').orderBy('fecha', 'desc').get();
-  return snap.docs.map(d => d.data());
+  const snap = await fbDb.collection('voltage_club').get();
+  const ms = (f) => { const t = new Date(f).getTime(); return Number.isFinite(t) ? t : 0; };
+  // más recientes primero; `_id` es el id real del documento (lo usa el panel para borrar)
+  return snap.docs.map(d => ({ ...d.data(), _id: d.id })).sort((a, b) => ms(b.fecha) - ms(a.fecha));
+}
+
+/* Elimina un correo del Voltage Club (solo admin, por las reglas de Firestore).
+   Lanza error si falla. */
+async function eliminarSuscriptorVoltageClub(id) {
+  if (!id) throw new Error('Falta el id del registro.');
+  await fbDb.collection('voltage_club').doc(id).delete();
 }
 
 /* ---------- Aviso automático de drop nuevo al Voltage Club ----------

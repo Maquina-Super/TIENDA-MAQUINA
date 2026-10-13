@@ -155,76 +155,423 @@ async function entrarAlPanel() {
   iniciarVigiaInactividadAdmin();
 }
 
-/* ---------- pestaña Resumen: costos de envío por zona ---------- */
+/* ---------- pestaña Envíos: costos de envío por zona ---------- */
+const ENVIO_MAX = 9999999;
+const _fmtFechaHora = (ms) => new Date(ms).toLocaleString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+const _fmtFechaCorta = (ms) => new Date(ms).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+function _haceTiempo(ms) {
+  const d = Date.now() - ms;
+  if (d < 0 || !Number.isFinite(d)) return '';
+  const min = Math.floor(d / 60000);
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const dias = Math.floor(h / 24);
+  if (dias < 30) return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
+  const meses = Math.floor(dias / 30);
+  return meses < 12 ? `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}` : `hace más de un año`;
+}
+function _envioPartesNombre(nombre) {
+  const m = String(nombre || '').match(/^(.*?)\s*\((.*)\)\s*$/);
+  return m ? { principal: m[1], detalle: m[2] } : { principal: String(nombre || ''), detalle: '' };
+}
+/** Lee y valida lo escrito en un campo de costo. Acepta "8000" o "8.000" (separador de miles). */
+function _envioLeerCampo(input) {
+  let t = String(input.value || '').trim().replace(/^\$\s*/, '');
+  if (t === '') return { ok: false, msg: 'Escribe un valor (usa 0 si no cobras envío).' };
+  if (t.startsWith('-')) return { ok: false, msg: 'El costo no puede ser negativo.' };
+  if (t.includes('.') && !/^\d{1,3}(\.\d{3})+$/.test(t)) return { ok: false, msg: 'Usa solo números enteros, ej: 8000 o 8.000.' };
+  t = t.replace(/\./g, '');
+  if (!/^\d+$/.test(t)) return { ok: false, msg: 'Solo se permiten números.' };
+  const valor = Number(t);
+  if (valor > ENVIO_MAX) return { ok: false, msg: `El máximo permitido es ${_pesos(ENVIO_MAX)}.` };
+  return { ok: true, valor };
+}
+let _envioGuardando = false;
+
 function pintarCostosEnvio() {
   const tbody = document.getElementById('costosEnvioTablaBody');
-  tbody.innerHTML = zonasEnvio().map(z => `
-    <tr>
-      <td>${z.nombre}</td>
-      <td>
-        <input type="number" class="admin-input input-costo-envio" data-zona="${z.id}" aria-label="Costo de envío para ${z.nombre}"
-          value="${Number(z.costo) || 0}" min="0" step="500" style="width:140px;">
+  const zonas = zonasEnvio();
+  tbody.innerHTML = zonas.map(z => {
+    const n = _envioPartesNombre(z.nombre);
+    const costo = Number(z.costo) || 0;
+    return `
+    <tr data-zona-fila="${_escAdm(z.id)}">
+      <td class="env-td-zona env-zona"><b>${_escAdm(n.principal)}</b>${n.detalle ? `<small>${_escAdm(n.detalle)}</small>` : ''}</td>
+      <td class="env-td-guardado env-guardado">${_pesos(costo)}</td>
+      <td class="env-td-nuevo">
+        <label class="env-campo">
+          <span class="env-peso" aria-hidden="true">$</span>
+          <input type="text" inputmode="numeric" autocomplete="off" class="admin-input input-costo-envio" data-zona="${_escAdm(z.id)}" data-original="${costo}"
+            aria-label="Nuevo costo de envío para ${_escAdm(z.nombre)}" value="${costo.toLocaleString('es-CO')}">
+        </label>
+        <span class="env-error" role="alert"></span>
       </td>
-    </tr>
-  `).join('');
-}
-document.getElementById('btnGuardarCostosEnvio').addEventListener('click', () => {
-  const nuevasZonas = zonasEnvio().map(z => {
-    const input = document.querySelector(`.input-costo-envio[data-zona="${z.id}"]`);
-    const costo = input ? Math.max(0, Number(input.value) || 0) : z.costo;
-    return { ...z, costo };
-  });
-  guardarConfigEnvioAdmin(nuevasZonas);
-  pintarCostosEnvio();
-  showToast('Costos de envío guardados ✓');
-});
+      <td class="env-td-est env-est"><span class="env-pill">Sin cambios</span><button type="button" class="env-undo" hidden aria-label="Deshacer el cambio en ${_escAdm(n.principal)}" title="Deshacer"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button></td>
+    </tr>`;
+  }).join('');
 
-/* ---------- pestaña Resumen: correos del Voltage Club ---------- */
-let _correosVoltageClub = [];
+  // resumen real a partir de los costos cargados (nada inventado)
+  const costos = zonas.map(z => Number(z.costo) || 0);
+  document.getElementById('envStatZonas').textContent = zonas.length;
+  document.getElementById('envStatMin').textContent = costos.length ? _pesos(Math.min(...costos)) : '—';
+  document.getElementById('envStatMax').textContent = costos.length ? _pesos(Math.max(...costos)) : '—';
+  const fecha = typeof fechaActualizacionEnvio === 'function' ? fechaActualizacionEnvio() : null;
+  document.getElementById('envUltimaAct').textContent = fecha ? _fmtFechaHora(fecha) : 'Aún sin cambios desde el panel';
+  _envioActualizarEstado();
+}
+
+/** Revisa cada fila, marca cambios/errores y activa o desactiva los botones. */
+function _envioActualizarEstado() {
+  const inputs = [...document.querySelectorAll('.input-costo-envio')];
+  let cambios = 0, errores = 0;
+  inputs.forEach(input => {
+    const fila = input.closest('tr');
+    const original = Number(input.dataset.original);
+    const lec = _envioLeerCampo(input);
+    const modificado = !lec.ok || lec.valor !== original;
+    const error = !lec.ok;
+    if (modificado) cambios++;
+    if (error) errores++;
+    input.classList.toggle('is-mod', modificado && !error);
+    input.setAttribute('aria-invalid', error ? 'true' : 'false');
+    fila.classList.toggle('is-mod', modificado);
+    fila.querySelector('.env-error').textContent = error ? lec.msg : '';
+    const pill = fila.querySelector('.env-pill');
+    pill.className = 'env-pill' + (error ? ' err' : modificado ? ' mod' : '');
+    pill.textContent = error ? 'Revisar' : modificado ? 'Modificado' : 'Sin cambios';
+    fila.querySelector('.env-undo').hidden = !modificado;
+  });
+  const estado = document.getElementById('envEstado');
+  estado.classList.toggle('hay-cambios', cambios > 0 && !errores);
+  estado.classList.toggle('hay-error', errores > 0);
+  estado.textContent = errores
+    ? `Corrige ${errores === 1 ? 'el valor marcado' : 'los ' + errores + ' valores marcados'} para poder guardar.`
+    : cambios ? `${cambios} ${cambios === 1 ? 'zona con cambios' : 'zonas con cambios'} sin guardar.` : 'Sin cambios por guardar.';
+  document.getElementById('btnGuardarCostosEnvio').disabled = _envioGuardando || !cambios || !!errores;
+  document.getElementById('btnRestablecerCostosEnvio').disabled = _envioGuardando || !cambios;
+  const tabBtn = document.getElementById('tabBtnEnvios');
+  if (tabBtn) tabBtn.classList.toggle('env-dirty', cambios > 0);
+  return { cambios, errores };
+}
+function envioHayCambiosSinGuardar() {
+  return [...document.querySelectorAll('.input-costo-envio')].some(i => {
+    const l = _envioLeerCampo(i);
+    return !l.ok || l.valor !== Number(i.dataset.original);
+  });
+}
+
+(function iniciarEnvios() {
+  const tbody = document.getElementById('costosEnvioTablaBody');
+  tbody.addEventListener('input', (e) => { if (e.target.matches('.input-costo-envio')) _envioActualizarEstado(); });
+  tbody.addEventListener('focusin', (e) => { if (e.target.matches('.input-costo-envio')) setTimeout(() => e.target.select(), 0); });
+  tbody.addEventListener('focusout', (e) => { // al salir del campo, si es válido, se muestra con formato $1.000
+    if (!e.target.matches('.input-costo-envio')) return;
+    const l = _envioLeerCampo(e.target);
+    if (l.ok) e.target.value = l.valor.toLocaleString('es-CO');
+    _envioActualizarEstado();
+  });
+  tbody.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.matches('.input-costo-envio')) {
+      e.preventDefault();
+      const btn = document.getElementById('btnGuardarCostosEnvio');
+      if (!btn.disabled) btn.click(); else e.target.blur();
+    }
+  });
+  tbody.addEventListener('click', (e) => {
+    const undo = e.target.closest('.env-undo');
+    if (!undo) return;
+    const input = undo.closest('tr').querySelector('.input-costo-envio');
+    input.value = Number(input.dataset.original).toLocaleString('es-CO');
+    _envioActualizarEstado();
+  });
+
+  document.getElementById('btnRestablecerCostosEnvio').addEventListener('click', async () => {
+    if (!envioHayCambiosSinGuardar()) return;
+    const ok = await confirmarAccion({
+      titulo: 'Restablecer costos',
+      mensaje: 'Se descartarán los cambios que no has guardado y cada zona volverá al costo guardado actualmente.',
+      textoOk: 'Sí, restablecer', peligro: true
+    });
+    if (!ok) return;
+    pintarCostosEnvio();
+    showToast('Se restablecieron los costos guardados.');
+  });
+
+  document.getElementById('btnGuardarCostosEnvio').addEventListener('click', async () => {
+    if (_envioGuardando) return;
+    const { cambios, errores } = _envioActualizarEstado();
+    if (errores) { showToast('Hay valores no válidos. Revisa los campos marcados.', true); return; }
+    if (!cambios) { showToast('No hay cambios para guardar.'); return; }
+    // solo viajan las zonas realmente modificadas: las demás no se tocan
+    const cambiosPorZona = {};
+    document.querySelectorAll('.input-costo-envio').forEach(input => {
+      const l = _envioLeerCampo(input);
+      if (l.ok && l.valor !== Number(input.dataset.original)) cambiosPorZona[input.dataset.zona] = l.valor;
+    });
+    const btn = document.getElementById('btnGuardarCostosEnvio');
+    const textoBtn = btn.textContent;
+    _envioGuardando = true;
+    btn.classList.add('is-cargando');
+    btn.innerHTML = '<span class="mq-spin" aria-hidden="true"></span>Guardando…';
+    _envioActualizarEstado();
+    try {
+      await guardarConfigEnvioConfirmado(cambiosPorZona);
+      _envioGuardando = false;
+      pintarCostosEnvio();
+      showToast('Costos de envío guardados ✓ Ya se ven en el carrito.');
+    } catch (err) {
+      console.error('Error guardando costos de envío:', err);
+      _envioGuardando = false;
+      showToast('No se pudieron guardar los costos. Revisa tu conexión o permisos e inténtalo de nuevo.', true);
+    } finally {
+      _envioGuardando = false;
+      btn.classList.remove('is-cargando');
+      btn.textContent = textoBtn;
+      _envioActualizarEstado();
+    }
+  });
+
+  // aviso si intenta cerrar o recargar la página con costos sin guardar
+  window.addEventListener('beforeunload', (e) => {
+    if (envioHayCambiosSinGuardar()) { e.preventDefault(); e.returnValue = ''; }
+  });
+})();
+
+/* ---------- pestaña Resumen: Voltage Club ---------- */
+let _correosVoltageClub = [];          // todos los registros reales
+const _vc = { q: '', rango: 'todo', desde: '', hasta: '', orden: 'recientes', visibles: 25, estado: 'cargando' };
+const VC_PAGINA = 25;
+
+const _vcMs = (f) => { const t = new Date(f).getTime(); return Number.isFinite(t) && t > 0 ? t : null; };
+const _vcFechaLocal = (iso, finDia) => { // 'YYYY-MM-DD' → ms en hora local
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3], finDia ? 23 : 0, finDia ? 59 : 0, finDia ? 59 : 0, finDia ? 999 : 0).getTime();
+};
+function _vcFiltrados() {
+  const q = _vc.q.trim().toLowerCase();
+  const ahora = new Date();
+  const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+  let desde = null, hasta = null;
+  if (_vc.rango === 'hoy') desde = inicioHoy;
+  else if (_vc.rango === '7') desde = ahora.getTime() - 7 * 864e5;
+  else if (_vc.rango === '30') desde = ahora.getTime() - 30 * 864e5;
+  else if (_vc.rango === 'mes') desde = new Date(ahora.getFullYear(), ahora.getMonth(), 1).getTime();
+  else if (_vc.rango === 'rango') { desde = _vcFechaLocal(_vc.desde, false); hasta = _vcFechaLocal(_vc.hasta, true); }
+  let lista = _correosVoltageClub.filter(s => {
+    if (q && !String(s.correo || '').toLowerCase().includes(q)) return false;
+    if (desde !== null || hasta !== null) {
+      const t = _vcMs(s.fecha);
+      if (t === null) return false;
+      if (desde !== null && t < desde) return false;
+      if (hasta !== null && t > hasta) return false;
+    }
+    return true;
+  });
+  const t = (s) => _vcMs(s.fecha) || 0;
+  if (_vc.orden === 'antiguos') lista = lista.sort((a, b) => t(a) - t(b));
+  else if (_vc.orden === 'correo') lista = lista.sort((a, b) => String(a.correo || '').localeCompare(String(b.correo || ''), 'es'));
+  else lista = lista.sort((a, b) => t(b) - t(a));
+  return lista;
+}
+function _vcHayFiltro() { return !!(_vc.q.trim() || _vc.rango !== 'todo'); }
+
+function _vcPintarStats() {
+  const total = _correosVoltageClub.length;
+  const ahora = new Date();
+  const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1).getTime();
+  const fechas = _correosVoltageClub.map(s => _vcMs(s.fecha)).filter(t => t !== null);
+  const nuevosMes = fechas.filter(t => t >= inicioMes).length;
+  const ultimo = fechas.length ? Math.max(...fechas) : null;
+  document.getElementById('voltageClubTotal').textContent = total.toLocaleString('es-CO');
+  document.getElementById('vcTotalTxt').textContent = total === 1 ? 'miembro registrado' : 'miembros registrados';
+  document.getElementById('vcStatTotal').textContent = total.toLocaleString('es-CO');
+  document.getElementById('vcStatMes').textContent = nuevosMes.toLocaleString('es-CO');
+  document.getElementById('vcStatMesTxt').textContent = ahora.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  document.getElementById('vcStatUltimo').textContent = ultimo ? _fmtFechaCorta(ultimo) : '—';
+  document.getElementById('vcStatUltimoTxt').textContent = ultimo ? `${new Date(ultimo).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })} · ${_haceTiempo(ultimo)}` : 'Sin registros todavía';
+}
+
+function _vcPintarTabla() {
+  const tbody = document.getElementById('voltageClubTablaBody');
+  const resultados = document.getElementById('vcResultados');
+  const masWrap = document.getElementById('vcMasWrap');
+  const botones = ['btnAvisarDropVoltageClub', 'btnCopiarVoltageClub', 'btnDescargarVoltageClub'].map(id => document.getElementById(id));
+  masWrap.hidden = true;
+
+  if (_vc.estado === 'cargando') {
+    botones.forEach(b => { b.disabled = true; });
+    resultados.textContent = '';
+    tbody.innerHTML = `<tr class="vc-estado"><td colspan="3"><span class="mq-spin" aria-hidden="true"></span> Cargando miembros…</td></tr>`;
+    return;
+  }
+  if (_vc.estado === 'error') {
+    botones.forEach(b => { b.disabled = true; });
+    resultados.textContent = '';
+    tbody.innerHTML = `<tr class="vc-estado"><td colspan="3"><b>No se pudo cargar</b>Revisa tu conexión o tus permisos e inténtalo de nuevo.<br><button type="button" class="admin-btn admin-btn-ghost" id="vcReintentar">Reintentar</button></td></tr>`;
+    return;
+  }
+  const total = _correosVoltageClub.length;
+  botones[0].disabled = total === 0;
+  if (!total) {
+    botones[1].disabled = true; botones[2].disabled = true;
+    resultados.textContent = '';
+    tbody.innerHTML = `<tr class="vc-estado"><td colspan="3"><b>Aún no hay miembros</b>Cuando alguien deje su correo en la tienda, aparecerá aquí.</td></tr>`;
+    return;
+  }
+  const lista = _vcFiltrados();
+  botones[1].disabled = lista.length === 0;
+  botones[2].disabled = lista.length === 0;
+  resultados.textContent = _vcHayFiltro()
+    ? `${lista.length.toLocaleString('es-CO')} de ${total.toLocaleString('es-CO')} registros`
+    : `${total.toLocaleString('es-CO')} ${total === 1 ? 'registro' : 'registros'}`;
+  if (!lista.length) {
+    tbody.innerHTML = `<tr class="vc-estado"><td colspan="3"><b>Sin resultados</b>Ningún correo coincide con la búsqueda o el filtro de fechas.</td></tr>`;
+    return;
+  }
+  const visibles = lista.slice(0, _vc.visibles);
+  tbody.innerHTML = visibles.map(s => {
+    const t = _vcMs(s.fecha);
+    const id = _escAdm(s._id || s.correo || '');
+    const correo = _escAdm(s.correo || '');
+    return `
+    <tr data-id="${id}">
+      <td class="vc-td-correo" data-label="Correo"><span class="vc-correo">${correo}</span></td>
+      <td class="vc-td-fecha" data-label="Se registró"><span class="vc-fecha">${t ? _fmtFechaCorta(t) : '—'}${t ? `<small>${new Date(t).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })}</small>` : ''}</span></td>
+      <td class="vc-td-acc vc-td-acciones">
+        <button type="button" class="vc-btn-ico" data-accion="copiar" aria-label="Copiar correo ${correo}" title="Copiar correo"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg></button>
+        <button type="button" class="vc-btn-ico es-borrar" data-accion="eliminar" aria-label="Eliminar ${correo} del Voltage Club" title="Eliminar registro"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>
+      </td>
+    </tr>`;
+  }).join('');
+  const restantes = lista.length - visibles.length;
+  masWrap.hidden = restantes <= 0;
+  if (restantes > 0) document.getElementById('vcMas').textContent = `Mostrar más (${restantes.toLocaleString('es-CO')} restantes)`;
+}
 
 async function pintarVoltageClub() {
-  const tbody = document.getElementById('voltageClubTablaBody');
-  const totalEl = document.getElementById('voltageClubTotal');
+  const refrescar = document.getElementById('vcRefrescar');
+  _vc.estado = 'cargando';
+  refrescar.classList.add('is-spin');
+  _vcPintarTabla();
   try {
     _correosVoltageClub = await obtenerSuscriptoresVoltageClub();
+    _vc.estado = 'listo';
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--adm-text-dim);">No se pudo cargar (revisa tu conexión o permisos).</td></tr>`;
-    return;
+    console.error('Voltage Club:', e);
+    _vc.estado = 'error';
+    showToast('No se pudo cargar el Voltage Club.', true);
   }
-  totalEl.textContent = `(${_correosVoltageClub.length})`;
-  if (!_correosVoltageClub.length) {
-    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--adm-text-dim);">Todavía no hay correos registrados.</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = _correosVoltageClub.map(s => `
-    <tr>
-      <td>${s.correo}</td>
-      <td>${s.fecha ? new Date(s.fecha).toLocaleDateString('es-CO') : '—'}</td>
-    </tr>
-  `).join('');
+  refrescar.classList.remove('is-spin');
+  if (_vc.estado === 'listo') _vcPintarStats();
+  _vcPintarTabla();
 }
 
-document.getElementById('btnCopiarVoltageClub').addEventListener('click', () => {
-  if (!_correosVoltageClub.length) { showToast('No hay correos todavía.', true); return; }
-  const texto = _correosVoltageClub.map(s => s.correo).join(', ');
-  navigator.clipboard.writeText(texto)
-    .then(() => showToast('Correos copiados al portapapeles'))
-    .catch(() => showToast('No se pudo copiar', true));
-});
+/** Copia texto al portapapeles (con alternativa si el navegador no permite la API moderna). */
+async function _copiarTexto(texto) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(texto); return true; }
+  } catch (e) { /* se prueba la alternativa */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = texto; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (e) { return false; }
+}
+/** Celda de CSV segura: comillas escapadas y sin que Excel ejecute fórmulas. */
+function _csvCelda(v) {
+  let t = String(v == null ? '' : v);
+  if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+  return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
 
-document.getElementById('btnDescargarVoltageClub').addEventListener('click', () => {
-  if (!_correosVoltageClub.length) { showToast('No hay correos todavía.', true); return; }
-  const filas = ['correo,fecha'].concat(
-    _correosVoltageClub.map(s => `${s.correo},${s.fecha ? new Date(s.fecha).toISOString() : ''}`)
-  );
-  const blob = new Blob([filas.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'voltage-club.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-});
+(function iniciarVoltageClub() {
+  const $ = (id) => document.getElementById(id);
+  const repintar = () => { _vc.visibles = VC_PAGINA; _vcPintarTabla(); };
+
+  $('vcBuscar').addEventListener('input', (e) => { _vc.q = e.target.value; repintar(); });
+  $('vcOrden').addEventListener('change', (e) => { _vc.orden = e.target.value; repintar(); });
+  $('vcRango').addEventListener('change', (e) => {
+    _vc.rango = e.target.value;
+    $('vcRangoFechas').hidden = _vc.rango !== 'rango';
+    repintar();
+  });
+  $('vcDesde').addEventListener('change', (e) => { _vc.desde = e.target.value; repintar(); });
+  $('vcHasta').addEventListener('change', (e) => { _vc.hasta = e.target.value; repintar(); });
+  $('vcRefrescar').addEventListener('click', () => pintarVoltageClub());
+  $('vcMas').addEventListener('click', () => { _vc.visibles += VC_PAGINA; _vcPintarTabla(); });
+
+  $('voltageClubTablaBody').addEventListener('click', async (e) => {
+    if (e.target.closest('#vcReintentar')) { pintarVoltageClub(); return; }
+    const btn = e.target.closest('[data-accion]');
+    if (!btn) return;
+    const id = btn.closest('tr').dataset.id;
+    const reg = _correosVoltageClub.find(s => (s._id || s.correo) === id);
+    if (!reg) return;
+
+    if (btn.dataset.accion === 'copiar') {
+      const ok = await _copiarTexto(reg.correo || '');
+      if (ok) { btn.classList.add('ok'); setTimeout(() => btn.classList.remove('ok'), 1200); }
+      showToast(ok ? 'Correo copiado ✓' : 'No se pudo copiar el correo.', !ok);
+      return;
+    }
+    if (btn.dataset.accion === 'eliminar') {
+      const sigue = await confirmarAccion({
+        titulo: 'Eliminar registro',
+        mensaje: `Se eliminará ${reg.correo} del Voltage Club y dejará de recibir avisos de nuevos drops. Esta acción no se puede deshacer.`,
+        textoOk: 'Eliminar', peligro: true
+      });
+      if (!sigue) return;
+      btn.disabled = true;
+      try {
+        await eliminarSuscriptorVoltageClub(reg._id || reg.correo);
+        _correosVoltageClub = _correosVoltageClub.filter(s => s !== reg);
+        _vcPintarStats();
+        _vcPintarTabla();
+        showToast('Registro eliminado ✓');
+      } catch (err) {
+        console.error('No se pudo eliminar del Voltage Club:', err);
+        btn.disabled = false;
+        showToast('No se pudo eliminar el registro. Inténtalo de nuevo.', true);
+      }
+    }
+  });
+
+  $('btnCopiarVoltageClub').addEventListener('click', async () => {
+    const lista = _vcFiltrados();
+    if (!lista.length) { showToast('No hay correos para copiar.', true); return; }
+    const ok = await _copiarTexto(lista.map(s => s.correo).join(', '));
+    showToast(ok ? `${lista.length} ${lista.length === 1 ? 'correo copiado' : 'correos copiados'} ✓` : 'No se pudo copiar.', !ok);
+  });
+
+  $('btnDescargarVoltageClub').addEventListener('click', () => {
+    const lista = _vcFiltrados();
+    if (!lista.length) { showToast('No hay datos para exportar.', true); return; }
+    try {
+      const filas = ['correo,fecha'].concat(lista.map(s => {
+        const t = _vcMs(s.fecha);
+        return `${_csvCelda(s.correo)},${t ? new Date(t).toISOString() : ''}`;
+      }));
+      const blob = new Blob(['\ufeff' + filas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const hoy = new Date();
+      a.download = `voltage-club-${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`CSV descargado (${lista.length} ${lista.length === 1 ? 'registro' : 'registros'}) ✓`);
+    } catch (err) {
+      console.error('CSV Voltage Club:', err);
+      showToast('No se pudo generar el CSV.', true);
+    }
+  });
+})();
 
 /* ---------- "Avisar drop nuevo" al Voltage Club ---------- */
 const modalAvisarDrop = document.getElementById('modalAvisarDrop');
@@ -267,6 +614,7 @@ function aplicarPermisosUI() {
   // si el usuario tiene al menos uno de los dos permisos.
   const puedeVerResumen = !!(permisosActuales.inventario || permisosActuales.pedidos);
   tabBtnResumen.style.display = puedeVerResumen ? '' : 'none';
+  tabBtnEnvios.style.display = puedeVerResumen ? '' : 'none';
 
   const mapa = [
     [tabBtnResumen, '__resumen__'],
@@ -274,13 +622,15 @@ function aplicarPermisosUI() {
     [tabBtnPedidos, 'pedidos'],
     [tabBtnMensajes, 'mensajes'],
     [tabBtnDrop, 'drop'],
+    [tabBtnEnvios, '__envios__'],
     [tabBtnUsuarios, 'usuarios'],
   ];
   mapa.forEach(([btn, permiso]) => {
-    if (permiso === '__resumen__') return; // ya se resolvió arriba
+    if (permiso === '__resumen__' || permiso === '__envios__') return; // ya se resolvieron arriba
     btn.style.display = permisosActuales[permiso] ? '' : 'none';
   });
   permisosActuales.__resumen__ = puedeVerResumen;
+  permisosActuales.__envios__ = puedeVerResumen;
   const btnAgregarProducto = document.getElementById('btnMostrarNuevo');
   if (btnAgregarProducto) btnAgregarProducto.style.display = permisosActuales.inventario ? '' : 'none';
 
@@ -317,12 +667,14 @@ const tabBtnInventario = document.getElementById('tabBtnInventario');
 const tabBtnPedidos = document.getElementById('tabBtnPedidos');
 const tabBtnMensajes = document.getElementById('tabBtnMensajes');
 const tabBtnDrop = document.getElementById('tabBtnDrop');
+const tabBtnEnvios = document.getElementById('tabBtnEnvios');
 const tabBtnUsuarios = document.getElementById('tabBtnUsuarios');
 const tabResumen = document.getElementById('tabResumen');
 const tabInventario = document.getElementById('tabInventario');
 const tabPedidos = document.getElementById('tabPedidos');
 const tabMensajes = document.getElementById('tabMensajes');
 const tabDrop = document.getElementById('tabDrop');
+const tabEnvios = document.getElementById('tabEnvios');
 const tabUsuarios = document.getElementById('tabUsuarios');
 const tituloTab = document.getElementById('adminTituloTab');
 
@@ -333,12 +685,14 @@ function ocultarTodasLasPestanas() {
   tabBtnPedidos.classList.remove('active');
   tabBtnMensajes.classList.remove('active');
   tabBtnDrop.classList.remove('active');
+  tabBtnEnvios.classList.remove('active');
   tabBtnUsuarios.classList.remove('active');
   tabResumen.style.display = 'none';
   tabInventario.style.display = 'none';
   tabPedidos.style.display = 'none';
   tabMensajes.style.display = 'none';
   tabDrop.style.display = 'none';
+  tabEnvios.style.display = 'none';
   tabUsuarios.style.display = 'none';
 }
 
@@ -384,6 +738,16 @@ tabBtnDrop.addEventListener('click', () => {
   tabDrop.style.display = 'block';
   tituloTab.textContent = 'Próximo drop';
   pintarTabDrop();
+});
+
+/* Costos de envío: pestaña propia (antes vivían al final de Resumen). Al volver a entrar
+   NO se repinta, para no borrar cambios que todavía no se han guardado. */
+tabBtnEnvios.addEventListener('click', () => {
+  if (!permisosActuales.__envios__) return;
+  ocultarTodasLasPestanas();
+  tabBtnEnvios.classList.add('active');
+  tabEnvios.style.display = 'block';
+  tituloTab.textContent = 'Costos de envío';
 });
 
 let usuariosTabDesbloqueada = false;

@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/estilos.css?v=rev1">
 <link rel="stylesheet" href="css/admin-panel.css?v=rev1">
 <link rel="stylesheet" href="css/admin-extras.css?v=rev1">
+<link rel="stylesheet" href="css/admin-club-envios.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -415,6 +416,7 @@
         <button type="button" class="admin-tab-btn" id="tabBtnPedidos"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg></span><span>Pedidos</span> <span id="pedidosBadge"></span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnMensajes"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span>Mensajes</span> <span id="mensajesBadge"></span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnDrop"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg></span><span>Drop</span></button>
+        <button type="button" class="admin-tab-btn" id="tabBtnEnvios"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></span><span>Envíos</span></button>
         <button type="button" class="admin-tab-btn" id="tabBtnUsuarios"><span class="ap-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.7 2.8 2.4 3 5.2"/></svg></span><span>Usuarios</span></button>
       </nav>
       <div class="ap-side-foot">
@@ -462,38 +464,102 @@
           </table>
         </div>
       </div>
-      <div class="admin-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-          <h3 style="margin-bottom:0;">⚡ Voltage Club <span id="voltageClubTotal" style="color:var(--adm-text-dim);font-weight:400;font-size:13px;"></span></h3>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="admin-btn admin-btn-primary" id="btnAvisarDropVoltageClub">📢 Avisar drop nuevo</button>
-            <button class="admin-btn admin-btn-ghost" id="btnCopiarVoltageClub">Copiar correos</button>
-            <button class="admin-btn admin-btn-ghost" id="btnDescargarVoltageClub">Descargar CSV</button>
+      <!-- ===== VOLTAGE CLUB ===== -->
+      <section class="admin-card vc-card" id="voltageClubCard" aria-labelledby="vcTitulo">
+        <header class="vc-head">
+          <div class="vc-titulo">
+            <span class="vc-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg></span>
+            <div>
+              <h3 id="vcTitulo">Voltage Club</h3>
+              <p class="vc-sub"><b id="voltageClubTotal">…</b> <span id="vcTotalTxt">miembros registrados</span></p>
+            </div>
+          </div>
+          <div class="vc-acciones">
+            <button type="button" class="admin-btn admin-btn-primary" id="btnAvisarDropVoltageClub" disabled><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1z"/><path d="M15.5 8.5a5 5 0 010 7M18 6a8.5 8.5 0 010 12"/></svg><span>Avisar drop nuevo</span></button>
+            <button type="button" class="admin-btn admin-btn-ghost" id="btnCopiarVoltageClub" disabled><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span>Copiar correos</span></button>
+            <button type="button" class="admin-btn admin-btn-ghost" id="btnDescargarVoltageClub" disabled><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Descargar CSV</span></button>
+          </div>
+        </header>
+
+        <div class="vc-stats">
+          <div class="vc-stat"><span class="vc-stat-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.7 2.8 2.4 3 5.2"/></svg></span><div><span class="vc-stat-l">Miembros totales</span><b id="vcStatTotal">—</b></div></div>
+          <div class="vc-stat"><span class="vc-stat-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><div><span class="vc-stat-l">Nuevos este mes</span><b id="vcStatMes">—</b><small id="vcStatMesTxt"></small></div></div>
+          <div class="vc-stat"><span class="vc-stat-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><span class="vc-stat-l">Último registro</span><b id="vcStatUltimo" class="vc-stat-fecha">—</b><small id="vcStatUltimoTxt"></small></div></div>
+        </div>
+
+        <div class="vc-toolbar" role="search">
+          <div class="ap-search vc-buscar">
+            <span class="ap-search-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span>
+            <input type="search" id="vcBuscar" class="admin-buscar" placeholder="Buscar por correo electrónico…" autocomplete="off" aria-label="Buscar miembro por correo electrónico">
+          </div>
+          <select id="vcRango" class="ap-select" aria-label="Filtrar por fecha de registro">
+            <option value="todo">Todas las fechas</option>
+            <option value="hoy">Hoy</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="mes">Este mes</option>
+            <option value="rango">Rango personalizado…</option>
+          </select>
+          <select id="vcOrden" class="ap-select" aria-label="Ordenar registros">
+            <option value="recientes">Más recientes primero</option>
+            <option value="antiguos">Más antiguos primero</option>
+            <option value="correo">Correo (A–Z)</option>
+          </select>
+          <button type="button" class="admin-btn admin-btn-ghost vc-refrescar" id="vcRefrescar" aria-label="Actualizar lista" title="Actualizar lista"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+          <div class="vc-rango-fechas" id="vcRangoFechas" hidden>
+            <label>Desde <input type="date" id="vcDesde"></label>
+            <label>Hasta <input type="date" id="vcHasta"></label>
           </div>
         </div>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>Correo</th><th>Se registró</th></tr></thead>
+        <p class="ap-result-count" id="vcResultados" aria-live="polite"></p>
+
+        <div class="admin-table-wrap vc-tabla-wrap">
+          <table class="admin-table vc-tabla">
+            <thead><tr><th scope="col">Correo</th><th scope="col">Se registró</th><th scope="col" class="vc-th-acc"><span class="sr-only">Acciones</span></th></tr></thead>
             <tbody id="voltageClubTablaBody">
-              <tr><td colspan="2" style="text-align:center;padding:20px;color:var(--adm-text-dim);">Cargando…</td></tr>
+              <tr class="vc-estado"><td colspan="3"><span class="mq-spin" aria-hidden="true"></span> Cargando miembros…</td></tr>
             </tbody>
           </table>
         </div>
-      </div>
+        <div class="vc-mas" id="vcMasWrap" hidden><button type="button" class="admin-btn admin-btn-ghost" id="vcMas">Mostrar más</button></div>
+      </section>
+    </div>
 
-      <div class="admin-card">
-        <h3 style="margin-bottom:6px;">🚚 Costos de envío</h3>
-        <p class="admin-foto-hint" style="margin-bottom:14px;">💡 Lo que pagan tus clientes por envío en cada zona, en el paso 3 del carrito. Cambia el número y guarda — se ve igual para todos apenas guardes, sin tocar código.</p>
-        <div class="admin-table-wrap">
-          <table class="admin-table" id="tablaCostosEnvio">
-            <thead><tr><th>Zona</th><th>Costo</th></tr></thead>
+    <!-- ===== ENVÍOS (pestaña propia) ===== -->
+    <div id="tabEnvios" style="display:none;">
+      <section class="admin-card env-card" aria-labelledby="envTitulo">
+        <header class="env-head">
+          <div class="vc-titulo">
+            <span class="vc-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></span>
+            <div>
+              <h3 id="envTitulo">Costos de envío</h3>
+              <p class="vc-sub">Lo que paga el cliente por zona en el <b>paso 3 del carrito</b>. Al guardar, el cambio aplica de inmediato en la tienda. Los pedidos anteriores no se modifican.</p>
+            </div>
+          </div>
+          <div class="env-meta"><span class="env-meta-l">Última actualización</span><b id="envUltimaAct">—</b></div>
+        </header>
+
+        <div class="vc-stats env-stats">
+          <div class="vc-stat"><span class="vc-stat-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 005 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div><span class="vc-stat-l">Zonas de envío</span><b id="envStatZonas">—</b></div></div>
+          <div class="vc-stat"><span class="vc-stat-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span><div><span class="vc-stat-l">Costo más bajo</span><b id="envStatMin">—</b></div></div>
+          <div class="vc-stat"><span class="vc-stat-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span><div><span class="vc-stat-l">Costo más alto</span><b id="envStatMax">—</b></div></div>
+        </div>
+
+        <div class="admin-table-wrap env-tabla-wrap">
+          <table class="admin-table env-tabla" id="tablaCostosEnvio">
+            <thead><tr><th scope="col">Zona</th><th scope="col" class="env-th-num">Costo guardado</th><th scope="col">Nuevo costo (COP)</th><th scope="col" class="env-th-est">Estado</th></tr></thead>
             <tbody id="costosEnvioTablaBody"></tbody>
           </table>
         </div>
-        <div class="admin-add-actions" style="margin-top:14px;">
-          <button class="admin-btn admin-btn-primary" id="btnGuardarCostosEnvio">Guardar costos de envío</button>
+
+        <div class="env-barra">
+          <p class="env-estado" id="envEstado" role="status" aria-live="polite">Sin cambios por guardar.</p>
+          <div class="env-botones">
+            <button type="button" class="admin-btn admin-btn-ghost" id="btnRestablecerCostosEnvio" disabled>Restablecer</button>
+            <button type="button" class="admin-btn admin-btn-primary" id="btnGuardarCostosEnvio" disabled>Guardar cambios</button>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
 
     <div id="tabInventario" style="display:none;">
@@ -925,9 +991,9 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
-<script src="js/store.js?v=7"></script>
-<script src="js/admin.js?v=rev1"></script>
-<script src="js/admin-ui.js?v=rev1"></script>
+<script src="js/store.js?v=8"></script>
+<script src="js/admin.js?v=rev2"></script>
+<script src="js/admin-ui.js?v=rev2"></script>
 <script src="js/admin-mensajes.js?v=msg2"></script>
 <script src="js/admin-extras.js"></script>
 <script src="js/login-orbit.js"></script>

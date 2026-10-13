@@ -35,11 +35,12 @@
 
   /* pestaña activa → atributo data-tab + descripción */
   const tabs = {
-    tabBtnResumen: ['resumen', 'Ventas, pedidos recientes, Voltage Club y costos de envío en un vistazo.'],
+    tabBtnResumen: ['resumen', 'Ventas, pedidos recientes y Voltage Club en un vistazo.'],
     tabBtnInventario: ['inventario', 'Consulta, busca, filtra y edita tus productos, precios y existencias.'],
     tabBtnPedidos: ['pedidos', 'Revisa y gestiona los pedidos de tus clientes.'],
     tabBtnMensajes: ['mensajes', 'Lee, busca y responde los mensajes del formulario de Contacto de la tienda.'],
     tabBtnDrop: ['drop', 'Configura la cuenta regresiva y los productos del próximo lanzamiento.'],
+    tabBtnEnvios: ['envios', 'Define cuánto pagan tus clientes de envío en cada zona (paso 3 del carrito).'],
     tabBtnUsuarios: ['usuarios', 'Administra quién puede entrar al panel y qué puede hacer.'],
   };
   const sub = document.getElementById('apSubtitulo');
