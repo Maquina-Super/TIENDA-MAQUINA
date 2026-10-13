@@ -35,7 +35,7 @@
 
   /* pestaña activa → atributo data-tab + descripción */
   const tabs = {
-    tabBtnResumen: ['resumen', 'Ventas, pedidos recientes y Voltage Club en un vistazo.'],
+    tabBtnResumen: ['resumen', 'Aquí tienes el estado de tu tienda.'],
     tabBtnInventario: ['inventario', 'Consulta, busca, filtra y edita tus productos, precios y existencias.'],
     tabBtnPedidos: ['pedidos', 'Revisa y gestiona los pedidos de tus clientes.'],
     tabBtnMensajes: ['mensajes', 'Lee, busca y responde los mensajes del formulario de Contacto de la tienda.'],
@@ -44,6 +44,13 @@
     tabBtnUsuarios: ['usuarios', 'Administra quién puede entrar al panel y qué puede hacer.'],
   };
   const sub = document.getElementById('apSubtitulo');
+  const titulo = document.getElementById('adminTituloTab');
+  const btnNuevoTab = document.getElementById('btnMostrarNuevo');
+  /* "Buenos días / Buenas tardes / Buenas noches" según la hora del navegador */
+  function saludo() {
+    const h = new Date().getHours();
+    return h < 12 ? ['Buenos', 'días'] : h < 19 ? ['Buenas', 'tardes'] : ['Buenas', 'noches'];
+  }
   function sincronizarTab() {
     const activo = Object.keys(tabs).find(id => {
       const b = document.getElementById(id);
@@ -51,6 +58,12 @@
     });
     dash.dataset.tab = activo ? tabs[activo][0] : '';
     if (sub) sub.textContent = activo ? tabs[activo][1] : '';
+    const enResumen = activo === 'tabBtnResumen';
+    if (enResumen && titulo) {
+      const [a, b] = saludo();
+      titulo.innerHTML = a + ' <span class="rs-tit-acento">' + b + '</span>';
+    }
+    if (btnNuevoTab) btnNuevoTab.textContent = enResumen ? '+ Nuevo producto' : '+ Agregar producto';
   }
   const obs = new MutationObserver(sincronizarTab);
   Object.keys(tabs).forEach(id => {
@@ -63,6 +76,13 @@
   const btnNuevo = document.getElementById('btnMostrarNuevo');
   const cardNuevoEl = document.getElementById('cardNuevoProducto');
   if (btnNuevo && cardNuevoEl) {
+    /* desde el Resumen: primero se pasa a Inventario y luego el botón abre el formulario como siempre */
+    btnNuevo.addEventListener('click', (e) => {
+      if (dash.dataset.tab !== 'resumen') return;
+      const inv = document.getElementById('tabBtnInventario');
+      if (inv) inv.click();
+      if (cardNuevoEl.style.display !== 'none') e.stopImmediatePropagation(); // ya estaba abierto: no lo cierres
+    }, true);
     btnNuevo.addEventListener('click', () => {
       setTimeout(() => {
         if (cardNuevoEl.style.display !== 'none') {

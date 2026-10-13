@@ -13,7 +13,8 @@
 <link rel="stylesheet" href="css/estilos.css?v=rev1">
 <link rel="stylesheet" href="css/admin-panel.css?v=rev1">
 <link rel="stylesheet" href="css/admin-extras.css?v=rev1">
-<link rel="stylesheet" href="css/admin-club-envios.css?v=1">
+<link rel="stylesheet" href="css/admin-club-envios.css?v=2">
+<link rel="stylesheet" href="css/admin-resumen.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -440,30 +441,62 @@
             <h2 class="display" id="adminTituloTab">Inventario y precios</h2>
             <p class="ap-sub" id="apSubtitulo"></p>
           </div>
-          <button class="admin-btn admin-btn-primary" id="btnMostrarNuevo">+ Agregar producto</button>
+          <div class="admin-title-actions">
+            <button class="admin-btn admin-btn-primary" id="btnMostrarNuevo">+ Agregar producto</button>
+            <div class="rs-periodos" id="rsPeriodos" role="group" aria-label="Periodo del resumen">
+              <button type="button" class="rs-per" data-per="1">Hoy</button>
+              <button type="button" class="rs-per" data-per="7">7 días</button>
+              <button type="button" class="rs-per" data-per="30">30 días</button>
+              <button type="button" class="rs-per" data-per="todo">Todo</button>
+            </div>
+          </div>
         </div>
 
     <div id="tabResumen">
-      <div class="admin-stats admin-stats-color" id="resumenStats"></div>
-      <div class="admin-resumen-grid">
-        <div class="admin-card">
-          <h3>Ventas de los últimos 7 días</h3>
-          <div class="admin-chart-bars" id="resumenChart"></div>
+      <section class="rs-kpis" id="rsKpis" aria-label="Indicadores del periodo"></section>
+
+      <div class="rs-cols">
+        <div class="rs-col">
+          <section class="admin-card rs-card rs-ventas" id="rsVentas" aria-labelledby="rsVentasT">
+            <header class="rs-head">
+              <h3 id="rsVentasT"><span class="rs-h-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Ventas de los últimos 7 días</h3>
+              <div class="rs-leyenda">
+                <button type="button" class="rs-ley on" data-serie="ingresos" aria-pressed="true"><i></i>Ingresos</button>
+                <button type="button" class="rs-ley" data-serie="pedidos" aria-pressed="false"><i></i>Pedidos</button>
+                <button type="button" class="rs-icobtn" id="rsDescargarVentas" aria-label="Descargar ventas de los últimos 7 días (CSV)" title="Descargar CSV"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg></button>
+              </div>
+            </header>
+            <div class="rs-chart" id="rsChart"><p class="rs-vacio"><span class="mq-spin" aria-hidden="true"></span> Cargando…</p></div>
+          </section>
+
+          <section class="admin-card rs-card rs-top" id="rsTop" aria-labelledby="rsTopT">
+            <header class="rs-head">
+              <h3 id="rsTopT"><span class="rs-h-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l-5 3 2 4 3-1v12h8V9l3 1 2-4-5-3c-.6 1.6-1.8 2.4-3 2.4S8.6 4.6 8 3z"/></svg></span>Productos más vendidos</h3>
+              <button type="button" class="rs-link" data-ir="tabBtnInventario">Ver catálogo <svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </header>
+            <div class="rs-top-lista" id="rsTopLista"></div>
+          </section>
         </div>
-        <div class="admin-card">
-          <h3>Productos más vendidos</h3>
-          <div class="admin-top-productos" id="resumenTopProductos"></div>
+
+        <div class="rs-col">
+          <section class="admin-card rs-card rs-recientes" id="rsRecientes" aria-labelledby="rsRecT">
+            <header class="rs-head">
+              <h3 id="rsRecT"><span class="rs-h-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></span>Pedidos recientes</h3>
+              <button type="button" class="rs-link" data-ir="tabBtnPedidos">Ver todos <svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </header>
+            <div class="rs-tabla-wrap" id="rsRecientesCont"></div>
+          </section>
+
+          <section class="admin-card rs-card rs-alertas" id="rsAlertas" aria-labelledby="rsAlT">
+            <header class="rs-head">
+              <h3 id="rsAlT"><span class="rs-h-ico rs-h-warn"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.5"/></svg></span>Alertas de inventario</h3>
+              <button type="button" class="rs-link" data-ir="tabBtnInventario">Ver inventario <svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </header>
+            <div class="rs-tabla-wrap" id="rsAlertasCont"></div>
+          </section>
         </div>
       </div>
-      <div class="admin-card">
-        <h3>Últimos pedidos</h3>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>
-            <tbody id="resumenUltimosPedidos"></tbody>
-          </table>
-        </div>
-      </div>
+
       <!-- ===== VOLTAGE CLUB ===== -->
       <section class="admin-card vc-card" id="voltageClubCard" aria-labelledby="vcTitulo">
         <header class="vc-head">
@@ -523,6 +556,13 @@
         </div>
         <div class="vc-mas" id="vcMasWrap" hidden><button type="button" class="admin-btn admin-btn-ghost" id="vcMas">Mostrar más</button></div>
       </section>
+
+      <details class="admin-card rs-mas" id="rsMas">
+        <summary><span>Más análisis</span><small>Pedidos por estado, métodos de pago, ciudades y avisos pendientes</small></summary>
+        <div id="rsMasCont"></div>
+      </details>
+
+      <section class="admin-card" id="rsRespaldo" hidden></section>
     </div>
 
     <!-- ===== ENVÍOS (pestaña propia) ===== -->

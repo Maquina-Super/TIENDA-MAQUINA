@@ -147,7 +147,7 @@
 #btnMostrarNuevo{min-height:46px;padding:12px 24px;font-size:16px;}
 
 /* "+ Agregar producto" solo tiene sentido dentro de Inventario */
-#adminDashView:not([data-tab="inventario"]) #btnMostrarNuevo{display:none !important;}
+#adminDashView:not([data-tab="inventario"]):not([data-tab="resumen"]) #btnMostrarNuevo{display:none !important;}
 
 /* ---------- 7. Encabezado de página ---------- */
 #adminDashView .admin-title-row{

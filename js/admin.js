@@ -1858,93 +1858,16 @@ document.addEventListener('visibilitychange', () => {
 
 /* ---------- pestaña Resumen: estadísticas, gráfica y top productos ---------- */
 async function pintarResumen() {
-  const contResumen = document.getElementById('resumenStats');
-  contResumen.innerHTML = `<div class="admin-stat"><b>…</b><span>Cargando</span></div>`;
-
+  /* Aquí solo se CARGAN los datos del Resumen (productos y pedidos) y se dejan en las
+     cachés que usa el resto del panel. Todo lo que se ve en la pestaña (tarjetas, gráfica,
+     pedidos recientes, más vendidos y alertas) lo dibuja js/admin-extras.js a continuación. */
   const [productos, pedidos] = await Promise.all([
     Promise.resolve(obtenerProductosAdmin()),
     obtenerPedidosAdmin(),
   ]);
   pedidosCache = pedidos; // así la pestaña Pedidos no tiene que volver a pedirlos si el admin la abre después
   numerosPedidoCache = mapaNumerosPedido(pedidos);
-
-  const totalVendido = pedidos.filter(p => estadoPedido(p) !== 'cancelado').reduce((s, p) => s + (Number(p.total) || 0), 0); // los cancelados no cuentan como venta
-  const pendientes = pedidos.filter(p => estadoPedido(p) === 'pendiente').length;
-
-  if (permisosActuales.pedidos) {
-    contResumen.innerHTML = `
-      <div class="admin-stat admin-stat-forest"><b>${pedidos.length}</b><span>Pedidos</span></div>
-      <div class="admin-stat admin-stat-acento"><b>$${totalVendido.toLocaleString('es-CO')}</b><span>Total vendido</span></div>
-      <div class="admin-stat admin-stat-butter"><b>${pendientes}</b><span>Pedidos pendientes</span></div>
-      <div class="admin-stat admin-stat-sage"><b>${productos.length}</b><span>Productos</span></div>
-    `;
-  } else {
-    // usuario sin permiso de pedidos: solo mostramos lo de inventario
-    contResumen.innerHTML = `
-      <div class="admin-stat admin-stat-sage"><b>${productos.length}</b><span>Productos</span></div>
-      <div class="admin-stat admin-stat-warn"><b>${productos.filter(p => estaAgotado(p)).length}</b><span>Agotados</span></div>
-    `;
-  }
-
-  if (!permisosActuales.pedidos) {
-    document.getElementById('resumenChart').innerHTML = `<p class="admin-foto-hint">No tienes permiso para ver los pedidos.</p>`;
-    document.getElementById('resumenTopProductos').innerHTML = '';
-    document.getElementById('resumenUltimosPedidos').innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray);">Sin acceso.</td></tr>`;
-    return;
-  }
-
-  /* --- gráfica de ventas de los últimos 7 días --- */
-  const hoy = new Date();
-  const dias = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(hoy);
-    d.setDate(d.getDate() - i);
-    dias.push({ clave: d.toISOString().slice(0, 10), etiqueta: d.toLocaleDateString('es-CO', { weekday: 'short' }) });
-  }
-  const ventasPorDia = dias.map(d => ({
-    ...d,
-    total: pedidos.filter(p => p.fecha && p.fecha.slice(0, 10) === d.clave && estadoPedido(p) !== 'cancelado').reduce((s, p) => s + (Number(p.total) || 0), 0),
-  }));
-  const maxVenta = Math.max(1, ...ventasPorDia.map(d => d.total));
-  document.getElementById('resumenChart').innerHTML = ventasPorDia.map(d => `
-    <div class="chart-bar-col" title="$${d.total.toLocaleString('es-CO')}">
-      <div class="chart-bar" style="height:${Math.max(4, Math.round(d.total / maxVenta * 100))}%"></div>
-      <span class="chart-bar-label">${d.etiqueta}</span>
-    </div>
-  `).join('') || `<p class="admin-foto-hint">Todavía no hay ventas.</p>`;
-
-  /* --- productos más vendidos (contando cuántas veces aparece cada nombre en los pedidos) --- */
-  const conteoProductos = {};
-  pedidos.forEach(p => (p.items || []).forEach(it => {
-    conteoProductos[it.nombre] = (conteoProductos[it.nombre] || 0) + 1;
-  }));
-  const topProductos = Object.entries(conteoProductos).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const maxCantidad = Math.max(1, ...topProductos.map(([, c]) => c));
-  document.getElementById('resumenTopProductos').innerHTML = topProductos.length
-    ? topProductos.map(([nombre, cantidad]) => `
-        <div class="top-prod-fila">
-          <span class="top-prod-nombre">${nombre}</span>
-          <div class="top-prod-barra-wrap"><div class="top-prod-barra" style="width:${Math.round(cantidad / maxCantidad * 100)}%"></div></div>
-          <span class="top-prod-cantidad">${cantidad}</span>
-        </div>`).join('')
-    : `<p class="admin-foto-hint">Todavía no hay ventas.</p>`;
-
-  /* --- últimos 5 pedidos --- */
-  const ultimos = pedidos.slice(0, 5);
-  document.getElementById('resumenUltimosPedidos').innerHTML = ultimos.length
-    ? ultimos.map(p => {
-        const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
-        const est = estadoPedido(p);
-        const numero = numerosPedidoCache.get(p.id) || '—';
-        return `<tr>
-          <td data-label="N°"><span class="pedido-numero mono">#${numero}</span></td>
-          <td data-label="Fecha" class="mono" style="white-space:nowrap;">${fecha}</td>
-          <td data-label="Cliente"><b>${p.nombre_cliente || '—'}</b></td>
-          <td data-label="Total" class="mono">$${(Number(p.total) || 0).toLocaleString('es-CO')}</td>
-          <td data-label="Estado"><span class="pedido-estado-pill estado-pill-${est}">${ESTADOS_PEDIDO[est].emoji} ${ESTADOS_PEDIDO[est].label}</span></td>
-        </tr>`;
-      }).join('')
-    : `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--gray);">Todavía no hay pedidos.</td></tr>`;
+  return { productos, pedidos };
 }
 
 /* ---------- estadísticas rápidas ---------- */
