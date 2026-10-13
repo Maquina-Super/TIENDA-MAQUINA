@@ -120,19 +120,6 @@
 .pg-inicio .yd-promo p{font-size:15px;color:#bdbdb9;}
 .pg-inicio .yd-promo .yd-hero-btn{margin-top:22px;}
 
-/* ---------- cuenta regresiva del drop: misma lógica, menos peso ---------- */
-.pg-inicio .drop-countdown{
-  width:calc(100% - 2*var(--ini-pad));max-width:calc(var(--ini-max) - 2*var(--ini-pad));margin:var(--ini-gap-sec) auto 0;box-sizing:border-box;
-  border-radius:var(--ini-radius);border:1px solid var(--line);box-shadow:none;
-  background:var(--surface);padding:clamp(28px,4vw,48px) clamp(18px,3vw,40px);
-}
-.pg-inicio .drop-countdown::before{display:none;}
-.pg-inicio .drop-countdown::after{opacity:.12 !important;filter:blur(30px) !important;}
-.pg-inicio .drop-countdown-label{font-size:12px;letter-spacing:.2em;color:var(--gray);}
-.pg-inicio .drop-unit span{font-size:clamp(30px,4.6vw,46px);}
-.pg-inicio .drop-countdown-cta{font-size:13px;padding:12px 26px;}
-.pg-inicio .drop-live-teaser-tag{box-shadow:none;}
-
 /* ---------- Voltage Club ---------- */
 .pg-inicio .club{width:100%;box-sizing:border-box;max-width:640px;margin:0 auto;padding:var(--ini-gap-sec) var(--ini-pad);}
 .pg-inicio .club h2{font-size:clamp(24px,2.8vw,32px);margin-bottom:10px;}

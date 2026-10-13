@@ -489,6 +489,20 @@ async function cargarConfigDrop() {
 function getConfigDrop() {
   return _dropConfigCache;
 }
+/** Escucha en vivo la config del drop: cuando el panel guarda un cambio
+    (fecha, nombre, productos) la portada se entera sin recargar. Devuelve
+    la función para dejar de escuchar. */
+function suscribirConfigDrop(cb) {
+  try {
+    return fbDb.collection('config').doc('drop').onSnapshot(doc => {
+      _dropConfigCache = { fecha: null, fechaFin: null, titulo: '', productos: [], ...(doc.exists ? doc.data() : {}) };
+      if (cb) cb(_dropConfigCache);
+    }, e => console.error('Error escuchando la configuración del drop:', e));
+  } catch (e) {
+    console.error('No se pudo escuchar la configuración del drop:', e);
+    return () => {};
+  }
+}
 /** Guarda (desde el panel admin) la fecha del próximo drop, el título
     y/o la lista de ids de productos que se muestran cuando el tiempo
     se acaba. "cambios" trae solo los campos que se van a actualizar. */

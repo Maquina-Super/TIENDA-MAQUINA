@@ -19,7 +19,8 @@
 <link rel="stylesheet" href="css/estilos.css?v=rev1">
 <link rel="stylesheet" href="css/maquina-ui.css?v=10">
 <link rel="stylesheet" href="css/extras-cliente.css?v=1">
-<link rel="stylesheet" href="css/inicio.css?v=3">
+<link rel="stylesheet" href="css/inicio.css?v=4">
+<link rel="stylesheet" href="css/drop-hero.css?v=1">
 <link rel="stylesheet" href="css/tarjetas.css?v=2">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 </head>
@@ -62,37 +63,73 @@
   </div>
 </section>
 
-<!-- ========== CUENTA REGRESIVA DEL PRÓXIMO DROP ========== -->
-<!-- siluetas usadas para recortar la foto del producto con la forma
-     de la prenda (buso/camiseta/chaqueta) mientras está borrosa -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <clipPath id="dropClipTee" clipPathUnits="objectBoundingBox">
-      <path d="M0.38 0.1091 L0.20 0.2182 L0.10 0.3636 L0.24 0.4364 L0.30 0.3636 L0.30 0.9091 C0.30 0.9364 0.32 0.9545 0.35 0.9545 L0.65 0.9545 C0.68 0.9545 0.70 0.9364 0.70 0.9091 L0.70 0.3636 L0.76 0.4364 L0.90 0.3636 L0.80 0.2182 L0.62 0.1091 C0.58 0.1818 0.42 0.1818 0.38 0.1091 Z"/>
-    </clipPath>
-    <clipPath id="dropClipHoodie" clipPathUnits="objectBoundingBox">
-      <path d="M0.50 0.0727 C0.40 0.0727 0.33 0.1273 0.30 0.2 L0.18 0.2727 C0.14 0.3 0.13 0.3455 0.16 0.3818 L0.24 0.4545 C0.26 0.4273 0.29 0.4091 0.30 0.4091 L0.30 0.9091 C0.30 0.9364 0.32 0.9545 0.35 0.9545 L0.65 0.9545 C0.68 0.9545 0.70 0.9364 0.70 0.9091 L0.70 0.4091 C0.71 0.4091 0.74 0.4273 0.76 0.4545 L0.84 0.3818 C0.87 0.3455 0.86 0.3 0.82 0.2727 L0.70 0.2 C0.67 0.1273 0.60 0.0727 0.50 0.0727 Z"/>
-    </clipPath>
-    <clipPath id="dropClipJacket" clipPathUnits="objectBoundingBox">
-      <path d="M0.50 0.0727 L0.34 0.1455 L0.18 0.2364 L0.10 0.3818 L0.22 0.4364 L0.30 0.3455 L0.30 0.9091 C0.30 0.9364 0.32 0.9545 0.35 0.9545 L0.65 0.9545 C0.68 0.9545 0.70 0.9364 0.70 0.9091 L0.70 0.3455 L0.78 0.4364 L0.90 0.3818 L0.82 0.2364 L0.66 0.1455 Z"/>
-    </clipPath>
-  </defs>
-</svg>
-<section class="drop-countdown reveal-scale" id="dropCountdown">
-  <div class="drop-countdown-inner">
-    <div class="drop-countdown-label" id="dropLabel">Próximo drop en</div>
-    <div class="drop-live-grid" id="dropLiveGrid" hidden></div>
-    <div class="drop-countdown-timer" id="dropTimer">
-      <div class="drop-unit"><span id="dtDias">--</span><small>días</small></div>
-      <div class="drop-sep">:</div>
-      <div class="drop-unit"><span id="dtHoras">--</span><small>hrs</small></div>
-      <div class="drop-sep">:</div>
-      <div class="drop-unit"><span id="dtMin">--</span><small>min</small></div>
-      <div class="drop-sep">:</div>
-      <div class="drop-unit"><span id="dtSeg">--</span><small>seg</small></div>
+<!-- ========== PRÓXIMO DROP ========== -->
+<!-- Todo el contenido (fecha, nombre, productos) se lee de la config del
+     panel (Firestore: config/drop). Estilos en css/drop-hero.css -->
+<section class="dh" id="dropCountdown" data-estado="cargando" aria-labelledby="dhTitulo">
+  <svg class="dh-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <!-- bordes irregulares de pincel seco para el título -->
+      <filter id="dhRough" x="-8%" y="-30%" width="116%" height="160%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.03 0.55" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="dh-lights" aria-hidden="true">
+    <span class="dh-light dh-light--1"></span>
+    <span class="dh-light dh-light--2"></span>
+    <span class="dh-light dh-light--3"></span>
+    <span class="dh-light dh-light--4"></span>
+  </div>
+
+  <!-- prendas reales del drop (se llena desde el script) -->
+  <div class="dh-stage" id="dropLiveGrid"></div>
+
+  <div class="dh-veil2" aria-hidden="true"></div>
+  <div class="dh-veil" aria-hidden="true"></div>
+  <div class="dh-smoke dh-smoke--l" aria-hidden="true"></div>
+  <div class="dh-smoke dh-smoke--r" aria-hidden="true"></div>
+  <div class="dh-smoke dh-smoke--b" aria-hidden="true"></div>
+  <div class="dh-grain" aria-hidden="true"></div>
+
+  <div class="dh-crown" aria-hidden="true">
+    <img src="img/logo-crown.png" alt="" width="34" height="34" loading="lazy">
+    <span>Más que ropa,<br>es actitud</span>
+    <svg viewBox="0 0 120 10" preserveAspectRatio="none"><path d="M2 7 Q 30 1 60 5 T 118 3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+  </div>
+
+  <div class="dh-content">
+    <p class="dh-eyebrow"><i></i><span id="dropLabel">Próximo drop</span></p>
+    <h2 class="dh-title" id="dhTitulo"><span class="dh-t1" id="dhT1">Próximo</span><span class="dh-t2" id="dhT2">Drop</span></h2>
+    <p class="dh-tag">Nueva colección · Misma esencia</p>
+    <p class="dh-pill" id="dhPill" hidden></p>
+    <p class="dh-sub" id="dropSub" hidden></p>
+    <div class="dh-timer" id="dropTimer" role="timer" aria-label="Tiempo restante">
+      <div class="dh-unit"><span id="dtDias">--</span><small>Días</small></div>
+      <div class="dh-unit"><span id="dtHoras">--</span><small>Horas</small></div>
+      <div class="dh-unit"><span id="dtMin">--</span><small>Min</small></div>
+      <div class="dh-unit"><span id="dtSeg">--</span><small>Seg</small></div>
     </div>
-    <div class="drop-countdown-sub" id="dropSub" hidden></div>
-    <a href="#club" class="btn drop-countdown-cta" id="dropCta">Avísenme primero</a>
+    <a href="#club" class="dh-cta" id="dropCta">
+      <svg class="dh-bell" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 22a2.4 2.4 0 0 0 2.35-1.9h-4.7A2.4 2.4 0 0 0 12 22Zm7-5.6-1.6-1.7V10a5.4 5.4 0 0 0-4.2-5.3V3.8a1.2 1.2 0 1 0-2.4 0v.9A5.4 5.4 0 0 0 6.6 10v4.7L5 16.4V18h14v-1.6Z"/></svg>
+      <span id="dropCtaTxt">Avísenme primero</span>
+      <svg class="dh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+    </a>
+  </div>
+
+  <div class="dh-brand" aria-hidden="true">
+    <span class="dh-barcode"></span>
+    <span>Maquina supply<br>Streetwear</span>
+  </div>
+
+  <div class="dh-seal" aria-hidden="true">
+    <svg class="dh-seal-ring" viewBox="0 0 120 120">
+      <defs><path id="dhCirculo" d="M60 60 m-47 0 a47 47 0 1 1 94 0 a47 47 0 1 1 -94 0"/></defs>
+      <text><textPath href="#dhCirculo" startOffset="0" textLength="293" lengthAdjust="spacing">MAQUINA STREETWEAR · MAQUINA ·</textPath></text>
+    </svg>
+    <svg class="dh-seal-bolt" viewBox="0 0 24 32" fill="#52ff28"><path d="M14 0 2 18h8l-3 14 15-20h-9L14 0Z"/></svg>
   </div>
 </section>
 
@@ -126,7 +163,7 @@
 <script src="js/firebase-config.js?v=4"></script>
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=5"></script>
-<script src="js/store.js?v=7"></script>
+<script src="js/store.js?v=8"></script>
 <script src="js/catalog-render.js?v=5"></script>
 <script src="js/layout.js?v=4"></script>
 <script src="js/maquina-ui.js?v=4"></script>
@@ -142,152 +179,169 @@ ydRenderHero('ydHero');
 ydRenderBeneficios('ydInfo');
 
 /* ============================================================
-   CUENTA REGRESIVA DEL PRÓXIMO DROP
-   La fecha, el título y qué productos se muestran cuando el
-   tiempo se acaba se configuran desde el panel (pestaña "Drop"
-   de admin.html). Si todavía no se ha configurado nada, se usa
-   esta fecha de respaldo para que la sección no se vea rota.
+   PRÓXIMO DROP
+   Todo sale de la config del panel (pestaña "Drop" de admin.html →
+   Firestore config/drop): fecha de lanzamiento, fecha de fin,
+   nombre y productos. No hay fechas de respaldo: si no hay un
+   lanzamiento programado, no se muestra contador.
+   Estados: teaser (falta tiempo / sin fecha) · live · terminado.
    ============================================================ */
-const FECHA_DROP_RESPALDO = new Date('2026-09-15T00:00:00-05:00');
+const dhRoot = document.getElementById('dropCountdown');
+let dhListo = false;      // ya llegó la config + catálogo
+let dhClave = null;       // huella de lo pintado en el escenario
+let dhEstadoPrevio = null;
 
-/** Qué clip-path (silueta) usar según el tipo de prenda, para que la
-    foto borrosa del teaser se vea recortada con la forma real de lo
-    que se viene — buso, camiseta o chaqueta — y no como un cuadrado. */
-function dropClipPorTipo(icono) {
-  if (icono === 'hoodie') return 'url(#dropClipHoodie)';
-  if (icono === 'jacket') return 'url(#dropClipJacket)';
-  return 'url(#dropClipTee)';
+function dhEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+/** Fecha válida o null. Las fechas se guardan en ISO/UTC desde el panel,
+    así que new Date() las interpreta igual en cualquier zona horaria. */
+function dhFecha(v) {
+  if (!v) return null;
+  const d = (typeof v.toDate === 'function') ? v.toDate() : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+function dhFoto(p) {
+  const c0 = p.colores && p.colores[0];
+  return (p.fotos && c0 && p.fotos[c0]) || p.foto || (p.fotos && Object.values(p.fotos)[0]) || null;
 }
 
-/** Pinta la fila de productos del drop en #dropLiveGrid.
-    estado: 'teaser'    -> el contador todavía está corriendo: la
-                            prenda se ve GRANDE, con su silueta real
-                            y borrosa, sin link a la ficha (para que
-                            no se note el diseño todavía).
-            'live'      -> ya llegó la fecha del lanzamiento: foto
-                            nítida, clickeable, y con la cantidad que
-                            queda en inventario.
-            'terminado' -> ya pasó la fecha de fin configurada: se
-                            avisa que el drop se acabó. */
-function pintarProductosDrop(destacados, estado) {
-  const grid = document.getElementById('dropLiveGrid');
-  if (!grid) return;
-  if (!destacados.length) { grid.hidden = true; grid.innerHTML = ''; return; }
+/** TEASER: de la foto real solo se conserva un dibujo diminuto (48×60 px)
+    en un <canvas>; el CSS lo agranda y lo desenfoca. En la página nunca
+    hay una foto nítida de la prenda antes del lanzamiento. */
+function dhDibujarBorroso(canvas, src) {
+  const img = new Image();
+  img.decoding = 'async';
+  img.onload = () => {
+    const cw = canvas.width, ch = canvas.height;
+    const r = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    const sw = cw / r, sh = ch / r;
+    const sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) * 0.25;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    canvas.classList.add('is-ready');
+  };
+  img.src = src;
+}
 
-  const esTeaser = estado === 'teaser';
-  const esTerminado = estado === 'terminado';
-  grid.hidden = false;
-  grid.innerHTML = destacados.map(p => {
-    const fotoFrente = (p.fotos && p.fotos[p.colores[0]]) || p.foto;
-    const fotoAtras = !esTeaser && p.fotosTrasera && p.fotosTrasera[p.colores[0]];
-    const clip = dropClipPorTipo(p.icono);
-    const visual = fotoFrente
-      ? `<img src="${fotoFrente}" class="drop-live-img drop-live-img-frente" style="clip-path:${clip};-webkit-clip-path:${clip};" alt="${p.nombre}" loading="lazy">${fotoAtras ? `<img src="${fotoAtras}" class="drop-live-img drop-live-img-atras" style="clip-path:${clip};-webkit-clip-path:${clip};" alt="${p.nombre} de espaldas" loading="lazy">` : ''}`
-      : iconoProducto(p.icono, p.colores[0]);
+function dhPintarEscenario(estado, lista) {
+  const stage = document.getElementById('dropLiveGrid');
+  const abierto = estado !== 'teaser';
+  const items = lista.map(p => ({ p, foto: dhFoto(p) })).filter(x => x.foto).slice(0, abierto ? 6 : 4);
+  const clave = estado + '|' + items.map(x =>
+    x.p.id + '@' + x.foto.length + ':' + x.foto.slice(-24) + (estado === 'live' ? '#' + stockTotalProducto(x.p) : '')).join(',');
+  if (clave === dhClave) return;       // nada cambió: no se vuelve a pintar cada segundo
+  dhClave = clave;
 
-    let etiqueta = '';
-    if (esTeaser) {
-      etiqueta = '<span class="drop-live-teaser-tag">Muy pronto</span>';
-    } else if (esTerminado) {
-      etiqueta = '<span class="drop-live-teaser-tag drop-live-tag-fin">Se acabó</span>';
-    } else {
-      const cantidad = stockTotalProducto(p);
-      etiqueta = cantidad > 0
-        ? `<span class="drop-stock-pill${cantidad <= STOCK_BAJO_UMBRAL ? ' is-bajo' : ''}">${cantidad <= STOCK_BAJO_UMBRAL ? '¡Quedan solo ' + cantidad + '!' : 'Quedan ' + cantidad}</span>`
-        : '<span class="drop-stock-pill is-agotado">Agotado</span>';
+  if (estado === 'teaser') {
+    stage.innerHTML = items.map(() =>
+      '<div class="dh-tile" aria-hidden="true"><div class="dh-media"><canvas width="48" height="60"></canvas></div></div>').join('');
+    stage.querySelectorAll('canvas').forEach((cv, i) => dhDibujarBorroso(cv, items[i].foto));
+    return;
+  }
+
+  // live / terminado: foto real; al lanzar se le quita el desenfoque poco a poco
+  const revelar = estado === 'live';
+  stage.innerHTML = items.map(({ p, foto }) => {
+    const img = `<img class="dh-img${revelar ? ' is-hidden' : ''}" src="${dhEsc(foto)}" alt="${dhEsc(p.nombre)}" decoding="async">`;
+    let cap = `<span class="dh-cap"><b>${dhEsc(p.nombre)}</b>`;
+    if (revelar) {
+      const q = stockTotalProducto(p);
+      cap += q > 0
+        ? `<span class="dh-pill-stock${q <= STOCK_BAJO_UMBRAL ? ' is-bajo' : ''}">${q <= STOCK_BAJO_UMBRAL ? '¡Quedan solo ' + q + '!' : 'Quedan ' + q}</span>`
+        : '<span class="dh-pill-stock is-agotado">Agotado</span>';
     }
-
-    const cuerpo = `
-      <div class="drop-live-stage">
-        <div class="drop-live-visual${esTeaser ? ' is-teaser' : ''}${esTerminado ? ' is-terminado' : ''}">${visual}${etiqueta}</div>
-      </div>
-      <span class="drop-live-nombre">${p.nombre}</span>`;
-    // Mientras es teaser (o ya terminó) no se linkea a la ficha del producto.
-    return (esTeaser || esTerminado)
-      ? `<div class="drop-live-item">${cuerpo}</div>`
-      : `<a class="drop-live-item" href="producto.html?id=${p.id}">${cuerpo}</a>`;
+    cap += '</span>';
+    const cuerpo = `<span class="dh-media">${img}</span>${cap}`;
+    return revelar
+      ? `<a class="dh-tile" href="producto.html?id=${encodeURIComponent(p.id)}">${cuerpo}</a>`
+      : `<div class="dh-tile">${cuerpo}</div>`;
   }).join('');
+
+  stage.querySelectorAll('.dh-img.is-hidden').forEach(img => {
+    const quitar = () => requestAnimationFrame(() => requestAnimationFrame(() => img.classList.remove('is-hidden')));
+    if (img.complete && img.naturalWidth) quitar();
+    else { img.addEventListener('load', quitar, { once: true }); img.addEventListener('error', quitar, { once: true }); }
+  });
 }
 
-function pintarTimer(diff) {
-  const dias  = Math.floor(diff / 86400000);
-  const horas = Math.floor((diff % 86400000) / 3600000);
-  const min   = Math.floor((diff % 3600000) / 60000);
-  const seg   = Math.floor((diff % 60000) / 1000);
-  document.getElementById('dtDias').textContent  = String(dias).padStart(2, '0');
-  document.getElementById('dtHoras').textContent = String(horas).padStart(2, '0');
-  document.getElementById('dtMin').textContent   = String(min).padStart(2, '0');
-  document.getElementById('dtSeg').textContent   = String(seg).padStart(2, '0');
+function dhPintarTimer(diff) {
+  const d = Math.max(0, diff);
+  const v = {
+    dtDias:  Math.floor(d / 86400000),
+    dtHoras: Math.floor((d % 86400000) / 3600000),
+    dtMin:   Math.floor((d % 3600000) / 60000),
+    dtSeg:   Math.floor((d % 60000) / 1000)
+  };
+  for (const id in v) document.getElementById(id).textContent = String(v[id]).padStart(2, '0');
 }
 
 function actualizarCountdown() {
-  const contenedor = document.getElementById('dropCountdown');
-  if (!contenedor) return;
+  if (!dhListo || !dhRoot) return;
   const config = getConfigDrop();
-  const fechaInicio = config.fecha ? new Date(config.fecha) : FECHA_DROP_RESPALDO;
-  const fechaFin = config.fechaFin ? new Date(config.fechaFin) : null;
-  const ahora = new Date();
-  const diffInicio = fechaInicio - ahora;
-  const diffFin = fechaFin ? fechaFin - ahora : null;
+  const inicio = dhFecha(config.fecha);
+  const fin = dhFecha(config.fechaFin);
+  const ahora = Date.now();
 
-  const idsElegidos = config.productos || [];
   const catalogo = getCatalogo();
-  const destacados = idsElegidos
-    .map(id => catalogo.find(p => p.id == id))
-    .filter(Boolean);
+  const destacados = (config.productos || []).map(id => catalogo.find(p => p.id == id)).filter(Boolean);
 
-  // Foto de fondo de la caja entera: la misma prenda del drop, bien
-  // grande y difuminada detrás de todo (ver .drop-countdown::after).
-  const fotoFondo = destacados.length ? ((destacados[0].fotos && destacados[0].fotos[destacados[0].colores[0]]) || destacados[0].foto) : null;
-  contenedor.style.setProperty('--drop-bg-img', fotoFondo ? `url("${fotoFondo}")` : 'none');
+  let estado;                                   // lo que se ve
+  if (!inicio || inicio - ahora > 0) estado = 'teaser';
+  else if (fin && fin - ahora <= 0) estado = 'terminado';
+  else estado = 'live';
 
-  const label   = document.getElementById('dropLabel');
-  const timer   = document.getElementById('dropTimer');
-  const sub     = document.getElementById('dropSub');
-  const cta     = document.getElementById('dropCta');
+  const $ = id => document.getElementById(id);
+  const label = $('dropLabel'), t1 = $('dhT1'), t2 = $('dhT2'), pill = $('dhPill');
+  const timer = $('dropTimer'), sub = $('dropSub'), cta = $('dropCta'), ctaTxt = $('dropCtaTxt');
 
-  // ---- todavía no lanza: grande, borroso, con la forma de la prenda ----
-  if (diffInicio > 0) {
-    label.textContent = 'Próximo drop en';
-    timer.style.display = '';
-    sub.hidden = true;
-    cta.textContent = 'Avísenme primero';
-    cta.href = '#club';
-    pintarProductosDrop(destacados, 'teaser');
-    pintarTimer(diffInicio);
-    return;
+  if (estado !== dhEstadoPrevio) {
+    dhEstadoPrevio = estado;
+    dhRoot.dataset.estado = estado;
+    if (estado === 'teaser') {
+      label.textContent = 'Próximo drop'; t1.textContent = 'Próximo'; t2.textContent = 'Drop';
+      ctaTxt.textContent = 'Avísenme primero'; cta.href = '#club';
+    } else if (estado === 'live') {
+      label.textContent = 'Ya disponible'; t1.textContent = 'Drop'; t2.textContent = 'Disponible';
+      ctaTxt.textContent = 'Ver drop';
+      cta.href = destacados.length === 1 ? 'producto.html?id=' + encodeURIComponent(destacados[0].id) : 'productos.html';
+    } else {
+      label.textContent = 'Drop cerrado'; t1.textContent = 'Drop'; t2.textContent = 'Finalizado';
+      ctaTxt.textContent = 'Ver colección'; cta.href = 'productos.html';
+    }
   }
 
-  // ---- ya lanzó, pero se configuró una fecha de fin y ya pasó ----
-  if (diffFin !== null && diffFin <= 0) {
-    label.textContent = 'Este drop ya se acabó';
-    timer.style.display = 'none';
-    sub.hidden = true;
-    cta.textContent = 'Ver toda la colección';
-    cta.href = 'productos.html';
-    pintarProductosDrop(destacados, 'terminado');
-    return;
-  }
+  // nombre del lanzamiento (viene del panel; si no hay, no se muestra)
+  const nombre = (config.titulo || '').trim();
+  pill.hidden = !nombre;
+  if (nombre && pill.textContent !== nombre) pill.textContent = nombre;
 
-  // ---- en vivo: foto nítida, clickeable, con la cantidad disponible ----
-  label.textContent = config.titulo || '¡Ya está aquí!';
-  cta.textContent = 'Ver la colección';
-  cta.href = 'productos.html';
-  pintarProductosDrop(destacados, 'live');
-
-  if (diffFin !== null) {
-    // hay fecha de fin: el mismo reloj ahora cuenta lo que falta para que cierre
-    sub.hidden = false;
-    sub.textContent = 'Este drop termina en';
-    timer.style.display = '';
-    pintarTimer(diffFin);
+  // contador
+  if (estado === 'teaser' && inicio) {
+    timer.hidden = false; sub.hidden = true;
+    dhPintarTimer(inicio - ahora);
+  } else if (estado === 'live' && fin) {
+    timer.hidden = false; sub.hidden = false; sub.textContent = 'Este drop termina en';
+    dhPintarTimer(fin - ahora);
   } else {
-    // sin fecha de fin: queda disponible siempre, no hace falta reloj
-    timer.style.display = 'none';
-    sub.hidden = true;
+    timer.hidden = true;
+    sub.hidden = estado !== 'teaser';
+    if (estado === 'teaser') sub.textContent = 'Pronto anunciaremos la fecha';
   }
+
+  dhPintarEscenario(estado, destacados);
 }
-actualizarCountdown();
+
+// "Avísenme primero" lleva al registro del Voltage Club (el aviso real que ya existe)
+document.getElementById('dropCta').addEventListener('click', function (e) {
+  if (this.getAttribute('href') !== '#club') return;
+  e.preventDefault();
+  const club = document.getElementById('club');
+  if (!club) return;
+  club.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => { const i = document.getElementById('clubEmail'); if (i) i.focus({ preventScroll: true }); }, 600);
+});
 setInterval(actualizarCountdown, 1000);
 
 (async function () {
@@ -297,7 +351,16 @@ gridDest.innerHTML = construirSkeletonHtml(4);
 gridTop.innerHTML  = construirSkeletonHtml(4);
 
 await Promise.all([cargarCatalogo(), cargarConfigDrop()]);
+dhListo = true;
 actualizarCountdown();
+
+// la portada se actualiza sola cuando se cambia el Drop desde el panel
+suscribirConfigDrop(async (cfg) => {
+  const cat = getCatalogo();
+  if ((cfg.productos || []).some(id => !cat.find(p => p.id == id))) { try { await cargarCatalogo(); } catch (e) {} }
+  dhClave = null;
+  actualizarCountdown();
+});
 
 const activos = productosActivos();
 
