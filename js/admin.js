@@ -791,55 +791,85 @@ document.getElementById('claveAccesoUsuarios').addEventListener('keydown', (e) =
 });
 
 /* ---------- pestaña Usuarios: crear, activar/desactivar, eliminar ---------- */
+let _usuariosCache = [];
+const _escUsr = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 async function pintarUsuariosPanel() {
   const tbody = document.getElementById('tablaUsuariosPanelBody');
   tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Cargando usuarios…</td></tr>`;
-  const usuarios = await obtenerUsuariosAdminPanel();
+  _usuariosCache = await obtenerUsuariosAdminPanel();
+  const usuarios = _usuariosCache;
 
   const activos = usuarios.filter(u => u.activo !== false).length;
   const conectados = usuarios.filter(u => u.conectado).length;
+  const f2 = n => String(n).padStart(2, '0');
   document.getElementById('usuariosStats').innerHTML = `
-    <div class="admin-stat admin-stat-forest"><b>${usuarios.length}</b><span>Usuarios</span></div>
-    <div class="admin-stat admin-stat-sage"><b>${activos}</b><span>Activos</span></div>
-    <div class="admin-stat admin-stat-acento"><b>${conectados}</b><span>Conectados ahora</span></div>
+    <div class="usr-stat usr-stat-blue"><span class="usr-stat-lbl">👥 Usuarios</span><b>${f2(usuarios.length)}</b></div>
+    <div class="usr-stat usr-stat-green"><span class="usr-stat-lbl"><i class="usr-dot"></i> Activos</span><b>${f2(activos)}</b></div>
+    <div class="usr-stat usr-stat-pink"><span class="usr-stat-lbl"><i class="usr-dot"></i> Conectados</span><b>${f2(conectados)}</b></div>
   `;
+  renderTablaUsuariosPanel();
+}
 
-  if (!usuarios.length) {
+function renderTablaUsuariosPanel() {
+  const tbody = document.getElementById('tablaUsuariosPanelBody');
+  const q = (document.getElementById('usuariosBuscar').value || '').trim().toLowerCase();
+  const estado = document.getElementById('usuariosFiltroEstado').value;
+  if (!_usuariosCache.length) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Todavía no hay usuarios.</td></tr>`;
+    return;
+  }
+  const usuarios = _usuariosCache.filter(u => {
+    if (q && !`${u.correo || ''} ${u.usuario || ''}`.toLowerCase().includes(q)) return false;
+    if (estado === 'activos') return u.activo !== false;
+    if (estado === 'inactivos') return u.activo === false;
+    if (estado === 'conectados') return !!u.conectado;
+    return true;
+  });
+  if (!usuarios.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Ningún usuario coincide con la búsqueda.</td></tr>`;
     return;
   }
   const yo = usuarioAdminActual();
   const ETIQUETAS_PERMISOS = { inventario: 'Inventario', pedidos: 'Pedidos', eliminarPedidos: 'Eliminar pedidos', mensajes: 'Mensajes', drop: 'Drop', usuarios: 'Usuarios' };
-  const COLORES_AVATAR = ['#1b4332', '#c9a13a', '#8a5a44', '#4a6fa5', '#a3477a', '#3b7a63'];
+  const COLORES_AVATAR = ['#8af04e', '#6cb8ff', '#ff6fae', '#ffb545', '#b58cff', '#3ddcc0'];
   const colorAvatar = nombre => COLORES_AVATAR[[...nombre].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORES_AVATAR.length];
   tbody.innerHTML = usuarios.map(u => {
-    const creado = u.creado ? new Date(u.creado).toLocaleDateString('es-CO', { dateStyle: 'medium' }) : '—';
+    const fecha = u.creado ? new Date(u.creado) : null;
+    const creado = fecha && !isNaN(fecha) ? fecha.toLocaleDateString('es-CO', { dateStyle: 'medium' }) + '<small>' + fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) + '</small>' : '—';
     const permisos = normalizarPermisos(u);
     const activosPermisos = Object.keys(permisos).filter(k => permisos[k]);
     const permisosTexto = activosPermisos.length
-      ? activosPermisos.map(k => `<span class="admin-permiso-pill">${ETIQUETAS_PERMISOS[k]}</span>`).join(' ')
+      ? activosPermisos.map(k => `<span class="admin-permiso-pill">${ETIQUETAS_PERMISOS[k] || _escUsr(k)}</span>`).join(' ')
       : '<span class="admin-foto-hint">Sin permisos</span>';
-    const etiqueta = u.correo || u.usuario;
+    const etiqueta = u.correo || u.usuario || '';
+    const eti = _escUsr(etiqueta), uid = _escUsr(u.usuario);
+    const av = colorAvatar(etiqueta);
+    const inactivo = u.activo === false;
     return `
-      <tr>
+      <tr class="usr-fila${inactivo ? ' usr-fila-off' : ''}">
         <td data-label="Usuario">
           <div class="usuario-fila">
-            <span class="usuario-avatar" style="background:${colorAvatar(etiqueta)}" title="${u.usuario}">${etiqueta.charAt(0).toUpperCase()}</span>
-            <b>${etiqueta}</b>${u.usuario === yo ? ' <span class="admin-foto-hint">(tú)</span>' : ''}${u.superAdmin ? ' <span class="admin-permiso-pill">superAdmin</span>' : ''}
+            <span class="usuario-avatar" style="border-color:${av};color:${av}" title="${uid}">${_escUsr(etiqueta.charAt(0).toUpperCase())}</span>
+            <div class="usr-id"><b>${eti}</b>${u.usuario === yo || u.superAdmin ? `<small class="usr-tag">${u.usuario === yo ? 'Tú' : ''}${u.usuario === yo && u.superAdmin ? ' · ' : ''}${u.superAdmin ? 'SuperAdmin' : ''}</small>` : ''}</div>
           </div>
         </td>
-        <td data-label="Estado"><span class="usuario-estado-pill ${u.activo === false ? 'usuario-estado-inactivo' : 'usuario-estado-activo'}">${u.activo === false ? 'Desactivado' : 'Activo'}</span></td>
-        <td data-label="Permisos">${permisosTexto}</td>
-        <td data-label="Conectado">${u.conectado ? '<span class="usuario-estado-pill usuario-estado-conectado">🟢 Sí</span>' : '<span class="usuario-estado-pill usuario-estado-desconectado">⚪ No</span>'}</td>
-        <td data-label="Creado" class="mono">${creado}</td>
-        <td data-label="">
-          <button type="button" class="admin-btn admin-btn-ghost btn-editar-permisos" data-usuario="${u.usuario}" data-correo="${etiqueta}" data-permisos='${JSON.stringify(permisos)}'>Editar permisos</button>
-          <button type="button" class="admin-btn admin-btn-ghost btn-toggle-usuario" data-usuario="${u.usuario}" data-correo="${etiqueta}" data-activo="${u.activo !== false}">${u.activo === false ? 'Activar' : 'Desactivar'}</button>
-          ${u.usuario === yo ? '' : `<button type="button" class="admin-btn admin-btn-ghost btn-eliminar-usuario" data-usuario="${u.usuario}" data-correo="${etiqueta}">Eliminar</button>`}
+        <td data-label="Estado"><span class="usuario-estado-pill ${inactivo ? 'usuario-estado-inactivo' : 'usuario-estado-activo'}">${inactivo ? 'Desactivado' : 'Activo'}</span></td>
+        <td data-label="Permisos"><div class="usr-pills">${permisosTexto}</div></td>
+        <td data-label="Conectado">${u.conectado ? '<span class="usuario-estado-pill usuario-estado-conectado">🟢 En línea</span>' : '<span class="usuario-estado-pill usuario-estado-desconectado">⚪ Desconectado</span>'}</td>
+        <td data-label="Creado" class="mono usr-fecha">${creado}</td>
+        <td data-label="Acciones">
+          <div class="usr-acciones">
+            <button type="button" class="admin-btn admin-btn-ghost usr-btn btn-editar-permisos" data-usuario="${uid}" data-correo="${eti}" data-permisos='${_escUsr(JSON.stringify(permisos))}'>✏️ Editar</button>
+            <button type="button" class="admin-btn admin-btn-ghost usr-btn btn-toggle-usuario" data-usuario="${uid}" data-correo="${eti}" data-activo="${!inactivo}">${inactivo ? '✅ Activar' : '🚫 Desactivar'}</button>
+            ${u.usuario === yo ? '' : `<button type="button" class="admin-btn admin-btn-ghost usr-btn usr-btn-danger btn-eliminar-usuario" data-usuario="${uid}" data-correo="${eti}">🗑 Eliminar</button>`}
+          </div>
         </td>
       </tr>`;
   }).join('');
 }
+document.getElementById('usuariosBuscar').addEventListener('input', renderTablaUsuariosPanel);
+document.getElementById('usuariosFiltroEstado').addEventListener('change', renderTablaUsuariosPanel);
 
 document.getElementById('btnCrearUsuarioPanel').addEventListener('click', async () => {
   const uid = document.getElementById('nuevoUsuarioNombre').value;
@@ -921,6 +951,12 @@ document.getElementById('tablaUsuariosPanelBody').addEventListener('click', asyn
     );
     if (codigo === null) return;
     if (!(await verificarCodigoDesarrollador(codigo))) { return; }
+    if (activoActual && !(await confirmarAccion({
+      titulo: `¿Desactivar a "${etiqueta}"?`,
+      peligro: true,
+      textoOk: 'Sí, desactivar',
+      mensaje: 'No podrá volver a entrar al panel hasta que lo actives de nuevo. No se pierde nada de lo que ya hizo.'
+    }))) return;
     btnToggle.disabled = true;
     const res = await cambiarEstadoUsuarioAdminPanel(usuario, !activoActual);
     btnToggle.disabled = false;

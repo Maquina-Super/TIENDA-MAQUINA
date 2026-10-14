@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/admin-resumen.css?v=1">
 <link rel="stylesheet" href="css/admin-drop.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
+<link rel="stylesheet" href="css/admin-usuarios.css?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   #adminLoginView{ background:#060706; }
@@ -861,74 +862,85 @@
       </div>
     </div>
 
-    <div id="tabUsuarios" style="display:none;">
-      <div class="admin-card admin-add-card">
-        <h3>Dar acceso al panel a alguien nuevo</h3>
-        <p class="admin-foto-hint" style="margin-bottom:12px;">💡 Primero créale su cuenta en <b>Firebase Authentication → Users → Add user</b> (correo + contraseña). Después pega aquí ese mismo UID y correo, y ponle un código de acceso al panel (se lo dices tú por fuera, y se lo va a pedir cada vez que entre): el panel le da acceso real a Firestore automáticamente, sin que tengas que tocar <code>firestore.rules</code>. Solo se puede estar conectado con esa cuenta <b>en un dispositivo a la vez</b>.</p>
-        <div class="admin-add-grid" style="grid-template-columns:1fr 1fr;">
-          <input type="text" id="nuevoUsuarioNombre" class="admin-input" placeholder="UID de Firebase Auth" autocomplete="off">
-          <input type="email" id="nuevoUsuarioClave" class="admin-input" placeholder="Correo de esa cuenta" autocomplete="off">
+    <div id="tabUsuarios" class="usr-tab" style="display:none;">
+      <div class="usr-stats" id="usuariosStats"></div>
+
+      <div class="admin-card usr-card usr-card-form">
+        <div class="usr-card-head">
+          <span class="usr-card-ico">＋</span>
+          <div><h3>Acceso y permisos</h3><p>Ingresa los datos del usuario y selecciona los permisos que tendrá en el panel.</p></div>
         </div>
-        <div class="admin-add-grid" style="grid-template-columns:1fr;margin-top:10px;">
-          <input type="text" id="nuevoUsuarioCodigoPanel" class="admin-input" placeholder="Código de acceso al panel (6 números)" inputmode="numeric" maxlength="6" autocomplete="off">
+        <p class="usr-tip">💡 Primero créale su cuenta en <b>Firebase Authentication → Users → Add user</b>. Después pega aquí el mismo UID y correo, y ponle un código de acceso (se lo das tú por fuera). Solo puede estar conectado <b>en un dispositivo a la vez</b>.</p>
+        <div class="usr-form-grid">
+          <label class="usr-field"><span>UID de Firebase Auth <i>*</i></span><input type="text" id="nuevoUsuarioNombre" class="admin-input" placeholder="Ej: 7a3f9c2e8d4…" autocomplete="off"></label>
+          <label class="usr-field"><span>Correo electrónico <i>*</i></span><input type="email" id="nuevoUsuarioClave" class="admin-input" placeholder="usuario@ejemplo.com" autocomplete="off"></label>
+          <label class="usr-field"><span>Código de acceso (6 dígitos) <i>*</i></span><input type="text" id="nuevoUsuarioCodigoPanel" class="admin-input" placeholder="Ej: 123456" inputmode="numeric" maxlength="6" autocomplete="off"></label>
+          <label class="usr-field"><span>Código de desarrollador <i>*</i></span><input type="password" id="codigoDesarrolladorUsuario" class="admin-input" placeholder="Obligatorio para crear" autocomplete="new-password"></label>
         </div>
 
-        <p class="admin-foto-hint" style="margin:16px 0 8px;"><b>¿Qué puede hacer esta persona en el panel?</b> — marca lo que le vas a dejar tocar:</p>
-        <div class="admin-permisos-grid" id="nuevoUsuarioPermisos">
-          <label class="admin-permiso-item">
+        <div class="usr-sub"><span class="usr-sub-ico">🛡️</span><div><b>Permisos</b><small>Selecciona qué secciones podrá gestionar este usuario.</small></div></div>
+        <div class="admin-permisos-grid usr-permisos" id="nuevoUsuarioPermisos">
+          <label class="admin-permiso-item usr-permiso">
             <input type="checkbox" class="chk-permiso-nuevo" value="inventario" checked>
             <span class="permiso-icono">📦</span>
-            <span class="permiso-texto"><b>Inventario</b><small>Ver y editar productos, precios y stock</small></span>
+            <span class="permiso-texto"><b>Inventario</b><small>Ver y editar productos, precios y stock.</small></span>
           </label>
-          <label class="admin-permiso-item">
+          <label class="admin-permiso-item usr-permiso">
             <input type="checkbox" class="chk-permiso-nuevo" value="pedidos" checked>
             <span class="permiso-icono">🧾</span>
-            <span class="permiso-texto"><b>Pedidos</b><small>Ver los pedidos de clientes</small></span>
+            <span class="permiso-texto"><b>Pedidos</b><small>Ver los pedidos de clientes.</small></span>
           </label>
-          <label class="admin-permiso-item">
+          <label class="admin-permiso-item usr-permiso">
             <input type="checkbox" class="chk-permiso-nuevo" value="eliminarPedidos">
             <span class="permiso-icono">🗑️</span>
-            <span class="permiso-texto"><b>Eliminar pedidos</b><small>Además de verlos, puede borrarlos</small></span>
+            <span class="permiso-texto"><b>Eliminar pedidos</b><small>Además de verlos, puede borrarlos.</small></span>
           </label>
-          <label class="admin-permiso-item">
+          <label class="admin-permiso-item usr-permiso">
             <input type="checkbox" class="chk-permiso-nuevo" value="mensajes" checked>
             <span class="permiso-icono">✉️</span>
-            <span class="permiso-texto"><b>Mensajes</b><small>Ver y responder los mensajes del formulario de Contacto</small></span>
+            <span class="permiso-texto"><b>Mensajes</b><small>Ver y responder los mensajes de Contacto.</small></span>
           </label>
-          <label class="admin-permiso-item">
+          <label class="admin-permiso-item usr-permiso">
             <input type="checkbox" class="chk-permiso-nuevo" value="drop">
             <span class="permiso-icono">⚡</span>
-            <span class="permiso-texto"><b>Drop</b><small>Ver y editar el próximo lanzamiento</small></span>
+            <span class="permiso-texto"><b>Drop</b><small>Ver y editar el próximo lanzamiento.</small></span>
           </label>
-          <label class="admin-permiso-item">
+          <label class="admin-permiso-item usr-permiso">
             <input type="checkbox" class="chk-permiso-nuevo" value="usuarios">
             <span class="permiso-icono">👥</span>
-            <span class="permiso-texto"><b>Usuarios</b><small>Ver y gestionar otros usuarios del panel</small></span>
+            <span class="permiso-texto"><b>Usuarios</b><small>Ver y gestionar otros usuarios del panel.</small></span>
           </label>
         </div>
-
-        <div class="admin-add-grid" style="grid-template-columns:1fr;margin-top:14px;">
-          <input type="password" id="codigoDesarrolladorUsuario" class="admin-input" placeholder="Código de desarrollador" autocomplete="new-password">
-        </div>
-        <p class="admin-foto-hint" style="margin:8px 0 0;">🔒 Crear, editar permisos, activar/desactivar o eliminar usuarios pide el código de desarrollador, para que solo alguien del equipo con ese código pueda tocar esta pestaña.</p>
-        <div class="admin-add-actions">
+        <p class="usr-tip usr-tip-lock">🔒 Crear, editar permisos, activar/desactivar o eliminar usuarios pide el código de desarrollador.</p>
+        <div class="usr-form-actions">
           <button class="admin-btn admin-btn-primary" id="btnCrearUsuarioPanel">Crear usuario</button>
         </div>
       </div>
 
-      <div class="admin-card">
-        <div class="admin-stats admin-stats-color" id="usuariosStats"></div>
-        <p class="admin-foto-hint" style="margin-bottom:8px;">🟢 = está conectado ahora mismo en algún dispositivo. Si desactivas a alguien, no puede volver a entrar (pero no se pierde nada de lo que ya hizo); si lo eliminas, deja de existir del todo.</p>
+      <div class="admin-card usr-card">
+        <div class="usr-card-head usr-list-head">
+          <span class="usr-card-ico">👥</span>
+          <div><h3>Usuarios registrados</h3><p>🟢 conectado ahora. Desactivar bloquea el acceso sin perder nada; eliminar borra al usuario del panel.</p></div>
+        </div>
+        <div class="usr-toolbar">
+          <input type="search" id="usuariosBuscar" class="admin-input" placeholder="Buscar por correo o usuario…" autocomplete="off">
+          <select id="usuariosFiltroEstado" class="admin-input">
+            <option value="todos">Todos los estados</option>
+            <option value="activos">Activos</option>
+            <option value="inactivos">Desactivados</option>
+            <option value="conectados">Conectados</option>
+          </select>
+        </div>
         <div class="admin-table-wrap">
-          <table class="admin-table" id="tablaUsuariosPanel">
+          <table class="admin-table usr-table" id="tablaUsuariosPanel">
             <thead>
               <tr>
                 <th>Usuario</th>
                 <th>Estado</th>
                 <th>Permisos</th>
                 <th>Conectado</th>
-                <th>Creado</th>
-                <th></th>
+                <th>Fecha de creación</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="tablaUsuariosPanelBody">
