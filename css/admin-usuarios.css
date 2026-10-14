@@ -64,3 +64,6 @@
   #tabUsuarios .admin-table td[data-label="Acciones"]{flex-direction:column;align-items:stretch;}
   #tabUsuarios .admin-table td[data-label="Acciones"]::before{display:none;}
 }
+
+/* última conexión debajo de "Desconectado" */
+#tabUsuarios .usr-ultima{display:block;margin-top:6px;font-family:var(--ap-font-mono);font-size:11px;line-height:1.3;color:var(--adm-text-dim);}
