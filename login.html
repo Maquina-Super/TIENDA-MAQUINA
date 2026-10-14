@@ -83,6 +83,15 @@
     .yd-login-cta{ padding-bottom:calc(clamp(10px,1.4vw,20px) + env(safe-area-inset-bottom)); }
   }
 
+  /* Botón INGRESAR + «Entra. Entrena. Supera.» bajan juntos (misma separación entre ellos).
+     Es solo un desplazamiento visual: no mueve fondo, logo ni textos de la izquierda.
+     Computador: ~50 px (se reduce solo si la ventana es baja para no salirse).
+     Celular/tablet: poco, para no chocar con el pie (rayas y «Maquina Gym»). */
+  .yd-login-cta{ transform:translateY(min(12px,1.5vh)); }
+  @media (min-width:1025px){
+    .yd-login-cta{ transform:translateY(min(50px,6vh)); }
+  }
+
   .yd-login-footer{
     position:relative; z-index:3; flex:0 0 auto;
     display:flex; align-items:flex-end; justify-content:space-between;
