@@ -1,0 +1,73 @@
+/* Ventanas modales del panel (admin.html): estilo unificado negro + verde neón */
+.admin-modal-overlay{align-items:center;justify-content:center;padding:16px;overflow-y:auto;}
+.admin-modal{
+  position:relative;max-width:460px;width:100%;max-height:calc(100dvh - 32px);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:26px 26px 22px;border-radius:18px;
+  background:linear-gradient(180deg,#12150f,#0a0c09);border:1px solid rgba(138,240,78,.28);
+  box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 60px rgba(138,240,78,.06);color:var(--adm-text);
+  scrollbar-width:thin;scrollbar-color:var(--adm-line) transparent;
+}
+.admin-modal.admin-modal-wide{max-width:600px;}
+.admin-modal h3{
+  display:flex;align-items:center;gap:12px;margin:0 38px 14px 0;font-family:var(--ap-font-display);
+  font-size:24px;letter-spacing:.05em;text-transform:uppercase;color:var(--adm-text);line-height:1.1;
+}
+.admin-modal h3::before{
+  content:"✏️";flex:0 0 auto;width:40px;height:40px;display:grid;place-items:center;font-size:19px;
+  border-radius:12px;background:rgba(138,240,78,.1);border:1px solid rgba(138,240,78,.3);
+}
+#modalClave h3::before,#modalAccesoUsuarios h3::before,#modalCodigoDev h3::before,#modalBorrarPedido h3::before{content:"🔒";}
+#modalPermisos h3::before{content:"🛡️";}
+#modalRecuperarCodigoPanel h3::before,#modalRecuperarClavePanel h3::before{content:"🔑";}
+#modalAvisarDrop h3::before,#modalPublicarDrop h3::before{content:"⚡";}
+#modalHistorialPedido h3::before,#modalDetallePedido h3::before{content:"🧾";}
+#modalMensajeContacto h3::before{content:"✉️";}
+#modalVerFoto h3::before{content:"🖼️";}
+.admin-modal .admin-foto-hint{color:var(--adm-text-dim);font-size:13px;line-height:1.5;}
+.admin-modal .am-sub{margin:0 0 6px;font-size:13px;color:var(--adm-text-dim);}
+.admin-modal .am-sec{display:flex;align-items:center;gap:10px;margin:16px 0 10px;padding-top:14px;border-top:1px solid var(--adm-line);}
+.admin-modal .am-sec b{font-family:var(--ap-font-display);font-size:16px;letter-spacing:.07em;text-transform:uppercase;}
+.admin-modal .am-sec-ico{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:rgba(138,240,78,.1);border:1px solid rgba(138,240,78,.3);font-size:14px;}
+.admin-modal input:not([type="checkbox"]),.admin-modal textarea,.admin-modal select{
+  width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:12px;border:1px solid var(--adm-line);border-radius:10px;
+  background:#0a0c09;color:var(--adm-text) !important;-webkit-text-fill-color:var(--adm-text);caret-color:var(--adm-lime);font-size:14px;
+}
+.admin-modal ::placeholder{color:var(--adm-text-dim);opacity:1;-webkit-text-fill-color:var(--adm-text-dim);}
+.admin-modal input:focus,.admin-modal textarea:focus,.admin-modal select:focus{outline:none;border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(138,240,78,.15);}
+/* botón cerrar ✕ */
+.admin-modal .am-x{
+  position:absolute;top:14px;right:14px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer;
+  border-radius:10px;border:1px solid var(--adm-line);background:#0c0e0b;color:var(--adm-text);font-size:14px;z-index:2;
+}
+.admin-modal .am-x:hover{border-color:var(--adm-lime);color:var(--adm-lime);}
+/* botones: Guardar/acción principal + Cancelar, siempre visibles */
+.admin-modal .admin-add-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--adm-line);}
+.admin-modal .admin-add-actions .admin-btn{flex:1 1 140px;justify-content:center;}
+#modalPermisos .admin-btn-ghost,#modalAccesoUsuarios .admin-btn-ghost,#modalCodigoDev .admin-btn-ghost{background:transparent;color:var(--adm-text);border-color:var(--adm-line);}
+#modalPermisos .admin-btn-ghost:hover,#modalAccesoUsuarios .admin-btn-ghost:hover,#modalCodigoDev .admin-btn-ghost:hover{background:rgba(138,240,78,.1);color:var(--adm-lime);border-color:var(--adm-lime);}
+#modalPermisos .admin-modal,#modalAccesoUsuarios .admin-modal,#modalCodigoDev .admin-modal,
+#modalRecuperarCodigoPanel .admin-modal,#modalRecuperarClavePanel .admin-modal{background:linear-gradient(180deg,#12150f,#0a0c09);border:1px solid rgba(138,240,78,.28);}
+#modalRecuperarCodigoPanel .admin-modal h3,#modalRecuperarClavePanel .admin-modal h3{color:var(--adm-text);}
+/* tarjetas de permisos (modal Editar permisos) */
+#modalPermisos .am-permisos{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:4px;}
+#modalPermisos .admin-permiso-item{position:relative;align-items:center;background:#0c0e0b;border:1px solid var(--adm-line);padding:13px;}
+#modalPermisos .admin-permiso-item:hover{border-color:rgba(138,240,78,.5);}
+#modalPermisos .admin-permiso-item:has(input:checked){background:rgba(138,240,78,.08);border-color:var(--adm-lime);}
+#modalPermisos .admin-permiso-item input{position:absolute;top:11px;right:11px;margin:0;width:17px;height:17px;}
+#modalPermisos .permiso-icono{background:#171b15;}
+#modalPermisos .admin-permiso-item:has(input:checked) .permiso-icono{background:var(--adm-lime);}
+#modalPermisos .permiso-texto{padding-right:22px;}
+#modalPermisos .permiso-texto b{color:var(--adm-text);}
+#modalPermisos .permiso-texto small{color:#aab5a5;}
+/* historial / detalle: que el contenido haga scroll con la ventana */
+#modalHistorialPedido #historialPedidoLista{color:var(--adm-text);}
+/* Editar producto y confirmaciones: ✕/espaciado coherentes */
+.pe-modal{max-height:calc(100dvh - 32px);}
+@media (max-width:560px){
+  .admin-modal-overlay{align-items:flex-end;padding:0;}
+  .admin-modal,.admin-modal.admin-modal-wide{max-width:none;max-height:92dvh;border-radius:20px 20px 0 0;padding:22px 16px calc(18px + env(safe-area-inset-bottom,0px));}
+  .admin-modal h3{font-size:21px;}
+  #modalPermisos .am-permisos{grid-template-columns:1fr;}
+  .admin-modal .admin-add-actions{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom,0px));background:#0b0d0a;margin-bottom:-4px;}
+  .admin-modal .admin-add-actions .admin-btn{flex:1 1 100%;}
+}

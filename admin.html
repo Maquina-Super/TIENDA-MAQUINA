@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="css/admin-drop.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 <link rel="stylesheet" href="css/admin-usuarios.css?v=1">
+<link rel="stylesheet" href="css/admin-modales.css?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   #adminLoginView{ background:#060706; }
@@ -959,9 +960,11 @@
 
 <!-- ======================= MODAL EDITAR PERMISOS ======================= -->
 <div class="admin-modal-overlay" id="modalPermisos">
-  <div class="admin-modal admin-modal-wide">
+  <div class="admin-modal admin-modal-wide" role="dialog" aria-modal="true" aria-labelledby="modalPermisosTitulo">
     <h3 id="modalPermisosTitulo">Permisos</h3>
-    <div class="admin-permisos-grid" style="margin-bottom:14px;">
+    <p class="am-sub">Elige a qué secciones del panel tendrá acceso este usuario.</p>
+    <div class="am-sec"><span class="am-sec-ico">🛡️</span><b>Permisos</b></div>
+    <div class="admin-permisos-grid am-permisos">
       <label class="admin-permiso-item">
         <input type="checkbox" class="chk-permiso-editar" value="inventario">
         <span class="permiso-icono">📦</span>
@@ -993,6 +996,7 @@
         <span class="permiso-texto"><b>Usuarios</b><small>Ver y gestionar otros usuarios del panel</small></span>
       </label>
     </div>
+    <div class="am-sec"><span class="am-sec-ico">🔑</span><b>Acceso y seguridad</b></div>
     <input type="text" id="nuevoCodigoPanelPermisos" placeholder="Nuevo código de acceso (6 números, déjalo vacío para no cambiarlo)" inputmode="numeric" maxlength="6" autocomplete="off" style="margin-bottom:10px;">
     <input type="password" id="codigoDesarrolladorPermisos" placeholder="Código de desarrollador" autocomplete="new-password">
     <div class="admin-add-actions">

@@ -143,3 +143,29 @@ window.confirmarAccion = function (opts) {
     (opts.peligro ? bNo : bSi).focus();   // en acciones peligrosas el foco empieza en "Cancelar"
   });
 };
+
+/* ============================================================
+   Botón ✕ en cada ventana modal del panel (solo visual):
+   reutiliza el botón "Cancelar/Cerrar" que ya tiene la ventana,
+   así no cambia ninguna lógica. Funciona también con Escape.
+   ============================================================ */
+(function () {
+  'use strict';
+  function cancelador(modal) {
+    var btns = modal.querySelectorAll('.admin-add-actions .admin-btn-ghost, .admin-add-actions button:last-child');
+    return btns.length ? btns[btns.length - 1] : null;
+  }
+  document.querySelectorAll('.admin-modal-overlay .admin-modal').forEach(function (m) {
+    if (m.querySelector('.am-x') || !cancelador(m)) return;
+    var x = document.createElement('button');
+    x.type = 'button'; x.className = 'am-x'; x.setAttribute('aria-label', 'Cerrar'); x.textContent = '✕';
+    x.addEventListener('click', function () { var c = cancelador(m); if (c) c.click(); });
+    m.insertBefore(x, m.firstChild);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || document.querySelector('.mq-confirm-fondo')) return;
+    var abierto = document.querySelector('.admin-modal-overlay.open .admin-modal');
+    var c = abierto && cancelador(abierto);
+    if (c) c.click();
+  });
+})();
