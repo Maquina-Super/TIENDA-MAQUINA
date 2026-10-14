@@ -64,7 +64,8 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
-<script src="js/store.js?v=7"></script>
+<script src="js/envio-municipios.js?v=1"></script>
+<script src="js/store.js?v=8"></script>
 <script src="js/carrito-core.js"></script>
 <script src="js/layout.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -136,7 +137,10 @@ function _checkoutTieneAlgoEscrito() {
   return false;
 }
 const envioConfigListo = cargarConfigEnvio()
-  .then(() => { if (typeof pintarCarrito === 'function' && !_checkoutTieneAlgoEscrito()) pintarCarrito(); })
+  .then(() => {
+    if (typeof pintarCarrito === 'function' && !_checkoutTieneAlgoEscrito()) pintarCarrito();
+    else if (window.__actualizarZonaEnvio) window.__actualizarZonaEnvio();   // ya eligió ciudad: se refresca con la tarifa vigente
+  })
   .catch(e => console.error('Envío:', e));
 
 /* ---------- helpers ---------- */
@@ -716,7 +720,7 @@ function pintarCarrito() {
     const filaEnvio = document.getElementById('envioFila');
     if (filaEnvio) filaEnvio.classList.toggle('is-free', gratis);
     if (gratis) envioValorEl.textContent = '¡Gratis!';
-    else envioValorEl.textContent = envioZona ? fmtDinero(envioZona) : 'Se calcula al elegir tu municipio';
+    else envioValorEl.textContent = envioZona ? fmtDinero(envioZona) : (selectMunicipio && selectMunicipio.value ? '¡Gratis!' : 'Se calcula al elegir tu municipio');
     setDinero(totalValorEl, subtotal + envioActual);
 
     const banner = document.getElementById('shipBanner');
@@ -1060,21 +1064,30 @@ function pintarCarrito() {
   const quitarTildes = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
   const munInput = $('municipioInput'), munSug = $('municipioSugerencias');
   const selDepto = $('departamentoEnvio'), chkRural = $('ckRural');
-  const municipiosAnt = municipiosAntioquia().map(m => ({ ...m, clave: quitarTildes(m.nombre) }));
+  const listaMun = () => municipiosDe(selDepto.value).map(m => ({ ...m, clave: quitarTildes(m.nombre) }));   // municipios del departamento elegido (con la tarifa del panel si la hay)
   let municipioElegidoNombre = '';
   let zonaElegida = '';
   const esAntioquia = () => selDepto.value === 'Antioquia';
 
   function zonaActual() {
     if (!municipioElegidoNombre) return '';
+    const m = listaMun().find(x => x.nombre === municipioElegidoNombre);
+    if (esAntioquia() && chkRural.checked) return 'vereda';
+    if (m && m.personalizado) return m.id;          // tarifa propia de la ciudad (panel → Envíos)
     if (!esAntioquia()) return 'otra_ciudad';
-    if (chkRural.checked) return 'vereda';
-    const m = municipiosAnt.find(x => x.nombre === municipioElegidoNombre);
     return m ? m.zona : '';
   }
   function actualizarZona() {
     zonaElegida = zonaActual();
-    if (selectMunicipio) { selectMunicipio.value = zonaElegida; selectMunicipio.dispatchEvent(new Event('change')); }
+    if (selectMunicipio) {
+      const mc = /^m\d{5}$/.test(zonaElegida) ? listaMun().find(x => x.id === zonaElegida) : null;
+      if (mc) {   // la tarifa por ciudad no está entre las zonas de siempre: se agrega su opción
+        let o = selectMunicipio.querySelector(`option[value="${zonaElegida}"]`);
+        if (!o) { o = document.createElement('option'); o.value = zonaElegida; selectMunicipio.appendChild(o); }
+        o.dataset.costo = mc.costo; o.textContent = `${mc.nombre} — ${fmtDinero(mc.costo)}`;
+      }
+      selectMunicipio.value = zonaElegida; selectMunicipio.dispatchEvent(new Event('change'));
+    }
     const rural = esAntioquia() && chkRural.checked;
     $('ckRuralWrap').hidden = !(esAntioquia() && municipioElegidoNombre);
     $('ckVeredaWrap').hidden = !rural;
@@ -1082,7 +1095,7 @@ function pintarCarrito() {
     const info = $('ckZonaInfo');
     if (zonaElegida && envioZona >= 0 && selectMunicipio.value) {
       info.hidden = false;
-      info.innerHTML = `${svgCamion()}<span>Envío a <b>${esc(municipioElegidoNombre)}</b>: <b>${fmtDinero(envioZona)}</b></span>`;
+      info.innerHTML = `${svgCamion()}<span>Envío a <b>${esc(municipioElegidoNombre)}</b>: <b>${envioZona ? fmtDinero(envioZona) : '¡Gratis!'}</b></span>`;
     } else info.hidden = true;
   }
   function elegirMunicipio(m) {
@@ -1096,38 +1109,39 @@ function pintarCarrito() {
   function cerrarSugerencias() { munSug.classList.remove('open'); munInput.setAttribute('aria-expanded', 'false'); }
   let visibles = [], activo = -1;
   function pintarSugerencias() {
-    if (!esAntioquia()) { cerrarSugerencias(); return; }
-    const q = quitarTildes(munInput.value === municipioElegidoNombre ? '' : munInput.value);
-    let lista = q ? municipiosAnt.filter(m => m.clave.includes(q)) : municipiosAnt.slice();
+    const todos = listaMun();
+    const eligioLista = todos.some(m => m.nombre === municipioElegidoNombre);
+    const q = quitarTildes(eligioLista && munInput.value === municipioElegidoNombre ? '' : munInput.value);
+    let lista = q ? todos.filter(m => m.clave.includes(q)) : todos.slice();
     if (q) lista.sort((a, b) => (b.clave.startsWith(q) - a.clave.startsWith(q)) || a.nombre.localeCompare(b.nombre, 'es'));
     visibles = lista; activo = lista.length && q ? 0 : -1;
     munSug.innerHTML = lista.length
-      ? lista.map((m, i) => `<button type="button" role="option" class="municipio-sug${i === activo ? ' is-active' : ''}" data-i="${i}"><span>${esc(m.nombre)}</span><span class="municipio-sug-costo">${fmtDinero(m.costo)}</span></button>`).join('')
-      : `<div class="municipio-sug-vacio">No encontramos "${esc(munInput.value)}" en Antioquia. Si vives en otro departamento, cámbialo arriba.</div>`;
+      ? lista.map((m, i) => `<button type="button" role="option" class="municipio-sug${i === activo ? ' is-active' : ''}" data-i="${i}"><span>${esc(m.nombre)}</span><span class="municipio-sug-costo">${m.gratis ? 'Gratis' : fmtDinero(m.costo)}</span></button>`).join('')
+      : `<div class="municipio-sug-vacio">No encontramos "${esc(munInput.value)}" en ${esc(selDepto.value)}. ${esAntioquia() ? 'Si vives en otro departamento, cámbialo arriba.' : 'Puedes escribir tu ciudad tal cual y se aplica la tarifa estándar.'}</div>`;
     munSug.classList.add('open'); munInput.setAttribute('aria-expanded', 'true');
   }
   munSug.addEventListener('mousedown', (e) => e.preventDefault());   // no robar el foco al input
   munSug.addEventListener('click', (e) => { const b = e.target.closest('.municipio-sug'); if (b) elegirMunicipio(visibles[Number(b.dataset.i)]); });
-  munInput.addEventListener('focus', () => { if (esAntioquia()) pintarSugerencias(); });
+  munInput.addEventListener('focus', () => { pintarSugerencias(); });
   munInput.addEventListener('input', () => {
     const v = munInput.value.trim();
     if (esAntioquia()) {
       if (munInput.value !== municipioElegidoNombre) municipioElegidoNombre = '';
-      actualizarZona();
-      pintarSugerencias();
-    } else {
-      municipioElegidoNombre = v.length >= 3 ? v : '';
-      actualizarZona();
+    } else {   // fuera de Antioquia: si coincide con una ciudad de la lista se usa su tarifa; si no, se acepta lo escrito
+      const ex = listaMun().find(m => m.clave === quitarTildes(v));
+      municipioElegidoNombre = ex ? ex.nombre : (v.length >= 3 ? v : '');
     }
+    actualizarZona();
+    pintarSugerencias();
   });
   munInput.addEventListener('keydown', (e) => {
-    if (!esAntioquia() || !munSug.classList.contains('open')) return;
+    if (!munSug.classList.contains('open')) return;
     const marcar = () => munSug.querySelectorAll('.municipio-sug').forEach((b, i) => { b.classList.toggle('is-active', i === activo); if (i === activo) b.scrollIntoView({ block: 'nearest' }); });
     if (e.key === 'ArrowDown') { e.preventDefault(); activo = Math.min(visibles.length - 1, activo + 1); marcar(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); activo = Math.max(0, activo - 1); marcar(); }
     else if (e.key === 'Escape') { cerrarSugerencias(); }
     else if (e.key === 'Enter') {
-      const exacto = municipiosAnt.find(m => m.clave === quitarTildes(munInput.value));
+      const exacto = listaMun().find(m => m.clave === quitarTildes(munInput.value));
       const m = exacto || visibles[Math.max(activo, 0)];
       e.preventDefault();
       if (m && munInput.value.trim()) elegirMunicipio(m);
@@ -1135,10 +1149,8 @@ function pintarCarrito() {
   });
   munInput.addEventListener('blur', () => {
     setTimeout(() => {
-      if (esAntioquia() && !municipioElegidoNombre) {
-        const exacto = municipiosAnt.find(m => m.clave === quitarTildes(munInput.value));
-        if (exacto) elegirMunicipio(exacto);
-      }
+      const exacto = listaMun().find(m => m.clave === quitarTildes(munInput.value));
+      if (exacto && (!municipioElegidoNombre || munInput.value !== exacto.nombre)) elegirMunicipio(exacto);
       cerrarSugerencias();
     }, 120);
   });
@@ -1153,6 +1165,7 @@ function pintarCarrito() {
     guardarBorrador();
   });
   chkRural.addEventListener('change', () => { actualizarZona(); });
+  window.__actualizarZonaEnvio = () => { if (municipioElegidoNombre) actualizarZona(); };
 
   /* ---- mapa para ubicar la dirección (Leaflet + OpenStreetMap, sin API key) ---- */
   const btnMostrarMapa = $('btnMostrarMapa');

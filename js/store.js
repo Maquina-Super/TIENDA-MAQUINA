@@ -561,6 +561,7 @@ async function cargarConfigEnvio() {
     const doc = await fbDb.collection('config').doc('envio').get();
     if (doc.exists) {
       setZonasEnvioCache(doc.data().zonas);
+      if (typeof setMunicipiosEnvioCache === 'function') setMunicipiosEnvioCache(doc.data().municipios);
       _envioActualizadoMs = Number(doc.data().actualizado) || null;
     }
   } catch (e) {
@@ -570,9 +571,16 @@ async function cargarConfigEnvio() {
 }
 /** Guarda (desde el panel admin) la lista completa de zonas de
     envío, con sus costos ya editados. */
+/** Lista de costos válidos (la usan firestore.rules y el pedido): costos de las zonas + los de cada ciudad con tarifa propia. */
+function _costosEnvioPermitidos(zonas, municipios) {
+  return [...new Set([
+    ...(zonas || []).map(z => Number(z.costo) || 0),
+    ...Object.values(municipios || {}).map(t => (t && t.gratis === true ? 0 : Number(t && t.costo) || 0))
+  ])];
+}
 function guardarConfigEnvioAdmin(zonas) {
   setZonasEnvioCache(zonas);
-  fbDb.collection('config').doc('envio').set({ zonas: zonasEnvio(), costos: [...new Set(zonasEnvio().map(z => Number(z.costo) || 0))] }, { merge: true })
+  fbDb.collection('config').doc('envio').set({ zonas: zonasEnvio(), costos: _costosEnvioPermitidos(zonasEnvio(), typeof municipiosConTarifa === 'function' ? Object.fromEntries(municipiosConTarifa().map(m => [m.id, m])) : {}) }, { merge: true })
     .catch(e => console.error('Error guardando la configuración de envío en la nube:', e));
   return zonasEnvio();
 }
@@ -605,12 +613,42 @@ async function guardarConfigEnvioConfirmado(cambios) {
       const base = zonasEnvio().find(z => z.id === id);
       if (base) zonas.push({ ...base, costo: cambios[id] });
     });
-    tx.set(ref, { zonas, costos: [...new Set(zonas.map(z => Number(z.costo) || 0))], actualizado: ahora }, { merge: true });
+    tx.set(ref, { zonas, costos: _costosEnvioPermitidos(zonas, snap.exists ? snap.data().municipios : null), actualizado: ahora }, { merge: true });
     resultado = zonas;
   });
   setZonasEnvioCache(resultado);
   _envioActualizadoMs = ahora;
   return zonasEnvio();
+}
+
+/** Guarda (o elimina, si tarifa es null) la tarifa de UNA ciudad en config/envio -> municipios.
+    tarifa = { costo: <entero COP>, gratis: <bool> }. Espera la confirmación de Firestore (lanza error si falla).
+    En la misma transacción se actualiza "costos" (lo que exigen firestore.rules para validar el pedido). */
+async function guardarTarifaMunicipio(id, tarifa) {
+  const mun = typeof municipioPorId === 'function' ? municipioPorId(id) : null;
+  if (!mun) throw new Error('Ubicación no válida: ' + id);
+  let nueva = null;
+  if (tarifa) {
+    const gratis = tarifa.gratis === true;
+    const costo = gratis ? 0 : tarifa.costo;
+    if (!Number.isInteger(costo) || costo < 0 || costo > ENVIO_MUN_MAX || (!gratis && costo === 0)) throw new Error('Costo no válido');
+    nueva = { costo, gratis, nombre: mun.nombre, departamento: mun.departamento, actualizado: Date.now() };
+  }
+  const ref = fbDb.collection('config').doc('envio');
+  const ahora = Date.now();
+  let municipios = null;
+  await fbDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const d = snap.exists ? snap.data() : {};
+    const zonas = Array.isArray(d.zonas) && d.zonas.length ? d.zonas : zonasEnvio();
+    municipios = { ...(d.municipios || {}) };
+    if (nueva) municipios[id] = nueva; else delete municipios[id];
+    const datos = { municipios, costos: _costosEnvioPermitidos(zonas, municipios), actualizado: ahora };
+    if (snap.exists) tx.update(ref, datos); else tx.set(ref, datos);
+  });
+  setMunicipiosEnvioCache(municipios);
+  _envioActualizadoMs = ahora;
+  return municipiosConTarifa();
 }
 
 /* ---------- CARRITO ---------- */
@@ -923,7 +961,8 @@ async function crearPedido(datosCliente) {
       // 2c) Costo de envío contra la zona real (config/envio, o los valores de fábrica).
       const zonas = cfgEnvio.exists && Array.isArray(cfgEnvio.data().zonas) && cfgEnvio.data().zonas.length
         ? cfgEnvio.data().zonas : ZONAS_ENVIO_POR_DEFECTO;
-      const zona = zonas.find(z => z.id === pedido.envio_zona);
+      const tarifaCiudad = cfgEnvio.exists && cfgEnvio.data().municipios ? cfgEnvio.data().municipios[pedido.envio_zona] : null;
+      const zona = tarifaCiudad ? { costo: tarifaCiudad.gratis === true ? 0 : tarifaCiudad.costo } : zonas.find(z => z.id === pedido.envio_zona);
       const gratisDesde = Number(datosCliente.envioGratisDesde) || 0;
       const envioEsperado = zona ? (gratisDesde > 0 && subtotal >= gratisDesde ? 0 : Number(zona.costo) || 0) : null;
       if (envioEsperado === null || envioEsperado !== costoEnvioPedido) {
@@ -2244,7 +2283,10 @@ async function cerrarSesionAdmin() {
     try {
       const sesionDoc = await fbDb.collection('admin_sesiones').doc(local.uid).get();
       if (sesionDoc.exists && sesionDoc.data().sesionId === local.sesionId) {
-        await fbDb.collection('admin_sesiones').doc(local.uid).delete();
+        // no se borra el documento: se libera el candado y se guarda la hora de la última conexión
+        await fbDb.collection('admin_sesiones').doc(local.uid).set(
+          { sesionId: null, ultimoLatido: 0, ultimaConexion: Date.now() }, { merge: true }
+        );
       }
     } catch (e) { /* no pasa nada si falla: el candado igual se libera solo al vencerse */ }
   }
@@ -2318,7 +2360,8 @@ async function obtenerUsuariosAdminPanel() {
     return usuariosSnap.docs.map(d => {
       const s = sesiones[d.id];
       const conectado = !!(s && s.ultimoLatido && (Date.now() - s.ultimoLatido) < ADMIN_SESION_VENCE_MS);
-      return { usuario: d.id, ...d.data(), conectado };
+      const ultimaConexion = Math.max(Number(s && s.ultimoLatido) || 0, Number(s && s.ultimaConexion) || 0) || null;   // última vez que estuvo en el panel
+      return { usuario: d.id, ...d.data(), conectado, ultimaConexion };
     });
   } catch (e) {
     console.error('Error leyendo usuarios del panel:', e);

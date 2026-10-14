@@ -40,7 +40,7 @@
     tabBtnPedidos: ['pedidos', 'Revisa y gestiona los pedidos de tus clientes.'],
     tabBtnMensajes: ['mensajes', 'Lee, busca y responde los mensajes del formulario de Contacto de la tienda.'],
     tabBtnDrop: ['drop', 'Crea y administra tus lanzamientos. Configura la fecha, selecciona los productos y haz que tu comunidad sea la primera en conseguirlos.'],
-    tabBtnEnvios: ['envios', 'Define cuánto pagan tus clientes de envío en cada zona (paso 3 del carrito).'],
+    tabBtnEnvios: ['envios', 'Gestiona las tarifas de envío por municipio y departamento en Colombia.'],
     tabBtnUsuarios: ['usuarios', 'Administra quién puede entrar al panel y qué puede hacer.'],
   };
   const sub = document.getElementById('apSubtitulo');

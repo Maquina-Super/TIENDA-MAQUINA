@@ -151,6 +151,7 @@ async function entrarAlPanel() {
   pintarTodo();
   pintarVoltageClub();
   pintarCostosEnvio();
+  if (typeof pintarEnviosCiudades === 'function') pintarEnviosCiudades();   // tarifas por ciudad (js/admin-envios.js)
   if (permisosActuales.mensajes && typeof cargarBadgeMensajes === 'function') cargarBadgeMensajes(); // contador de "sin leer" en el menú
   iniciarVigiaInactividadAdmin();
 }
@@ -747,7 +748,7 @@ tabBtnEnvios.addEventListener('click', () => {
   ocultarTodasLasPestanas();
   tabBtnEnvios.classList.add('active');
   tabEnvios.style.display = 'block';
-  tituloTab.textContent = 'Costos de envío';
+  tituloTab.textContent = 'Configurar envíos';
 });
 
 let usuariosTabDesbloqueada = false;
@@ -856,7 +857,11 @@ function renderTablaUsuariosPanel() {
         </td>
         <td data-label="Estado"><span class="usuario-estado-pill ${inactivo ? 'usuario-estado-inactivo' : 'usuario-estado-activo'}">${inactivo ? 'Desactivado' : 'Activo'}</span></td>
         <td data-label="Permisos"><div class="usr-pills">${permisosTexto}</div></td>
-        <td data-label="Conectado">${u.conectado ? '<span class="usuario-estado-pill usuario-estado-conectado">🟢 En línea</span>' : '<span class="usuario-estado-pill usuario-estado-desconectado">⚪ Desconectado</span>'}</td>
+        <td data-label="Conectado">${u.conectado ? '<span class="usuario-estado-pill usuario-estado-conectado">🟢 En línea</span>' : '<span class="usuario-estado-pill usuario-estado-desconectado">⚪ Desconectado</span>'}${(() => {
+          if (u.conectado) return '';
+          const f = u.ultimaConexion ? new Date(u.ultimaConexion) : null;
+          return `<small class="usr-ultima">${f && !isNaN(f) ? 'Última vez: ' + f.toLocaleDateString('es-CO', { dateStyle: 'medium' }) + ' · ' + f.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : 'Sin registro de conexión'}</small>`;
+        })()}</td>
         <td data-label="Creado" class="mono usr-fecha">${creado}</td>
         <td data-label="Acciones">
           <div class="usr-acciones">
