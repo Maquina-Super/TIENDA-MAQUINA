@@ -151,6 +151,7 @@ async function entrarAlPanel() {
   pintarTodo();
   pintarVoltageClub();
   pintarCostosEnvio();
+  if (typeof pintarEnviosCiudades === 'function') pintarEnviosCiudades();   // tarifas por ciudad (js/admin-envios.js)
   if (permisosActuales.mensajes && typeof cargarBadgeMensajes === 'function') cargarBadgeMensajes(); // contador de "sin leer" en el menú
   iniciarVigiaInactividadAdmin();
 }
@@ -747,7 +748,7 @@ tabBtnEnvios.addEventListener('click', () => {
   ocultarTodasLasPestanas();
   tabBtnEnvios.classList.add('active');
   tabEnvios.style.display = 'block';
-  tituloTab.textContent = 'Costos de envío';
+  tituloTab.textContent = 'Configurar envíos';
 });
 
 let usuariosTabDesbloqueada = false;

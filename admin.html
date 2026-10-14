@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/admin-panel.css?v=rev1">
 <link rel="stylesheet" href="css/admin-extras.css?v=rev1">
 <link rel="stylesheet" href="css/admin-club-envios.css?v=2">
+<link rel="stylesheet" href="css/admin-envios-v2.css?v=5">
 <link rel="stylesheet" href="css/admin-resumen.css?v=1">
 <link rel="stylesheet" href="css/admin-drop.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
@@ -570,6 +571,83 @@
 
     <!-- ===== ENVÍOS (pestaña propia) ===== -->
     <div id="tabEnvios" style="display:none;">
+      <header class="ev-head">
+        <div class="ev-info">
+          <span class="ev-info-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></span>
+          <p>El costo de envío se calcula automáticamente en el carrito según la ubicación del cliente.</p>
+        </div>
+      </header>
+
+      <div class="ev-grid">
+        <div class="ev-col">
+          <section class="admin-card ev-card" aria-labelledby="evT1">
+            <h3 class="ev-h"><span class="ev-num" aria-hidden="true">1</span><span id="evT1">Buscar ubicación</span></h3>
+            <div class="ev-buscador">
+              <span class="ap-search-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span>
+              <input type="search" id="evBuscar" class="admin-buscar" placeholder="Busca por ciudad, municipio o departamento..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="evResultados" aria-autocomplete="list" aria-label="Buscar ciudad, municipio o departamento">
+              <div class="ev-resultados" id="evResultados" role="listbox" hidden></div>
+            </div>
+            <div class="ev-2col">
+              <label class="ev-campo"><span>Departamento</span><select id="evDepto" class="ap-select"></select></label>
+              <label class="ev-campo"><span>Municipio o ciudad</span><select id="evMuni" class="ap-select"></select></label>
+            </div>
+          </section>
+
+          <section class="admin-card ev-card" aria-labelledby="evT2">
+            <h3 class="ev-h"><span class="ev-num" aria-hidden="true">2</span><span id="evT2">Configurar tarifa</span></h3>
+            <div class="ev-sel" id="evSeleccion">
+              <span class="ev-pin" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 005 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+              <div><b id="evSelNombre">Ubicación seleccionada</b><small id="evSelDetalle">Selecciona una ciudad o municipio para continuar.</small></div>
+            </div>
+            <p class="ev-label" id="evTipoLbl">Tipo de envío</p>
+            <div class="ev-tipos" role="radiogroup" aria-labelledby="evTipoLbl">
+              <label class="ev-tipo is-on" id="evTipoNormal"><input type="radio" name="evTipo" value="normal" checked>
+                <span class="ev-tipo-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></span>
+                <span><b>Envío normal</b><small>Cobro estándar por zona</small></span></label>
+              <label class="ev-tipo" id="evTipoGratis"><input type="radio" name="evTipo" value="gratis">
+                <span class="ev-tipo-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M12 9v11M3 9h18M12 9C10 5 6 5 7 7.5 7.7 9 12 9 12 9zm0 0c2-4 6-4 5-1.5C16.3 9 12 9 12 9z"/></svg></span>
+                <span><b>Envío gratis</b><small>Sin costo para el cliente</small></span></label>
+            </div>
+            <label class="ev-label" for="evValor">Valor del envío (COP)</label>
+            <div class="ev-valor" id="evValorWrap"><span aria-hidden="true">$</span><input type="text" id="evValor" inputmode="numeric" autocomplete="off" placeholder="Ingresa el valor del envío"></div>
+            <small class="ev-ej" id="evEjemplo">Ejemplo: 12000</small>
+            <p class="ev-error" id="evError" role="alert"></p>
+            <div class="ev-btns">
+              <button type="button" class="admin-btn admin-btn-primary" id="evGuardar" disabled><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span>Guardar tarifa</span></button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="evCancelar" hidden>Cancelar</button>
+            </div>
+          </section>
+
+          <div class="ev-cobertura">
+            <span class="ev-pin" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 005 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+            <div><b>Cobertura nacional</b><small>Puedes configurar tarifas para todos los municipios de Colombia. Las ciudades sin tarifa propia usan la tarifa base por zona.</small></div>
+          </div>
+        </div>
+
+        <section class="admin-card ev-card ev-tabla-card" aria-labelledby="evT3">
+          <div class="ev-tabla-head">
+            <h3 class="ev-h"><span class="ev-num ev-num-pin" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 005 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span id="evT3">Tarifas configuradas</span></h3>
+            <span class="ev-pill" id="evConteo" aria-live="polite">0 ubicaciones</span>
+          </div>
+          <div class="ev-filtros">
+            <div class="ev-buscador ev-buscador-lista">
+              <span class="ap-search-ico" aria-hidden="true"><svg class="ap-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span>
+              <input type="search" id="evFiltroQ" class="admin-buscar" placeholder="Buscar en la lista..." autocomplete="off" aria-label="Buscar en las tarifas configuradas">
+            </div>
+            <select id="evFiltroDepto" class="ap-select" aria-label="Filtrar por departamento"></select>
+          </div>
+          <div class="admin-table-wrap ev-tabla-wrap">
+            <table class="admin-table ev-tabla">
+              <thead><tr><th scope="col">Ubicación</th><th scope="col" class="ev-col-dep">Departamento</th><th scope="col">Tarifa</th><th scope="col">Estado</th><th scope="col" class="ev-th-acc">Acciones</th></tr></thead>
+              <tbody id="evTablaBody"></tbody>
+            </table>
+          </div>
+          <nav class="ev-pag" id="evPaginacion" aria-label="Paginación de tarifas" hidden></nav>
+        </section>
+      </div>
+
+      <details class="env-base">
+        <summary><span>Tarifas base por zona</span><small>Se aplican a las ciudades que no tienen tarifa propia</small></summary>
       <section class="admin-card env-card" aria-labelledby="envTitulo">
         <header class="env-head">
           <div class="vc-titulo">
@@ -603,6 +681,7 @@
           </div>
         </div>
       </section>
+      </details>
     </div>
 
     <div id="tabInventario" style="display:none;">
@@ -1130,9 +1209,11 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
-<script src="js/store.js?v=9"></script>
-<script src="js/admin.js?v=rev3"></script>
-<script src="js/admin-ui.js?v=rev2"></script>
+<script src="js/envio-municipios.js?v=1"></script>
+<script src="js/store.js?v=10"></script>
+<script src="js/admin.js?v=rev4"></script>
+<script src="js/admin-envios.js?v=1"></script>
+<script src="js/admin-ui.js?v=rev3"></script>
 <script src="js/admin-mensajes.js?v=msg2"></script>
 <script src="js/admin-extras.js"></script>
 <script src="js/login-orbit.js"></script>
