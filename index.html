@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="css/maquina-ui.css?v=10">
 <link rel="stylesheet" href="css/extras-cliente.css?v=1">
 <link rel="stylesheet" href="css/inicio.css?v=4">
-<link rel="stylesheet" href="css/drop-hero.css?v=1">
+<link rel="stylesheet" href="css/drop-hero.css?v=2">
 <link rel="stylesheet" href="css/tarjetas.css?v=2">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 </head>
@@ -85,6 +85,7 @@
   </div>
 
   <!-- prendas reales del drop (se llena desde el script) -->
+  <div class="dh-cover" id="dhCover" aria-hidden="true"></div>
   <div class="dh-stage" id="dropLiveGrid"></div>
 
   <div class="dh-veil2" aria-hidden="true"></div>
@@ -105,6 +106,7 @@
     <h2 class="dh-title" id="dhTitulo"><span class="dh-t1" id="dhT1">Próximo</span><span class="dh-t2" id="dhT2">Drop</span></h2>
     <p class="dh-tag">Nueva colección · Misma esencia</p>
     <p class="dh-pill" id="dhPill" hidden></p>
+    <p class="dh-desc" id="dhDesc" hidden></p>
     <p class="dh-sub" id="dropSub" hidden></p>
     <div class="dh-timer" id="dropTimer" role="timer" aria-label="Tiempo restante">
       <div class="dh-unit"><span id="dtDias">--</span><small>Días</small></div>
@@ -162,8 +164,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js?v=4"></script>
 <script src="js/icons.js?v=4"></script>
-<script src="js/products.js?v=5"></script>
-<script src="js/store.js?v=8"></script>
+<script src="js/products.js?v=6"></script>
+<script src="js/store.js?v=9"></script>
 <script src="js/catalog-render.js?v=5"></script>
 <script src="js/layout.js?v=4"></script>
 <script src="js/maquina-ui.js?v=4"></script>
@@ -330,7 +332,43 @@ function actualizarCountdown() {
     if (estado === 'teaser') sub.textContent = 'Pronto anunciaremos la fecha';
   }
 
+  // descripción del lanzamiento (viene del panel)
+  const desc = $('dhDesc'), txt = (config.descripcion || '').trim();
+  desc.hidden = !txt;
+  if (txt && desc.textContent !== txt) desc.textContent = txt;
+
+  dhPintarPortada(estado, config.portada);
   dhPintarEscenario(estado, destacados);
+}
+
+/** Portada del drop. Antes del lanzamiento solo existe un dibujo diminuto
+    en un <canvas> (ampliado y desenfocado por CSS); nítida solo cuando ya lanzó. */
+let dhPortadaClave = null;
+function dhPintarPortada(estado, src) {
+  const cont = document.getElementById('dhCover');
+  if (!cont) return;
+  const clave = estado + '|' + (src ? src.length + src.slice(-24) : '');
+  if (clave === dhPortadaClave) return;
+  dhPortadaClave = clave;
+  if (!src) { cont.innerHTML = ''; return; }
+  if (estado === 'teaser') {
+    cont.innerHTML = '<canvas width="64" height="36"></canvas>';
+    const cv = cont.firstChild, img = new Image();
+    img.onload = () => {
+      const r = Math.max(cv.width / img.naturalWidth, cv.height / img.naturalHeight), sw = cv.width / r, sh = cv.height / r;
+      cv.getContext('2d').drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, 0, 0, cv.width, cv.height);
+      cv.classList.add('is-ready');
+    };
+    img.src = src;
+    return;
+  }
+  cont.innerHTML = '<img class="dh-cover-img' + (estado === 'live' ? ' is-hidden' : '') + '" alt="" decoding="async">';
+  const im = cont.firstChild;
+  im.src = src;
+  if (estado === 'live') {
+    const q = () => requestAnimationFrame(() => requestAnimationFrame(() => im.classList.remove('is-hidden')));
+    if (im.complete && im.naturalWidth) q(); else { im.addEventListener('load', q, { once: true }); im.addEventListener('error', q, { once: true }); }
+  }
 }
 
 // "Avísenme primero" lleva al registro del Voltage Club (el aviso real que ya existe)

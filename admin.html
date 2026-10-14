@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/admin-extras.css?v=rev1">
 <link rel="stylesheet" href="css/admin-club-envios.css?v=2">
 <link rel="stylesheet" href="css/admin-resumen.css?v=1">
+<link rel="stylesheet" href="css/admin-drop.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -768,26 +769,95 @@
       </div>
     </div>
 
-    <div id="tabDrop" style="display:none;">
-      <div class="admin-stats admin-stats-color" id="dropCountdownStats"></div>
-      <div class="admin-card">
-        <p class="admin-foto-hint" style="margin-bottom:14px;">💡 Aquí configuras la cuenta regresiva de "Próximo drop" que se ve en la página de inicio. Mientras falta para la fecha de lanzamiento, la portada muestra la prenda en grande con su silueta pero borrosa, para generar expectativa sin enseñar el diseño. Apenas el tiempo llegue a cero se ve nítida, clickeable y con la cantidad que quede en inventario (se actualiza sola con el stock del producto). Si además pones una fecha de fin, ahí la cuenta pasa a mostrar "Termina en" y, al llegar esa hora, la sección avisa que el drop se acabó. Déjala vacía si quieres que quede disponible para siempre una vez lance.</p>
-        <div class="admin-drop-form">
-          <label class="admin-drop-label">Fecha y hora del lanzamiento
-            <input type="datetime-local" id="dropFecha" class="admin-input" style="width:100%;">
-          </label>
-          <label class="admin-drop-label">Fecha y hora en que termina (opcional)
-            <input type="datetime-local" id="dropFechaFin" class="admin-input" style="width:100%;">
-          </label>
-          <label class="admin-drop-label">Título cuando ya esté disponible (opcional)
-            <input type="text" id="dropTitulo" class="admin-input" placeholder="¡Ya está aquí! ⚡" style="width:100%;">
-          </label>
+    <div id="tabDrop" class="dp" style="display:none;">
+      <div class="dp-toolbar">
+        <button type="button" class="admin-btn admin-btn-ghost" id="btnDropVista"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Vista previa</span></button>
+        <button type="button" class="admin-btn admin-btn-ghost" id="btnDropBorrador"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg><span>Guardar borrador</span></button>
+        <button type="button" class="admin-btn dp-btn-cfg" id="btnDropGuardar"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg><span>Guardar configuración</span></button>
+        <button type="button" class="admin-btn admin-btn-primary" id="btnDropPublicar"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg><span>Publicar Drop</span></button>
+      </div>
+
+      <section class="dp-resumen" aria-label="Resumen del drop">
+        <div class="dp-res-main">
+          <div class="dp-cover" id="dpResCover">Sin portada</div>
+          <div class="dp-res-txt">
+            <div class="dp-eyebrow">Próximo drop</div>
+            <h3 class="display" id="dpResTitulo">Sin título</h3>
+            <span class="dp-chip" id="dpResChip" data-e="borrador">Borrador</span>
+            <div class="dp-fechas"><span>Inicio: <b id="dpResIni">—</b></span><span>Fin: <b id="dpResFin">—</b></span></div>
+          </div>
         </div>
-        <p class="admin-foto-hint" style="margin:18px 0 10px;"><b>Productos a mostrar cuando se acabe el tiempo</b> — marca los que quieres destacar: <span id="dropProductosContador" class="admin-permiso-pill"></span></p>
-        <div class="admin-drop-productos" id="dropProductosLista"></div>
-        <div class="admin-add-actions" style="margin-top:18px;">
-          <button class="admin-btn admin-btn-primary" id="btnGuardarDrop">Guardar configuración del drop</button>
+        <div class="dp-res-sel">
+          <span class="dp-ico"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+          <div><small>Productos seleccionados</small><strong id="dpResSel">0 <em>/ 0</em></strong></div>
         </div>
+        <div>
+          <div class="dp-cd-lbl"><i></i><span id="dpResCdLbl">Cuenta regresiva</span></div>
+          <div class="dp-cd" role="timer"><div><b id="dpCdD">--</b><span>Días</span></div><div><b id="dpCdH">--</b><span>Horas</span></div><div><b id="dpCdM">--</b><span>Min</span></div><div><b id="dpCdS">--</b><span>Seg</span></div></div>
+        </div>
+      </section>
+
+      <div class="dp-grid">
+        <div class="dp-main">
+          <section class="admin-card dp-card" aria-labelledby="dpCfgT">
+            <h3 id="dpCfgT"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>Configuración del drop</h3>
+            <div class="dp-form">
+              <div style="display:flex;flex-direction:column;gap:18px;min-width:0;">
+                <label class="dp-f">Título del lanzamiento *
+                  <input type="text" id="dpTitulo" class="admin-input" maxlength="60" placeholder="Colección Verano 2025" autocomplete="off">
+                  <span class="dp-count" id="dpTituloN">0/60</span>
+                </label>
+                <label class="dp-f">Descripción <em>(opcional)</em>
+                  <textarea id="dpDescripcion" class="admin-input" maxlength="300" placeholder="Cuenta de qué trata este lanzamiento…"></textarea>
+                  <span class="dp-count" id="dpDescN">0/300</span>
+                </label>
+                <div class="dp-f">Imagen de portada <em>(opcional)</em>
+                  <div class="dp-portada">
+                    <div class="dp-cover" id="dpPortadaThumb">Sin imagen</div>
+                    <label class="dp-drop" id="dpPortadaDrop">
+                      <span>Haz clic para subir o arrastra una imagen</span><small>JPG, PNG (máx. 2MB)</small>
+                      <input type="file" id="dpPortadaFile" accept="image/jpeg,image/png">
+                    </label>
+                  </div>
+                  <button type="button" class="dp-quitar" id="dpPortadaQuitar" hidden>Quitar portada</button>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:18px;min-width:0;">
+                <div class="dp-f">Fecha y hora de inicio *
+                  <div class="dp-row2"><input type="date" id="dpFechaIni" class="admin-input"><input type="time" id="dpHoraIni" class="admin-input"></div>
+                </div>
+                <div class="dp-f">Fecha y hora de finalización <em>(opcional)</em>
+                  <div class="dp-row2"><input type="date" id="dpFechaFin" class="admin-input"><input type="time" id="dpHoraFin" class="admin-input"></div>
+                </div>
+                <label class="dp-f">Zona horaria
+                  <select id="dpZona" class="admin-input"></select>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="admin-card dp-card" aria-labelledby="dpProdT">
+            <div class="dd-prod-head"><h3 id="dpProdT"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Productos del drop</h3><span class="dp-sel-count" id="dpProdContador">0 productos seleccionados</span></div>
+            <div class="dp-filtros">
+              <input type="search" id="dpBuscar" class="admin-input" placeholder="Buscar productos…" autocomplete="off">
+              <select id="dpFiltroCat" class="admin-input"><option value="">Todas las categorías</option></select>
+              <select id="dpFiltroTalla" class="admin-input"><option value="">Todas las tallas</option></select>
+              <button type="button" class="admin-btn admin-btn-ghost" id="dpSelVisibles">Seleccionar visibles</button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="dpSelLimpiar">Limpiar</button>
+            </div>
+            <div class="dd-prods" id="dpProductos"></div>
+          </section>
+
+          <div class="dp-nota"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg><div><b>EL DROP SE ACTIVARÁ AUTOMÁTICAMENTE EN LA FECHA Y HORA DE INICIO CONFIGURADA.</b><span>Puedes modificar la configuración en cualquier momento antes de publicarlo. Solo se muestra en Inicio al pulsar «Publicar Drop».</span></div></div>
+        </div>
+
+        <aside class="dp-side" aria-label="Vista previa del drop">
+          <div class="dp-prev-box" id="dpPreviewBox">
+            <h3 class="display" style="margin:0 0 12px;display:flex;gap:8px;align-items:center;font-size:20px;"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Vista previa del drop</h3>
+            <div class="dp-phone" id="dpPreview"></div>
+            <p class="dp-prev-note">Así se verá en Inicio. Antes del inicio las prendas se ven borrosas y se revelan solas al llegar la fecha.</p>
+          </div>
+        </aside>
       </div>
     </div>
 
@@ -1011,6 +1081,19 @@
   </div>
 </div>
 
+<!-- ======================= MODAL PUBLICAR DROP ======================= -->
+<div class="admin-modal-overlay" id="modalPublicarDrop">
+  <div class="admin-modal">
+    <h3>⚡ ¿Publicar este drop?</h3>
+    <ul id="dpPubResumen"></ul>
+    <p class="admin-foto-hint" id="dpPubAviso" style="margin-bottom:14px;"></p>
+    <div class="admin-add-actions">
+      <button class="admin-btn admin-btn-primary" id="btnDropConfirmar">Sí, publicar</button>
+      <button class="admin-btn admin-btn-ghost" id="btnDropCancelar">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======================= MODAL CAMBIAR CLAVE ======================= -->
 <div class="admin-modal-overlay" id="modalClave">
   <div class="admin-modal">
@@ -1031,8 +1114,8 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
-<script src="js/store.js?v=8"></script>
-<script src="js/admin.js?v=rev2"></script>
+<script src="js/store.js?v=9"></script>
+<script src="js/admin.js?v=rev3"></script>
 <script src="js/admin-ui.js?v=rev2"></script>
 <script src="js/admin-mensajes.js?v=msg2"></script>
 <script src="js/admin-extras.js"></script>

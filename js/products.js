@@ -75,9 +75,14 @@ function categoriasPorGeneroAgrupadas(genero) {
     Si todavía no hay fecha configurada, se sigue ocultando (no
     hay drop "que ya llegó" todavía). */
 function estaOcultoPorDrop(p) {
-  if (!p || !p.ocultoHastaDrop) return false;
+  if (!p) return false;
   const config = typeof getConfigDrop === 'function' ? getConfigDrop() : null;
-  if (!config || !config.fecha) return true;
+  // además del check manual, las prendas del Drop PUBLICADO tampoco se ven
+  // nítidas en la tienda antes de la fecha de inicio
+  const enDropPublicado = !!(config && config.publicado === true && config.fecha &&
+    Array.isArray(config.productos) && config.productos.some(id => id == p.id));
+  if (!p.ocultoHastaDrop && !enDropPublicado) return false;
+  if (!config || !config.fecha) return !!p.ocultoHastaDrop;
   return new Date(config.fecha).getTime() > Date.now();
 }
 

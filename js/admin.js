@@ -736,7 +736,7 @@ tabBtnDrop.addEventListener('click', () => {
   ocultarTodasLasPestanas();
   tabBtnDrop.classList.add('active');
   tabDrop.style.display = 'block';
-  tituloTab.textContent = 'Próximo drop';
+  tituloTab.textContent = 'Configurar drop';
   pintarTabDrop();
 });
 
@@ -951,110 +951,301 @@ document.getElementById('tablaUsuariosPanelBody').addEventListener('click', asyn
   }
 });
 
-/* ---------- pestaña Drop: fecha del lanzamiento + productos a mostrar ---------- */
+/* ---------- pestaña Drop (rediseñada): configurar, guardar borrador, publicar ----------
+   · Borrador y "configuración" se guardan en drop_borradores/actual (un solo documento:
+     editar no duplica). Nada llega a la tienda hasta pulsar "Publicar Drop" y confirmar.
+   · Publicar escribe config/drop, que es lo que lee Inicio (index.html).
+   · Las fechas se interpretan en la zona horaria elegida y se guardan en ISO/UTC. */
 let intervaloCountdownDrop = null;
+const DP_ZONAS = [
+  ['America/Bogota', 'Bogotá, Lima, Quito'], ['America/Mexico_City', 'Ciudad de México'],
+  ['America/Caracas', 'Caracas'], ['America/Santiago', 'Santiago'],
+  ['America/Argentina/Buenos_Aires', 'Buenos Aires'], ['America/New_York', 'Nueva York'],
+  ['Europe/Madrid', 'Madrid'], ['UTC', 'UTC']
+];
+const dp = { cargado: false, sel: new Set(), portada: '', ocupado: false, borrador: null };
+const $dp = id => document.getElementById(id);
+const dpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dpPrecio = n => '$' + (Number(n) || 0).toLocaleString('es-CO');
+const dpPad = n => String(n).padStart(2, '0');
 
-function pintarTabDrop() {
-  const config = getConfigDrop();
-  const inputFecha = document.getElementById('dropFecha');
-  const inputFechaFin = document.getElementById('dropFechaFin');
-  const inputTitulo = document.getElementById('dropTitulo');
-  // <input type="datetime-local"> necesita "YYYY-MM-DDTHH:MM" en hora LOCAL del navegador
-  const pad = n => String(n).padStart(2, '0');
-  const aInputLocal = iso => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/* --- zona horaria --- */
+function dpOffsetMin(tz, utcMs) {
+  const p = {};
+  new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(new Date(utcMs)).forEach(x => { p[x.type] = x.value; });
+  return Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(utcMs / 1000) * 1000) / 60000);
+}
+function dpWallToUTC(fecha, hora, tz) {
+  const [y, m, d] = fecha.split('-').map(Number), [h, mi] = (hora || '00:00').split(':').map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, mi);
+  let t = guess - dpOffsetMin(tz, guess) * 60000;
+  const o2 = dpOffsetMin(tz, t);
+  t = guess - o2 * 60000;
+  return t;
+}
+function dpUTCToWall(iso, tz) {
+  const ms = new Date(iso).getTime(), o = dpOffsetMin(tz, ms), d = new Date(ms + o * 60000);
+  return { fecha: `${d.getUTCFullYear()}-${dpPad(d.getUTCMonth() + 1)}-${dpPad(d.getUTCDate())}`, hora: `${dpPad(d.getUTCHours())}:${dpPad(d.getUTCMinutes())}` };
+}
+function dpEtiquetaZona(tz, nombre) {
+  const o = dpOffsetMin(tz, Date.now()), a = Math.abs(o);
+  return `(GMT${o < 0 ? '-' : '+'}${Math.floor(a / 60)}${a % 60 ? ':' + dpPad(a % 60) : ''}) ${nombre}`;
+}
+function dpFmtFecha(ms, tz) {
+  return ms == null ? '—' : new Date(ms).toLocaleString('es-CO', { timeZone: tz, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/* --- formulario <-> datos --- */
+function dpLeer() {
+  const tz = $dp('dpZona').value || 'America/Bogota';
+  const fi = $dp('dpFechaIni').value, ff = $dp('dpFechaFin').value;
+  return {
+    titulo: $dp('dpTitulo').value.trim(),
+    descripcion: $dp('dpDescripcion').value.trim(),
+    portada: dp.portada || '',
+    zona: tz,
+    iniMs: fi ? dpWallToUTC(fi, $dp('dpHoraIni').value || '00:00', tz) : null,
+    finMs: ff ? dpWallToUTC(ff, $dp('dpHoraFin').value || '23:59', tz) : null,
+    productos: obtenerProductosAdmin().filter(p => dp.sel.has(String(p.id))).map(p => p.id)
   };
-  inputFecha.value = config.fecha ? aInputLocal(config.fecha) : '';
-  inputFechaFin.value = config.fechaFin ? aInputLocal(config.fechaFin) : '';
-  inputTitulo.value = config.titulo || '';
-
-  const productos = obtenerProductosAdmin();
-  const idsElegidos = new Set((config.productos || []).map(String));
-  const lista = document.getElementById('dropProductosLista');
-  lista.innerHTML = productos.map(p => {
-    const foto = (p.fotos && p.fotos[p.colores[0]]) || p.foto;
-    const miniatura = foto ? `<img src="${foto}" class="admin-drop-prod-thumb">` : iconoProducto(p.icono, p.colores[0]);
-    return `
-      <label class="admin-drop-prod-item">
-        <input type="checkbox" class="chk-drop-producto" value="${p.id}" ${idsElegidos.has(String(p.id)) ? 'checked' : ''}>
-        <span class="admin-drop-prod-thumb-wrap">${miniatura}</span>
-        <span>${p.nombre}</span>
-      </label>`;
-  }).join('') || `<p class="admin-foto-hint">Todavía no hay productos en el inventario.</p>`;
-
-  actualizarContadorDropProductos();
-  actualizarCountdownDrop();
-  clearInterval(intervaloCountdownDrop);
-  intervaloCountdownDrop = setInterval(actualizarCountdownDrop, 1000);
 }
-
-function actualizarContadorDropProductos() {
-  const total = document.querySelectorAll('.chk-drop-producto:checked').length;
-  document.getElementById('dropProductosContador').textContent = `${total} elegido${total === 1 ? '' : 's'}`;
+function dpADoc(f, estado) {
+  return {
+    titulo: f.titulo, descripcion: f.descripcion, portada: f.portada, zona: f.zona,
+    fecha: f.iniMs != null ? new Date(f.iniMs).toISOString() : null,
+    fechaFin: f.finMs != null ? new Date(f.finMs).toISOString() : null,
+    productos: f.productos, estado
+  };
 }
-document.getElementById('dropProductosLista').addEventListener('change', actualizarContadorDropProductos);
-
-/** Pinta una tarjeta con la cuenta regresiva en vivo, leyendo la
-    fecha directamente del campo (así el vendedor ve el efecto
-    antes de guardar). Se refresca cada segundo mientras la
-    pestaña Drop está abierta. */
-function actualizarCountdownDrop() {
-  const cont = document.getElementById('dropCountdownStats');
-  const valorFecha = document.getElementById('dropFecha').value;
-  const valorFechaFin = document.getElementById('dropFechaFin').value;
-  if (!valorFecha) {
-    cont.innerHTML = `<div class="admin-stat"><b>—</b><span>Todavía no hay fecha configurada</span></div>`;
-    return;
+function dpPoblar(d) {
+  d = d || {};
+  const tz = d.zona || 'America/Bogota';
+  $dp('dpZona').value = DP_ZONAS.some(z => z[0] === tz) ? tz : 'America/Bogota';
+  $dp('dpTitulo').value = d.titulo || '';
+  $dp('dpDescripcion').value = d.descripcion || '';
+  dp.portada = d.portada || '';
+  const i = d.fecha ? dpUTCToWall(d.fecha, $dp('dpZona').value) : { fecha: '', hora: '' };
+  const f = d.fechaFin ? dpUTCToWall(d.fechaFin, $dp('dpZona').value) : { fecha: '', hora: '' };
+  $dp('dpFechaIni').value = i.fecha; $dp('dpHoraIni').value = i.hora;
+  $dp('dpFechaFin').value = f.fecha; $dp('dpHoraFin').value = f.hora;
+  dp.sel = new Set((d.productos || []).map(String));
+}
+function dpValidar(f, estricto, publicando) {
+  if (f.iniMs != null && f.finMs != null && f.finMs <= f.iniMs) return 'La fecha de fin debe ser posterior a la de inicio.';
+  if (estricto) {
+    if (!f.titulo) return 'Escribe el título del lanzamiento.';
+    if (f.iniMs == null) return 'Elige la fecha y hora de inicio.';
+    if (!f.productos.length) return 'Selecciona al menos un producto.';
   }
+  if (publicando && f.finMs != null && f.finMs <= Date.now()) return 'La fecha de finalización ya pasó.';
+  return null;
+}
+
+/* --- estado --- */
+function dpPublicado() {
+  const c = getConfigDrop();
+  return (c && c.fecha && c.publicado !== false) ? c : null;
+}
+function dpNorm(o) {
+  return JSON.stringify([o.titulo || '', o.descripcion || '', o.portada || '', o.fecha || null, o.fechaFin || null, (o.productos || []).map(String).sort()]);
+}
+function dpEstado(f) {
+  const pub = dpPublicado(), ahora = Date.now();
+  if (pub && dpNorm(dpADoc(f)) === dpNorm(pub)) {
+    const ini = new Date(pub.fecha).getTime(), fin = pub.fechaFin ? new Date(pub.fechaFin).getTime() : null;
+    if (fin != null && fin <= ahora) return ['finalizado', 'Finalizado'];
+    if (ini <= ahora) return ['publicado', 'En vivo'];
+    return ['publicado', 'Publicado · programado'];
+  }
+  if (dp.borrador && dp.borrador.estado === 'programado') return ['programado', 'Programado (sin publicar)'];
+  return ['borrador', pub ? 'Cambios sin publicar' : 'Borrador'];
+}
+
+/* --- cuenta regresiva (resumen + vista previa) --- */
+function dpCuenta(f) {
   const ahora = Date.now();
-  const restanteInicio = new Date(valorFecha).getTime() - ahora;
-  const restanteFin = valorFechaFin ? (new Date(valorFechaFin).getTime() - ahora) : null;
-
-  const pintarBloques = (restante, etiquetaExtra) => {
-    const dias = Math.floor(restante / 86400000);
-    const horas = Math.floor((restante % 86400000) / 3600000);
-    const minutos = Math.floor((restante % 3600000) / 60000);
-    return `
-      <div class="admin-stat admin-stat-acento"><b>${dias}</b><span>Días${etiquetaExtra}</span></div>
-      <div class="admin-stat admin-stat-sage"><b>${horas}</b><span>Horas${etiquetaExtra}</span></div>
-      <div class="admin-stat admin-stat-butter"><b>${minutos}</b><span>Minutos${etiquetaExtra}</span></div>
-    `;
-  };
-
-  if (restanteInicio > 0) {
-    // todavía no lanza: se ve borroso en la portada
-    cont.innerHTML = pintarBloques(restanteInicio, ' para lanzar') +
-      (valorFechaFin ? `<div class="admin-stat"><b>${new Date(valorFechaFin).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b><span>Cierra el drop</span></div>` : '');
-    return;
-  }
-  if (restanteFin !== null && restanteFin <= 0) {
-    cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>⏹ Terminado</b><span>Ya pasó la fecha de fin, la portada avisa que se acabó</span></div>`;
-    return;
-  }
-  if (restanteFin !== null) {
-    cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>🔥 En vivo</b><span>Disponible ahora en la tienda</span></div>` + pintarBloques(restanteFin, ' para cerrar');
-    return;
-  }
-  cont.innerHTML = `<div class="admin-stat admin-stat-forest"><b>🔥 En vivo</b><span>El drop ya está disponible en la tienda, sin fecha de cierre</span></div>`;
+  if (f.iniMs == null) return { fase: 'teaser', lbl: 'Cuenta regresiva', ms: null };
+  if (f.iniMs > ahora) return { fase: 'teaser', lbl: 'Cuenta regresiva', ms: f.iniMs - ahora };
+  if (f.finMs != null && f.finMs <= ahora) return { fase: 'terminado', lbl: 'Drop finalizado', ms: 0 };
+  if (f.finMs != null) return { fase: 'live', lbl: 'Termina en', ms: f.finMs - ahora };
+  return { fase: 'live', lbl: 'Drop en vivo', ms: 0 };
 }
-document.getElementById('dropFecha').addEventListener('input', actualizarCountdownDrop);
-document.getElementById('dropFechaFin').addEventListener('input', actualizarCountdownDrop);
+function dpPartes(ms) {
+  if (ms == null) return ['--', '--', '--', '--'];
+  const d = Math.max(0, ms);
+  return [Math.floor(d / 864e5), Math.floor(d % 864e5 / 36e5), Math.floor(d % 36e5 / 6e4), Math.floor(d % 6e4 / 1e3)].map(dpPad);
+}
+function dpFotoProd(p) {
+  const c0 = p.colores && p.colores[0];
+  return (p.fotos && c0 && p.fotos[c0]) || p.foto || (p.fotos && Object.values(p.fotos)[0]) || null;
+}
 
-document.getElementById('btnGuardarDrop').addEventListener('click', () => {
-  const inputFecha = document.getElementById('dropFecha');
-  const inputFechaFin = document.getElementById('dropFechaFin');
-  const inputTitulo = document.getElementById('dropTitulo');
-  const idsElegidos = Array.from(document.querySelectorAll('.chk-drop-producto:checked')).map(chk => Number(chk.value) || chk.value);
-  // el <input datetime-local> ya está en hora local -> new Date(...) lo interpreta como local y toISOString() lo pasa a UTC para guardarlo sin ambigüedad
-  const fechaISO = inputFecha.value ? new Date(inputFecha.value).toISOString() : null;
-  const fechaFinISO = inputFechaFin.value ? new Date(inputFechaFin.value).toISOString() : null;
-  if (fechaFinISO && fechaISO && fechaFinISO <= fechaISO) {
-    showToast('La fecha de fin debe ser después de la fecha de lanzamiento', true);
-    return;
+/* --- pintado --- */
+function dpPintarResumen() {
+  const f = dpLeer(), cu = dpCuenta(f), [est, estTxt] = dpEstado(f), p = dpPartes(cu.ms);
+  const totalCat = obtenerProductosAdmin().filter(x => x.activo).length;
+  $dp('dpResTitulo').textContent = f.titulo || 'Sin título';
+  const chip = $dp('dpResChip'); chip.textContent = estTxt; chip.dataset.e = est;
+  $dp('dpResIni').textContent = dpFmtFecha(f.iniMs, f.zona);
+  $dp('dpResFin').textContent = dpFmtFecha(f.finMs, f.zona);
+  $dp('dpResSel').innerHTML = `${f.productos.length} <em>/ ${totalCat}</em>`;
+  $dp('dpResCdLbl').textContent = cu.lbl;
+  ['D', 'H', 'M', 'S'].forEach((k, i) => { $dp('dpCd' + k).textContent = p[i]; });
+  const cov = f.portada ? `<img src="${dpEsc(f.portada)}" alt="">` : 'Sin portada';
+  if ($dp('dpResCover').dataset.k !== (f.portada || '-').slice(-30) + f.portada.length) {
+    $dp('dpResCover').innerHTML = cov; $dp('dpResCover').dataset.k = (f.portada || '-').slice(-30) + f.portada.length;
+    $dp('dpPortadaThumb').innerHTML = f.portada ? `<img src="${dpEsc(f.portada)}" alt="">` : 'Sin imagen';
+    $dp('dpPortadaQuitar').hidden = !f.portada;
   }
-  guardarConfigDropAdmin({ fecha: fechaISO, fechaFin: fechaFinISO, titulo: inputTitulo.value.trim(), productos: idsElegidos });
-  showToast('Configuración del drop guardada ✓');
+  dpPintarPreview(f, cu, p);
+}
+function dpPintarPreview(f, cu, p) {
+  const prods = obtenerProductosAdmin().filter(x => dp.sel.has(String(x.id)));
+  const fotos = prods.map(dpFotoProd).filter(Boolean).slice(0, 4);
+  const portada = f.portada || fotos[0] || '';
+  const pill = cu.fase === 'teaser' ? 'Próximo drop' : cu.fase === 'live' ? 'Ya disponible' : 'Drop finalizado';
+  const key = [pill, f.titulo, f.descripcion, portada.length + portada.slice(-20), fotos.map(x => x.length + x.slice(-12)).join('|'), cu.fase].join('~');
+  const box = $dp('dpPreview');
+  if (box.dataset.k !== key) {
+    box.dataset.k = key;
+    box.innerHTML = `
+      <div class="dp-ph-top"><span>⚡ MA<em>QUINA</em></span><span>☰</span></div>
+      <div class="dp-ph-hero" data-e="${cu.fase}">
+        ${portada ? `<img src="${dpEsc(portada)}" alt="">` : ''}
+        <span class="dp-ph-pill">${pill}</span>
+        <h4>${dpEsc(f.titulo || 'Título del drop')}</h4>
+        ${f.descripcion ? `<p>${dpEsc(f.descripcion)}</p>` : ''}
+        <div class="dp-ph-cd"><div><b data-pc="0">--</b><span>Días</span></div><div><b data-pc="1">--</b><span>Horas</span></div><div><b data-pc="2">--</b><span>Min</span></div><div><b data-pc="3">--</b><span>Seg</span></div></div>
+        <span class="dp-ph-btn">Ver productos</span>
+      </div>
+      <div class="dp-ph-thumbs" data-e="${cu.fase}">${fotos.map(x => `<div><img src="${dpEsc(x)}" alt=""></div>`).join('')}</div>
+      <div class="dp-ph-foot">⚡ Exclusivo en MAQUINA</div>`;
+  }
+  box.querySelectorAll('[data-pc]').forEach(el => { el.textContent = p[+el.dataset.pc]; });
+}
+function dpPintarProductos() {
+  const q = $dp('dpBuscar').value.trim().toLowerCase(), cat = $dp('dpFiltroCat').value, talla = $dp('dpFiltroTalla').value;
+  const todos = obtenerProductosAdmin().filter(p => p.activo);
+  // opciones de filtros (se conservan las elegidas)
+  const cats = [...new Set(todos.map(p => p.categoria).filter(Boolean))].sort();
+  const tallas = [...new Set(todos.flatMap(p => p.tallas || []))];
+  const opt = (sel, vals, vacio) => { const act = sel.value; sel.innerHTML = `<option value="">${vacio}</option>` + vals.map(v => `<option value="${dpEsc(v)}">${dpEsc(v)}</option>`).join(''); sel.value = vals.includes(act) ? act : ''; };
+  opt($dp('dpFiltroCat'), cats, 'Todas las categorías'); opt($dp('dpFiltroTalla'), tallas, 'Todas las tallas');
+  const lista = todos.filter(p => (!q || (p.nombre || '').toLowerCase().includes(q)) && (!$dp('dpFiltroCat').value || p.categoria === $dp('dpFiltroCat').value) && (!$dp('dpFiltroTalla').value || (p.tallas || []).includes($dp('dpFiltroTalla').value)));
+  dp.visibles = lista;
+  $dp('dpProductos').innerHTML = lista.map(p => {
+    const foto = dpFotoProd(p), sel = dp.sel.has(String(p.id)), c0 = (p.colores || [])[0];
+    const ts = (p.tallas || []).map(t => `<i class="${stockTalla(p, t) <= 0 ? 'is-0' : ''}">${dpEsc(t)}</i>`).join('');
+    return `<div class="dd-prod${sel ? ' is-sel' : ''}" data-id="${dpEsc(p.id)}" role="checkbox" aria-checked="${sel}" tabindex="0">
+      <span class="dp-chk">✓</span>
+      <div class="dd-prod-img">${foto ? `<img src="${dpEsc(foto)}" alt="" loading="lazy">` : iconoProducto(p.icono, c0)}</div>
+      <div class="dd-prod-info"><b>${dpEsc(p.nombre)}</b><span>${dpEsc(p.categoria || '')}</span><strong>${dpPrecio(p.precio)}</strong><small>Stock: ${stockTotalProducto(p)}</small><div class="dp-tallas">${ts}</div></div></div>`;
+  }).join('') || '<p class="dp-vacio">No hay productos que coincidan.</p>';
+  dpContador();
+}
+function dpContador() {
+  const n = dp.sel.size;
+  $dp('dpProdContador').textContent = `${n} producto${n === 1 ? '' : 's'} seleccionado${n === 1 ? '' : 's'}`;
+}
+function dpRefrescar() { dpContador(); dpPintarResumen(); }
+
+async function pintarTabDrop() {
+  // zonas (la etiqueta lleva el GMT actual de cada una)
+  if (!$dp('dpZona').options.length) $dp('dpZona').innerHTML = DP_ZONAS.map(([v, n]) => `<option value="${v}">${dpEsc(dpEtiquetaZona(v, n))}</option>`).join('');
+  if (!dp.cargado) {
+    try { dp.borrador = await cargarBorradorDrop(); }
+    catch (e) { console.error(e); dp.borrador = null; showToast('No se pudo leer el borrador (¿publicaste las reglas de Firestore nuevas?). Puedes seguir editando.', true); }
+    const base = dp.borrador || dpPublicado();
+    dpPoblar(base);
+    $dp('dpTituloN').textContent = `${$dp('dpTitulo').value.length}/60`;
+    $dp('dpDescN').textContent = `${$dp('dpDescripcion').value.length}/300`;
+    dp.cargado = true;
+  }
+  dpPintarProductos();
+  dpPintarResumen();
+  clearInterval(intervaloCountdownDrop);
+  intervaloCountdownDrop = setInterval(dpPintarResumen, 1000);
+}
+
+/* --- eventos --- */
+['dpTitulo', 'dpDescripcion'].forEach(id => $dp(id).addEventListener('input', () => {
+  $dp(id === 'dpTitulo' ? 'dpTituloN' : 'dpDescN').textContent = `${$dp(id).value.length}/${id === 'dpTitulo' ? 60 : 300}`;
+  dpPintarResumen();
+}));
+['dpFechaIni', 'dpHoraIni', 'dpFechaFin', 'dpHoraFin'].forEach(id => $dp(id).addEventListener('input', dpPintarResumen));
+$dp('dpZona').addEventListener('change', () => {
+  // mantiene la misma hora de reloj pero en la nueva zona
+  dpPintarResumen();
+});
+['dpBuscar', 'dpFiltroCat', 'dpFiltroTalla'].forEach(id => $dp(id).addEventListener('input', dpPintarProductos));
+function dpToggle(card) {
+  const id = String(card.dataset.id);
+  dp.sel.has(id) ? dp.sel.delete(id) : dp.sel.add(id);
+  const on = dp.sel.has(id);
+  card.classList.toggle('is-sel', on); card.setAttribute('aria-checked', on);
+  dpRefrescar();
+}
+$dp('dpProductos').addEventListener('click', e => { const c = e.target.closest('.dd-prod'); if (c) dpToggle(c); });
+$dp('dpProductos').addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && e.target.classList.contains('dd-prod')) { e.preventDefault(); dpToggle(e.target); } });
+$dp('dpSelVisibles').addEventListener('click', () => { (dp.visibles || []).forEach(p => dp.sel.add(String(p.id))); dpPintarProductos(); dpPintarResumen(); });
+$dp('dpSelLimpiar').addEventListener('click', () => { dp.sel.clear(); dpPintarProductos(); dpPintarResumen(); });
+
+async function dpUsarPortada(file) {
+  if (!file) return;
+  if (!/^image\/(jpeg|png)$/.test(file.type)) { showToast('La portada debe ser JPG o PNG.', true); return; }
+  if (file.size > 2 * 1024 * 1024) { showToast('La portada pesa más de 2MB.', true); return; }
+  try { dp.portada = await comprimirImagen(file, 1100, 0.72); dpPintarResumen(); showToast('Portada lista — se guarda con el drop ✓'); }
+  catch (err) { showToast('No se pudo usar esa imagen.', true); }
+}
+$dp('dpPortadaFile').addEventListener('change', e => { dpUsarPortada(e.target.files[0]); e.target.value = ''; });
+['dragover', 'dragenter'].forEach(ev => $dp('dpPortadaDrop').addEventListener(ev, e => { e.preventDefault(); $dp('dpPortadaDrop').classList.add('is-over'); }));
+['dragleave', 'drop'].forEach(ev => $dp('dpPortadaDrop').addEventListener(ev, e => { e.preventDefault(); $dp('dpPortadaDrop').classList.remove('is-over'); if (ev === 'drop') dpUsarPortada(e.dataTransfer.files[0]); }));
+$dp('dpPortadaQuitar').addEventListener('click', () => { dp.portada = ''; dpPintarResumen(); });
+$dp('btnDropVista').addEventListener('click', () => {
+  const b = $dp('dpPreviewBox'); b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  b.classList.remove('is-flash'); void b.offsetWidth; b.classList.add('is-flash');
+});
+
+function dpOcupar(si) { dp.ocupado = si; ['btnDropBorrador', 'btnDropGuardar', 'btnDropPublicar', 'btnDropConfirmar'].forEach(id => { $dp(id).disabled = si; }); }
+async function dpGuardar(estado) {
+  if (dp.ocupado) return;
+  const f = dpLeer(), err = dpValidar(f, estado === 'programado', false);
+  if (err) { showToast(err, true); return; }
+  dpOcupar(true);
+  try {
+    dp.borrador = await guardarBorradorDropAdmin(dpADoc(f, estado));
+    showToast(estado === 'programado' ? 'Configuración guardada ✓ (aún sin publicar)' : 'Borrador guardado ✓');
+  } catch (e) { console.error(e); showToast('No se pudo guardar. Revisa tu conexión y las reglas de Firestore.', true); }
+  dpOcupar(false); dpPintarResumen();
+}
+$dp('btnDropBorrador').addEventListener('click', () => dpGuardar('borrador'));
+$dp('btnDropGuardar').addEventListener('click', () => dpGuardar('programado'));
+
+const modalPublicarDrop = $dp('modalPublicarDrop');
+$dp('btnDropPublicar').addEventListener('click', () => {
+  if (dp.ocupado) return;
+  const f = dpLeer(), err = dpValidar(f, true, true);
+  if (err) { showToast(err, true); return; }
+  $dp('dpPubResumen').innerHTML = `<li><b>${dpEsc(f.titulo)}</b></li><li>Inicio: <b>${dpFmtFecha(f.iniMs, f.zona)}</b></li><li>Fin: <b>${dpFmtFecha(f.finMs, f.zona)}</b></li><li>Productos: <b>${f.productos.length}</b></li>`;
+  $dp('dpPubAviso').textContent = f.iniMs <= Date.now()
+    ? 'La fecha de inicio ya llegó: el drop quedará en vivo en Inicio apenas lo publiques.'
+    : 'Aparecerá en Inicio con las prendas borrosas y se revelará solo al llegar la fecha de inicio.';
+  modalPublicarDrop.classList.add('open');
+});
+$dp('btnDropCancelar').addEventListener('click', () => modalPublicarDrop.classList.remove('open'));
+$dp('btnDropConfirmar').addEventListener('click', async () => {
+  if (dp.ocupado) return;
+  const f = dpLeer(), err = dpValidar(f, true, true);
+  if (err) { modalPublicarDrop.classList.remove('open'); showToast(err, true); return; }
+  dpOcupar(true);
+  try {
+    await publicarDropAdmin(dpADoc(f, 'publicado'));
+    dp.borrador = { estado: 'publicado' };
+    modalPublicarDrop.classList.remove('open');
+    showToast('Drop publicado ✓ Ya se ve en Inicio');
+  } catch (e) { console.error(e); showToast('No se pudo publicar. Revisa tu sesión y conexión.', true); }
+  dpOcupar(false); dpPintarResumen();
 });
 
 /* ---------- tabla de pedidos (vienen de Firestore, en la nube) ----------

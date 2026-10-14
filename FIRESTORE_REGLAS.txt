@@ -201,6 +201,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Borrador del drop: solo el admin lo lee o lo escribe. Lo que ve la
+    // tienda es config/drop, que solo se escribe al pulsar "Publicar Drop".
+    match /drop_borradores/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // Recuperación de contraseña por teléfono.
     match /telefonos/{telefono} {
       allow get: if true;

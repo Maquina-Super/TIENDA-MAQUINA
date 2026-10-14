@@ -513,6 +513,35 @@ function guardarConfigDropAdmin(cambios) {
   return _dropConfigCache;
 }
 
+/* ---------- BORRADOR DEL DROP (solo admin) ----------
+   El borrador vive aparte (colección "drop_borradores", documento
+   "actual", lectura/escritura solo admin) para que la tienda NUNCA
+   vea algo sin publicar. Siempre es el mismo documento: guardar
+   varias veces lo edita, no crea copias. Publicar copia el contenido
+   a config/drop, que es lo único que lee la página de Inicio. */
+let _dropBorradorCache = null;
+async function cargarBorradorDrop() {
+  const doc = await fbDb.collection('drop_borradores').doc('actual').get();
+  _dropBorradorCache = doc.exists ? doc.data() : null;
+  return _dropBorradorCache;
+}
+async function guardarBorradorDropAdmin(datos) {
+  const data = { ...datos, actualizado: firebase.firestore.FieldValue.serverTimestamp() };
+  await fbDb.collection('drop_borradores').doc('actual').set(data);
+  _dropBorradorCache = data;
+  return data;
+}
+/** Publica: escribe config/drop (lo que ve Inicio) y deja el borrador
+    marcado como publicado para poder seguir editándolo sin duplicar. */
+async function publicarDropAdmin(datos) {
+  const publicado = { ...datos, estado: 'publicado', publicado: true, publicadoEn: firebase.firestore.FieldValue.serverTimestamp() };
+  await fbDb.collection('config').doc('drop').set(publicado);   // reemplaza: sin restos del drop anterior
+  _dropConfigCache = { fecha: null, fechaFin: null, titulo: '', productos: [], ...publicado };
+  try { await guardarBorradorDropAdmin({ ...datos, estado: 'publicado' }); }
+  catch (e) { console.error('Drop publicado, pero no se pudo actualizar el borrador:', e); }
+  return _dropConfigCache;
+}
+
 /* ============================================================
    CONFIGURACIÓN DE COSTOS DE ENVÍO (editable desde el panel)
    Igual que la config del drop, vive en Firestore (colección

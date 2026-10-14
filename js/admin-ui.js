@@ -39,7 +39,7 @@
     tabBtnInventario: ['inventario', 'Consulta, busca, filtra y edita tus productos, precios y existencias.'],
     tabBtnPedidos: ['pedidos', 'Revisa y gestiona los pedidos de tus clientes.'],
     tabBtnMensajes: ['mensajes', 'Lee, busca y responde los mensajes del formulario de Contacto de la tienda.'],
-    tabBtnDrop: ['drop', 'Configura la cuenta regresiva y los productos del próximo lanzamiento.'],
+    tabBtnDrop: ['drop', 'Crea y administra tus lanzamientos. Configura la fecha, selecciona los productos y haz que tu comunidad sea la primera en conseguirlos.'],
     tabBtnEnvios: ['envios', 'Define cuánto pagan tus clientes de envío en cada zona (paso 3 del carrito).'],
     tabBtnUsuarios: ['usuarios', 'Administra quién puede entrar al panel y qué puede hacer.'],
   };
