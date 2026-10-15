@@ -215,3 +215,22 @@
 }
 .cart-item a:not(.cart-item-media){display:inline-block;min-height:24px;line-height:24px;}
 .footer-admin-link{padding:7px 4px;}
+
+/* ---------- 10) Celulares angostos (revisión de pantallas) ---------- */
+/* Carrito: entre 341 y 380 px el encabezado se pasaba del ancho; la búsqueda sigue en el menú ☰ */
+@media (max-width:380px){
+  .carrito-page #searchBtn{display:none;}
+  .carrito-page .nav-right{gap:4px;}
+}
+/* Categorías: títulos y flecha caben en tarjetas de 2 columnas a 360 px o menos */
+@media (max-width:360px){
+  .yd-cat-label{gap:6px;}
+  .yd-cat-label b{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+  .pg-inicio .yd-cat-label{left:10px;right:8px;}
+  .yd-cat-go{flex-shrink:0;}
+  .yd-catpage-info{padding:16px 10px 10px;}
+  .yd-catpage-info b{font-size:17px;overflow-wrap:anywhere;}
+  .yd-catpage-btn{margin:0 10px 14px;padding:9px 6px;font-size:11.5px;}
+}
+/* Aviso "Regístrate…": el enlace Entrar → no se parte en dos líneas */
+.subbar a{white-space:nowrap;flex-shrink:0;}
