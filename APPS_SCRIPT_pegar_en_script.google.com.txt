@@ -780,6 +780,48 @@ function registrarErrorContacto(c, err) {
 
 /* ---------- 6) CORREOS ---------- */
 
+/* Nombre aproximado del color a partir de su HEX (el pedido solo guarda el código). */
+const PALETA_COLORES = [
+  ['Negro', '#151512'], ['Gris oscuro', '#3a3a36'], ['Gris', '#83807a'], ['Blanco', '#faf9f5'],
+  ['Hueso', '#eceae3'], ['Crema', '#f5ecd6'], ['Beige', '#d8c3a5'], ['Café', '#6b4423'],
+  ['Verde menta', '#dfe8da'], ['Verde', '#2f6b4a'], ['Verde oscuro', '#1b4332'], ['Lila', '#e7d9ee'],
+  ['Morado', '#6a3d9a'], ['Rosado', '#f3e0da'], ['Fucsia', '#d63384'], ['Rojo', '#c0392b'],
+  ['Naranja', '#e67e22'], ['Amarillo', '#ffd600'], ['Azul claro', '#9ec5e8'], ['Azul', '#2d4a8a'],
+];
+function nombreColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return String(hex || '');
+  const rgb = function (h) { return [0, 2, 4].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); };
+  const c = rgb(m[1]);
+  let mejor = '', dMin = Infinity;
+  PALETA_COLORES.forEach(function (par) {
+    const c2 = rgb(par[1].slice(1));
+    const d = Math.pow(c[0] - c2[0], 2) + Math.pow(c[1] - c2[1], 2) + Math.pow(c[2] - c2[2], 2);
+    if (d < dMin) { dMin = d; mejor = par[0]; }
+  });
+  return mejor;
+}
+
+/* Convierte la foto del producto (ruta de la tienda, URL o data:) en imagen para ir
+   ADJUNTA dentro del correo. Gmail no muestra rutas relativas ni data:, por eso se veía rota. */
+function fotoParaCorreo(src, nombre) {
+  try {
+    src = String(src || '').trim();
+    if (!src) return null;
+    const dm = /^data:(image\/(?:png|jpe?g|gif|webp));base64,(.+)$/i.exec(src);
+    if (dm) return Utilities.newBlob(Utilities.base64Decode(dm[2]), dm[1], nombre);
+    const url = /^https?:\/\//i.test(src) ? src : TIENDA_URL + '/' + encodeURI(src.replace(/^\.?\//, ''));
+    const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    if (r.getResponseCode() !== 200) return null;
+    const b = r.getBlob();
+    if (!/^image\/(png|jpe?g|gif|webp)/i.test(b.getContentType() || '')) return null;
+    return b.setName(nombre);
+  } catch (err) {
+    console.warn('Foto del correo no disponible: ' + err.message);
+    return null;
+  }
+}
+
 /* Confirmación de pedido al cliente (pagado o pendiente). */
 function enviarCorreoConfirmacion(pedido) {
   if (!pedido || !pedido.email_cliente) return;
@@ -800,22 +842,44 @@ function enviarCorreoConfirmacion(pedido) {
         ? 'te contactaremos con el enlace de pago PSE (por correo o WhatsApp) para completar el pago de $' + dinero(pedido.total) + '.'
         : 'confirmaremos tu pago de $' + dinero(pedido.total) + ' (' + metodoTexto + ') y te avisamos.');
 
-  const filasItemsTexto = items.map(function (it) {
-    return it.nombre + ' — talla ' + it.talla + ' — $' + dinero(it.precio);
+  /* Agrupa unidades iguales (mismo producto + color + talla). */
+  const grupos = [];
+  items.forEach(function (it) {
+    const k = [it.id, it.color, it.talla].join('|');
+    const g = grupos.filter(function (x) { return x.k === k; })[0];
+    if (g) g.cantidad++; else grupos.push({ k: k, it: it, cantidad: 1 });
+  });
+
+  const fotosInline = {};
+  const filasItemsTexto = grupos.map(function (g) {
+    const it = g.it, col = nombreColor(it.color);
+    return it.nombre + (col ? ' — ' + col : '') + ' — talla ' + it.talla +
+      (g.cantidad > 1 ? ' — x' + g.cantidad : '') + ' — $' + dinero(Number(it.precio) * g.cantidad);
   }).join('\n');
 
-  const filasItemsHtml = items.map(function (it) {
-    const foto = it.foto
-      ? '<img src="' + esc(it.foto) + '" width="64" height="64" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;" alt="' + esc(it.nombre) + '">'
+  const filasItemsHtml = grupos.map(function (g, n) {
+    const it = g.it, col = nombreColor(it.color), cid = 'foto' + n;
+    const blob = fotoParaCorreo(it.foto, cid + '.jpg');
+    if (blob) fotosInline[cid] = blob;
+    const foto = blob
+      ? '<img src="cid:' + cid + '" width="72" height="72" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;display:block;" alt="' + esc(it.nombre) + '">'
       : '';
+    const puntoColor = /^#[0-9a-f]{6}$/i.test(String(it.color || ''))
+      ? '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + esc(it.color) + ';border:1px solid #999;vertical-align:middle;margin-right:4px;"></span>'
+      : '';
+    const totalLinea = Number(it.precio) * g.cantidad;
     return '<tr>' +
-      '<td style="padding:8px 0;">' + foto + '</td>' +
+      '<td style="padding:8px 0;width:72px;">' + foto + '</td>' +
       '<td style="padding:8px 0 8px 12px;font-family:Arial,sans-serif;font-size:14px;color:#151512;">' +
         '<strong>' + esc(it.nombre) + '</strong><br>' +
-        '<span style="color:#666;">Talla ' + esc(it.talla) + ' — $' + dinero(it.precio) + '</span>' +
+        '<span style="color:#666;font-size:13px;">' + (col ? puntoColor + 'Color ' + esc(col) + ' · ' : '') + 'Talla ' + esc(it.talla) +
+          (g.cantidad > 1 ? ' · x' + g.cantidad : '') + '</span>' +
       '</td>' +
+      '<td style="padding:8px 0;text-align:right;font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#151512;white-space:nowrap;">$' + dinero(totalLinea) + '</td>' +
     '</tr>';
   }).join('');
+
+  const textoEnvio = Number(pedido.costo_envio) > 0 ? '$' + dinero(pedido.costo_envio) : 'Gratis';
 
   const direccion = [pedido.envio_direccion, pedido.envio_edificio,
     pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : pedido.envio_barrio, pedido.envio_municipio, pedido.envio_departamento]
@@ -842,7 +906,7 @@ function enviarCorreoConfirmacion(pedido) {
     lineaEstadoTexto + '\n\n' +
     filasItemsTexto + '\n\n' +
     'Subtotal: $' + dinero(pedido.subtotal) + '\n' +
-    'Envío: $' + dinero(pedido.costo_envio) + '\n' +
+    'Envío: ' + textoEnvio + '\n' +
     'Total: $' + dinero(pedido.total) + '\n' +
     'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : textoEstadoPago(pedido)) + '\n\n' +
     'Dirección de entrega: ' + direccion + '\n' +
@@ -862,7 +926,7 @@ function enviarCorreoConfirmacion(pedido) {
         '<table style="width:100%;border-collapse:collapse;margin:14px 0;">' + filasItemsHtml + '</table>' +
         '<table style="width:100%;font-size:14px;color:#151512;border-top:1px solid #eee;padding-top:10px;">' +
           '<tr><td>Subtotal</td><td style="text-align:right;">$' + dinero(pedido.subtotal) + '</td></tr>' +
-          '<tr><td>Envío</td><td style="text-align:right;">$' + dinero(pedido.costo_envio) + '</td></tr>' +
+          '<tr><td>Envío</td><td style="text-align:right;">' + textoEnvio + '</td></tr>' +
           '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + dinero(pedido.total) + '</td></tr>' +
         '</table>' +
         '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#2f8a1f' : '#b45309') + ';margin-top:6px;">' +
@@ -882,6 +946,7 @@ function enviarCorreoConfirmacion(pedido) {
     subject: asunto,
     body: cuerpoTexto,
     htmlBody: cuerpoHtml,
+    inlineImages: fotosInline,
     name: 'MAQUINA',
   });
 }
