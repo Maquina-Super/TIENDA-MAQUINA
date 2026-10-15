@@ -2917,3 +2917,13 @@ textarea.pe-input{resize:vertical;min-height:84px;}
 /* ---- aviso (toast) del panel: por encima de los modales y sin asomarse cuando está oculto ---- */
 body:has(#adminDashView) .toast{z-index:400;bottom:calc(26px + env(safe-area-inset-bottom));transition:transform .35s cubic-bezier(.2,.9,.3,1.2),visibility 0s linear .35s;visibility:hidden;}
 body:has(#adminDashView) .toast.show{visibility:visible;transition:transform .35s cubic-bezier(.2,.9,.3,1.2),visibility 0s;}
+
+/* Acceso admin: botón discreto, separado de la cuenta de clientes */
+.admin-access{display:inline-flex;align-items:center;gap:6px;margin:0 8px 0 10px;padding:6px 11px;border:1px solid var(--acento);border-radius:8px;color:var(--acento);font-size:12px;font-weight:600;line-height:1;white-space:nowrap;background:transparent;transition:background .2s,box-shadow .2s;}
+.admin-access svg{width:15px;height:15px;flex:none;}
+.admin-access:hover,.admin-access:focus-visible{background:rgba(138,240,78,.1);box-shadow:0 0 10px var(--acento-glow);}
+@media (max-width:900px){.admin-access-arr{display:none;}}
+@media (max-width:640px){
+  .admin-access{margin:0 2px;padding:0;width:36px;min-height:36px;justify-content:center;}
+  .admin-access-txt{display:none;}
+}
