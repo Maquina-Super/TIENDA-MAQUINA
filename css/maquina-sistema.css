@@ -280,3 +280,25 @@
   .footer-contacto .ft-bottom{padding:20px 20px 24px;}
   .footer-contacto .ft-made::before,.footer-contacto .ft-made::after{width:32px;}
 }
+
+/* ---------- 12) Buscador del catálogo, envío en producto y reseñas del inicio ---------- */
+.yd-input{display:block;width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;background:var(--surface-2);color:var(--offwhite);border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:16px;}
+.yd-input:focus{outline:none;border-color:var(--acento);}
+.yd-check{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:6px;color:var(--offwhite);font-size:14px;cursor:pointer;}
+.yd-check input{width:18px;height:18px;accent-color:var(--acento);}
+.yd-envio{margin:18px 0;}
+.yd-envio-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.yd-envio select{width:100%;min-width:0;min-height:44px;padding:8px 10px;background:var(--surface-2);color:var(--offwhite);border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:15px;}
+.yd-envio select:disabled{opacity:.55;}
+.yd-envio-out{margin:10px 0 0;font-size:14px;color:var(--gray);line-height:1.5;}
+.yd-envio-out b{color:var(--offwhite);}
+.yd-envio-out .yd-envio-precio{color:var(--acento);}
+.yd-envio-out small{font-size:12px;}
+@media (max-width:420px){.yd-envio-row{grid-template-columns:1fr;}}
+.yd-com-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;}
+.yd-com-card{margin:0;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;gap:12px;}
+.yd-com-estr{color:var(--acento);letter-spacing:2px;font-size:15px;}
+.yd-com-card blockquote{margin:0;font-size:15px;line-height:1.6;color:var(--offwhite);overflow-wrap:anywhere;}
+.yd-com-card figcaption{margin-top:auto;font-size:13px;color:var(--gray);}
+.yd-com-card figcaption b{color:var(--offwhite);}
+.yd-com-card figcaption a{color:var(--acento);}

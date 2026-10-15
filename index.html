@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="css/inicio.css?v=4">
 <link rel="stylesheet" href="css/drop-hero.css?v=2">
 <link rel="stylesheet" href="css/tarjetas.css?v=2">
-<link rel="stylesheet" href="css/maquina-sistema.css?v=3">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
 </head>
 <body class="pg-inicio">
 
@@ -142,6 +142,12 @@
     <a href="productos.html" class="yd-clear">Ver todo</a>
   </div>
   <div class="grid" id="gridMasPedido"></div>
+</section>
+
+<!-- ========== RESEÑAS REALES (se oculta si no hay) ========== -->
+<section class="yd-sec" id="ydComunidad" hidden>
+  <div class="yd-sec-head"><h2>Lo que dicen de MAQUINA</h2></div>
+  <div class="yd-com-grid" id="ydComunidadGrid"></div>
 </section>
 
 <!-- ========== VOLTAGE CLUB ========== -->
@@ -473,5 +479,30 @@ document.getElementById('clubForm').addEventListener('submit', async function (e
 })();
 </script>
 
+<script>
+(async function () {
+  const sec = document.getElementById('ydComunidad'), grid = document.getElementById('ydComunidadGrid');
+  if (!sec || typeof fbDb === 'undefined') return;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  try {
+    const snap = await fbDb.collection('resenas').orderBy('fecha', 'desc').limit(30).get();
+    const lista = snap.docs.map(d => d.data())
+      .filter(r => r.aprobada !== false && Number(r.estrellas) >= 4 && String(r.comentario || '').trim().length >= 10)
+      .slice(0, 6);
+    if (!lista.length) return;
+    grid.innerHTML = lista.map(r => {
+      const n = Math.min(5, Math.max(0, Math.round(Number(r.estrellas) || 0)));
+      let prod = null;
+      try { prod = typeof buscarProducto === 'function' ? buscarProducto(r.productoId) : null; } catch (e) {}
+      return `<figure class="yd-com-card">
+        <div class="yd-com-estr" aria-label="${n} de 5 estrellas">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</div>
+        <blockquote>${esc(r.comentario)}</blockquote>
+        <figcaption><b>${esc(r.nombre)}</b>${prod ? ` · <a href="producto.html?id=${encodeURIComponent(prod.id)}">${esc(prod.nombre)}</a>` : ''}</figcaption>
+      </figure>`;
+    }).join('');
+    sec.hidden = false;
+  } catch (e) { /* sin permiso o sin conexión: la sección queda oculta */ }
+})();
+</script>
 </body>
 </html>

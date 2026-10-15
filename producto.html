@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="css/maquina-ui.css?v=10">
 <link rel="stylesheet" href="css/extras-cliente.css?v=2">
 <link rel="stylesheet" href="css/tarjetas.css?v=2">
-<link rel="stylesheet" href="css/maquina-sistema.css?v=3">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
 </head>
 <body>
 
@@ -66,6 +66,7 @@
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=6"></script>
 <script src="js/store.js?v=7"></script>
+<script src="js/envio-municipios.js?v=1"></script>
 <script src="js/catalog-render.js?v=5"></script>
 <script src="js/layout.js?v=4"></script>
 <script src="js/maquina-ui.js?v=4"></script>
@@ -148,6 +149,15 @@ cont.innerHTML = `
       <button class="yd-btn-fav ${esFavorito(p.id) ? 'is-fav' : ''}" id="pdpFav">${YD_ICONOS.corazon} <span>${esFavorito(p.id) ? 'En tus favoritos' : 'Agregar a favoritos'}</span></button>
     </div>
 
+    <div class="yd-envio" id="pdpEnvio">
+      <div class="yd-lbl">Costo de envío</div>
+      <div class="yd-envio-row">
+        <select id="envDep" aria-label="Departamento"></select>
+        <select id="envMun" aria-label="Municipio" disabled><option value="">Municipio</option></select>
+      </div>
+      <p class="yd-envio-out" id="envOut" aria-live="polite">Elige tu ciudad para ver cuánto cuesta el envío.</p>
+    </div>
+
     <div class="yd-lbl">Descripción</div>
     <ul class="yd-pdp-list">
       <li>Categoría: ${p.categoria}</li>
@@ -162,6 +172,37 @@ const main = document.getElementById('pdpMain');
 const stockEl = document.getElementById('pdpStock');
 const cantEl = document.getElementById('pdpCant');
 const addBtn = document.getElementById('pdpAdd');
+
+/* ---------- costo de envío antes del carrito (usa las tarifas del panel) ---------- */
+(async function () {
+  const box = document.getElementById('pdpEnvio');
+  if (!box) return;
+  if (typeof departamentosColombia !== 'function' || typeof municipiosDe !== 'function') { box.hidden = true; return; }
+  const dep = document.getElementById('envDep'), mun = document.getElementById('envMun'), out = document.getElementById('envOut');
+  const LS = 'maquina_envio_pref';
+  const pesos = n => '$' + Number(n).toLocaleString('es-CO');
+  try { await cargarConfigEnvio(); } catch (e) {}
+  dep.innerHTML = '<option value="">Departamento</option>' + departamentosColombia().map(d => `<option>${d}</option>`).join('');
+  let lista = [];
+  function pintarMunicipios(depto, munId) {
+    lista = depto ? municipiosDe(depto) : [];
+    mun.innerHTML = '<option value="">Municipio</option>' + lista.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
+    mun.disabled = !lista.length;
+    if (munId) mun.value = munId;
+  }
+  function mostrar() {
+    const m = lista.find(x => x.id === mun.value);
+    if (!m) { out.textContent = 'Elige tu ciudad para ver cuánto cuesta el envío.'; return; }
+    out.innerHTML = `Envío a <b>${m.nombre}</b>: <b class="yd-envio-precio">${m.gratis || m.costo === 0 ? 'Gratis' : pesos(m.costo)}</b><br><small>El total final se confirma en el carrito.</small>`;
+    try { localStorage.setItem(LS, JSON.stringify({ dep: dep.value, mun: mun.value })); } catch (e) {}
+  }
+  dep.addEventListener('change', () => { pintarMunicipios(dep.value); mostrar(); });
+  mun.addEventListener('change', mostrar);
+  try {
+    const g = JSON.parse(localStorage.getItem(LS) || 'null');
+    if (g && g.dep && departamentosColombia().includes(g.dep)) { dep.value = g.dep; pintarMunicipios(g.dep, g.mun); mostrar(); }
+  } catch (e) {}
+})();
 
 function disponibles() {
   return sel.talla
@@ -245,17 +286,19 @@ const estrellasEl = document.getElementById('resEstrellas');
 const resMsg = document.getElementById('resMsg');
 
 function pintarResenas(lista) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   if (!lista.length) {
     listaResenasEl.innerHTML = '<p class="yd-resenas-vacio">Todavía no hay reseñas de este producto. ¡Sé el primero en opinar!</p>';
     return;
   }
   listaResenasEl.innerHTML = lista.map(r => {
-    const estr = '★'.repeat(r.estrellas) + '☆'.repeat(5 - r.estrellas);
+    const nEst = Math.min(5, Math.max(0, Number(r.estrellas) || 0));
+    const estr = '★'.repeat(nEst) + '☆'.repeat(5 - nEst);
     const fecha = r.fecha ? new Date(r.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
     return `
       <div class="yd-resena-item">
-        <div class="yd-resena-top"><b>${r.nombre}</b><span class="yd-resena-estr">${estr}</span></div>
-        ${r.comentario ? `<p>${r.comentario}</p>` : ''}
+        <div class="yd-resena-top"><b>${esc(r.nombre)}</b><span class="yd-resena-estr">${estr}</span></div>
+        ${r.comentario ? `<p>${esc(r.comentario)}</p>` : ''}
         <span class="yd-resena-fecha">${fecha}</span>
       </div>`;
   }).join('');

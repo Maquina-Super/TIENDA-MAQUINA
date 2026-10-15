@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="css/maquina-ui.css?v=10">
 <link rel="stylesheet" href="css/extras-cliente.css?v=2">
 <link rel="stylesheet" href="css/tarjetas.css?v=2">
-<link rel="stylesheet" href="css/maquina-sistema.css?v=3">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
 </head>
 <body>
 
@@ -43,6 +43,12 @@
   <aside class="yd-side" id="ydSide" aria-label="Filtros de la tienda">
     <button class="yd-side-close" id="ydSideClose" aria-label="Cerrar filtros">✕</button>
     <div class="yd-side-head">Filtros</div>
+
+    <div class="yd-side-group">
+      <h4>Buscar</h4>
+      <input type="search" id="fBuscar" class="yd-input" placeholder="Nombre del producto" autocomplete="off" maxlength="60">
+      <label class="yd-check"><input type="checkbox" id="fStock"> Solo con stock</label>
+    </div>
 
     <div class="yd-side-group">
       <h4>Precio</h4>
@@ -151,6 +157,8 @@ const estado = {
   tallas: [],
   colores: [],
   precioMax: null,
+  q: '',
+  soloStock: false,
   orden: 'relevancia',
 };
 
@@ -247,6 +255,8 @@ function filtrar() {
     if (estado.tallas.length && !(p.tallas || []).some(t => estado.tallas.includes(t))) return false;
     if (estado.colores.length && !(p.colores || []).some(c => estado.colores.includes(c))) return false;
     if (estado.precioMax != null && rangoPrecioTallas(p).min > estado.precioMax) return false;
+    if (estado.q && !_nt(p.nombre + ' ' + p.categoria).includes(estado.q)) return false;
+    if (estado.soloStock && stockTotalProducto(p) <= 0) return false;
     return true;
   });
 }
@@ -298,7 +308,13 @@ document.getElementById('sortSelect').addEventListener('change', (e) => {
   pintarGrid();
 });
 
+function _nt(t) { return String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+document.getElementById('fBuscar').addEventListener('input', (e) => { estado.q = _nt(e.target.value); pintarGrid(); });
+document.getElementById('fStock').addEventListener('change', (e) => { estado.soloStock = e.target.checked; pintarGrid(); });
+
 document.getElementById('fLimpiar').addEventListener('click', () => {
+  estado.q = ''; estado.soloStock = false;
+  document.getElementById('fBuscar').value = ''; document.getElementById('fStock').checked = false;
   estado.categorias = []; estado.tallas = []; estado.colores = [];
   estado.precioMax = precioTope;
   pintarCategoriaActiva();
