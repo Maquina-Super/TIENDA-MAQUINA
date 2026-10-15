@@ -2922,6 +2922,13 @@ body:has(#adminDashView) .toast.show{visibility:visible;transition:transform .35
 .admin-access{display:inline-flex;align-items:center;gap:6px;margin:0 8px 0 10px;padding:6px 11px;border:1px solid var(--acento);border-radius:8px;color:var(--acento);font-size:12px;font-weight:600;line-height:1;white-space:nowrap;background:transparent;transition:background .2s,box-shadow .2s;}
 .admin-access svg{width:15px;height:15px;flex:none;}
 .admin-access:hover,.admin-access:focus-visible{background:rgba(138,240,78,.1);box-shadow:0 0 10px var(--acento-glow);}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> e5c3205e185bdfc739989ea59a0c52ee625bd3d8
+>>>>>>> a268346847a14693b7d5ea9e27509ca8205655ef
 .mobile-nav-foot a.mobile-nav-admin{border-color:var(--acento);color:var(--acento);background:transparent;font-size:13px;padding:10px 14px;}
 @media (max-width:1100px){
   .admin-access{margin:0 4px;padding:0;width:40px;min-height:40px;justify-content:center;}
@@ -2929,3 +2936,16 @@ body:has(#adminDashView) .toast.show{visibility:visible;transition:transform .35
 }
 @media (max-width:480px){.admin-access{display:none;}}
 @media (min-width:481px){.mobile-nav-admin{display:none;}}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+@media (max-width:900px){.admin-access-arr{display:none;}}
+@media (max-width:640px){
+  .admin-access{margin:0 2px;padding:0;width:36px;min-height:36px;justify-content:center;}
+  .admin-access-txt{display:none;}
+}
+>>>>>>> 22845c92c8a945985ccce9fbc2a932b3fc9869df
+>>>>>>> e5c3205e185bdfc739989ea59a0c52ee625bd3d8
+>>>>>>> a268346847a14693b7d5ea9e27509ca8205655ef
