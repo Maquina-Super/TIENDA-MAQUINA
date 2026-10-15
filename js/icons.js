@@ -57,15 +57,6 @@ function iconoProducto(tipo, color = "#dfe8da") {
   return svgs[tipo] || svgs["tee"];
 }
 
-/** Rayo pequeño usado en botones de "vaciar / cerrar" del carrito,
-    en vez del clásico ícono de bote de basura. */
-function svgRayoBoton() {
-  return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>`;
-}
-/** Equis redonda y estilizada para quitar un producto del carrito */
-function svgEquisBoton() {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
-}
 
 /** Etiqueta legible + clase css para el badge de un producto */
 function badgeInfo(badge) {

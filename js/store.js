@@ -176,13 +176,6 @@ function _guardarProductoEnNube(producto) {
   fbDb.collection('productos').doc(String(id)).set(datos, { merge: true })
     .catch(e => console.error('Error guardando el producto en la nube:', e));
 }
-/** Precio final ya aplicado el % de descuento que puso el admin */
-function precioConDescuento(p) {
-  const d = Number(p.descuento) || 0;
-  const base = Number(p.precio) || 0;
-  if (d <= 0) return base;
-  return Math.round(base * (1 - d / 100));
-}
 /** Precio BASE (sin descuento) de una talla específica. Si el admin no le
     puso un precio propio a esa talla, se usa el precio general del producto.
     Así, una camiseta puede costar distinto en S/M que en L/XL. */
@@ -308,37 +301,6 @@ function actualizarStockTallasAdmin(id, stockTallas) {
   p.stock = stockTotalProducto(p);
   _guardarProductoEnNube(p);
   return p;
-}
-/** Baja 1 unidad de stock por cada prenda que venga en el carrito
-    (se llama al confirmar una compra). Descuenta del color exacto
-    que se compró si el producto tiene desglose por color, y
-    siempre mantiene p.stock (el total) sincronizado. Actualiza la
-    memoria local al toque, y en la nube usa incrementos atómicos
-    (increment(-1)) para que dos compras casi simultáneas no se
-    pisen entre sí. */
-function descontarStockCarrito(carrito) {
-  carrito.forEach(item => {
-    const p = _catalogoCache.find(x => x.id == item.id);
-    if (!p) return;
-    const cambiosNube = {};
-    let tocoAlgunDesglose = false;
-    const usaColores = p.stockColores && Object.prototype.hasOwnProperty.call(p.stockColores, item.color);
-    if (usaColores) {
-      p.stockColores[item.color] = Math.max(0, Number(p.stockColores[item.color]) - 1);
-      cambiosNube[`stockColores.${item.color}`] = firebase.firestore.FieldValue.increment(-1);
-      tocoAlgunDesglose = true;
-    }
-    const usaTallas = p.stockTallas && Object.prototype.hasOwnProperty.call(p.stockTallas, item.talla);
-    if (usaTallas) {
-      p.stockTallas[item.talla] = Math.max(0, Number(p.stockTallas[item.talla]) - 1);
-      cambiosNube[`stockTallas.${item.talla}`] = firebase.firestore.FieldValue.increment(-1);
-      tocoAlgunDesglose = true;
-    }
-    p.stock = tocoAlgunDesglose ? stockTotalProducto(p) : Math.max(0, Number(p.stock) - 1);
-    cambiosNube.stock = firebase.firestore.FieldValue.increment(-1);
-    fbDb.collection('productos').doc(String(item.id)).update(cambiosNube)
-      .catch(e => console.error('Error descontando stock en la nube:', e));
-  });
 }
 
 /* ---------- ADMIN: gestión de inventario, precio y descuentos ---------- */
@@ -503,15 +465,6 @@ function suscribirConfigDrop(cb) {
     return () => {};
   }
 }
-/** Guarda (desde el panel admin) la fecha del próximo drop, el título
-    y/o la lista de ids de productos que se muestran cuando el tiempo
-    se acaba. "cambios" trae solo los campos que se van a actualizar. */
-function guardarConfigDropAdmin(cambios) {
-  _dropConfigCache = { ..._dropConfigCache, ...cambios };
-  fbDb.collection('config').doc('drop').set(_dropConfigCache, { merge: true })
-    .catch(e => console.error('Error guardando la configuración del drop en la nube:', e));
-  return _dropConfigCache;
-}
 
 /* ---------- BORRADOR DEL DROP (solo admin) ----------
    El borrador vive aparte (colección "drop_borradores", documento
@@ -673,11 +626,6 @@ function agregarAlCarrito(producto, color, talla) {
   });
   _guardar(LS_KEYS.carrito, carrito);
   return carrito.length;
-}
-function eliminarDelCarrito(idx) {
-  const carrito = getCarrito();
-  carrito.splice(idx, 1);
-  _guardar(LS_KEYS.carrito, carrito);
 }
 /** Quita SOLO una unidad de un producto (mismo id + color + talla) */
 function quitarUnidad(id, color, talla) {
@@ -2327,21 +2275,6 @@ async function obtenerPermisosUsuarioActual() {
   }
 }
 
-/** Confirma que "clave" es la contraseña ACTUAL de la cuenta de
-    Firebase Auth con la sesión abierta ahora mismo (no el código de
-    desarrollador). Se usa para acciones sensibles y puntuales, como
-    borrar un pedido. */
-async function verificarClaveAdminActual(clave) {
-  const user = fbAuth.currentUser;
-  if (!user || !clave) return false;
-  try {
-    const cred = firebase.auth.EmailAuthProvider.credential(user.email, clave);
-    await user.reauthenticateWithCredential(cred);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
 
 /* ---------- GESTIÓN DE USUARIOS DEL PANEL (pestaña "Usuarios") ----------
    Un usuario nuevo lo crea alguien que YA tiene acceso al panel,

@@ -52,16 +52,6 @@ function productosPorGenero(genero) {
   return productosActivos().filter(p => Array.isArray(p.genero) && p.genero.includes(genero));
 }
 
-/** Arma, para un género dado, qué categorías tiene en cada grupo
-    (Ropa / Accesorios), listas para pintar el menú desplegable.
-    Devuelve algo como: [{ grupo: "Ropa", categorias: ["Busos","Camisetas"] }, ...]
-    Solo incluye grupos que sí tienen al menos una categoría con productos. */
-function categoriasPorGeneroAgrupadas(genero) {
-  const cats = new Set(productosPorGenero(genero).map(p => p.categoria));
-  return Object.keys(GRUPOS_CATEGORIA)
-    .map(grupo => ({ grupo, categorias: GRUPOS_CATEGORIA[grupo].filter(c => cats.has(c)) }))
-    .filter(g => g.categorias.length > 0);
-}
 
 /** Un producto marcado "Ocultar hasta el drop" (p.ocultoHastaDrop)
     queda invisible en toda la tienda pública (catálogo, buscador,
