@@ -81,6 +81,7 @@ function renderHeader(paginaActual = "") {
           <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         </button>
         ${cuentaHtml}
+        <a href="admin.html" class="admin-access" aria-label="Acceso admin" title="Acceso admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span class="admin-access-txt">Acceso admin</span><svg class="admin-access-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         <a class="fav-pill" href="favoritos.html" aria-label="Mis favoritos" title="Mis favoritos">
           <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.5s-7.6-4.6-10-9.3C.5 7.8 2.3 4.5 5.6 4c2-.3 3.9.7 5 2.3.1.15.3.15.4 0 1.1-1.6 3-2.6 5-2.3 3.3.5 5.1 3.8 3.6 7.2-2.4 4.7-10 9.3-10 9.3z"/></svg>
           <span id="favCount" class="fav-count ${totalFavoritosCount() === 0 ? 'hidden' : ''}">${totalFavoritosCount()}</span>
@@ -116,6 +117,7 @@ function renderHeader(paginaActual = "") {
         ${usuario
           ? `<a href="#" id="mobileLogout">Cerrar sesión</a>`
           : `<a href="login.html" class="mobile-nav-primary">Iniciar sesión</a><a href="registro.html">Crear cuenta</a>`}
+        <a href="admin.html" class="mobile-nav-admin">Acceso admin</a>
       </div>
     </div>
 
@@ -312,7 +314,6 @@ function renderFooter() {
       <div class="ft-bottom">
         <p class="ft-copy">© 2026 MAQUINA — Todos los derechos reservados.</p>
         <span class="ft-made">Hecho en Medellín ⚡</span>
-        <a href="admin.html" class="ft-admin"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>Acceso administrativo<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
       </div>
     </footer>
   `;
