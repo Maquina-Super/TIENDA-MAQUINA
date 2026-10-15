@@ -903,3 +903,12 @@ body{
   .nav-right{gap:8px;min-width:0;}
   .account-btn .account-name,.account-btn .chev{display:none;}
 }
+
+
+/* ===== Celular: botones fáciles de pulsar (altura mín. 44px, sin ensanchar el encabezado) ===== */
+@media (max-width: 640px) {
+  #navBurger, #searchBtn, .account-btn, .fav-pill, .cart-pill { min-height: 44px; }
+  .nav-right { gap: 4px; }
+  #btnLimpiar { min-height: 44px; }
+  .footer-admin-link { display: inline-block; padding: 10px 0; }
+}

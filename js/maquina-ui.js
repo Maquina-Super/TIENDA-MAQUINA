@@ -25,26 +25,26 @@
 const YD_HERO_SLIDES = [
   {
     imagen: "img/banner-hoodie-1.jpg",
-    eyebrow: "Máquina · Streetwear",
-    titulo: 'Fuerza disciplina <span>en cada rep.</span>',
-    texto: "No es solo una camiseta, es un recordatorio de lo que eres y de lo que estás construyendo.",
-    boton: "Ver productos",
+    eyebrow: "MAQUINA · Streetwear",
+    titulo: 'Viste tu <span>actitud.</span>',
+    texto: "Ropa urbana para gente que no sigue la corriente.",
+    boton: "Comprar colección",
     href: "productos.html",
   },
   {
     imagen: "img/banner-hoodie-3.jpg",
-    eyebrow: "Gym Plus · Streetwear",
-    titulo: 'Disciplina también es <span>una forma de respeto propio.</span>',
-    texto: "No es solo una camiseta, es un recordatorio de lo que eres y de lo que estás construyendo.",
-    boton: "Ver productos",
+    eyebrow: "MAQUINA · Streetwear",
+    titulo: 'Disciplina que <span>se nota.</span>',
+    texto: "Prendas hechas para entrenar, salir y repetir.",
+    boton: "Comprar colección",
     href: "productos.html",
   },
   {
     imagen: "img/banner-hoodie-2.jpg",
-    eyebrow: "Gymrat · Streetwear",
-    titulo: 'Si vas a dejar todo en tu entrenamiento <span>hazlo con una marca que hable por ti.</span>',
-    texto: "Ropa que representa tu disciplina, tu mentalidad y todo lo que construyes dentro y fuera del gym.",
-    boton: "Ver productos",
+    eyebrow: "MAQUINA · Busos",
+    titulo: 'Una marca que <span>habla por ti.</span>',
+    texto: "Mira los busos de la colección.",
+    boton: "Comprar colección",
     href: "productos.html?cat=Busos",
   },
 ];
@@ -272,9 +272,9 @@ function ydRenderHero(contenedorId = "ydHero") {
    BARRA DE BENEFICIOS
    ============================================================ */
 const YD_BENEFICIOS = [
-  { icono: "camion",  titulo: "Envíos a todo el país",  sub: "Rápidos y seguros" },
-  { icono: "tarjeta", titulo: "Pagos seguros",          sub: "Tarjeta, Nequi, contra entrega" },
-  { icono: "cambio",  titulo: "Cambios y devoluciones", sub: "Fácil y sin complicaciones" },
+  { icono: "camion",  titulo: "Envíos a todo el país",  sub: "Costo según tu ciudad" },
+  { icono: "tarjeta", titulo: "Formas de pago",          sub: "Contra entrega y PSE" },
+  { icono: "cambio",  titulo: "Cambios y devoluciones", sub: "15 días para cambio de talla o color" },
   { icono: "soporte", titulo: "Atención personalizada", sub: "Estamos para ayudarte" },
 ];
 

@@ -138,7 +138,7 @@
 <!-- ========== LO MÁS PEDIDO ========== -->
 <section class="yd-sec" id="masPedido">
   <div class="yd-sec-head">
-    <h2>Lo más pedido</h2>
+    <h2>Más de MAQUINA</h2>
     <a href="productos.html" class="yd-clear">Ver todo</a>
   </div>
   <div class="grid" id="gridMasPedido"></div>
@@ -442,7 +442,7 @@ document.getElementById('ydCats').innerHTML = categorias.slice(0, 8).map(cat => 
     </a>`;
 }).join('');
 
-/* ---------- lo más pedido ----------
+/* ---------- más de MAQUINA (no se basa en ventas) ----------
    Se priorizan las piezas marcadas como "quedan pocas" (son las
    que más salen) y se completa con el resto del catálogo. */
 const masPedido = [...activos.filter(p => p.badge === 'pocas'), ...activos.filter(p => p.badge !== 'pocas')].slice(0, 4);
