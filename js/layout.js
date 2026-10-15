@@ -267,51 +267,52 @@ function renderFooter() {
         <a href="index.html#club" class="footer-cta-btn">Quiero entrar →</a>
       </div>
 
-      <div class="footer-inner">
-        <div class="footer-brand">
+      <div class="ft-inner">
+        <div class="ft-brand">
           <a href="index.html" class="foot-logo display"><img src="img/logo-crown.png" class="logo-crown" alt="">MA<em>QUINA</em></a>
-          <p class="footer-slogan">Drip para gente que ya trae su propia energía.</p>
-          <div class="footer-socials">
-            <a href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener" class="social-pill ig">📸 @maquina.oficial</a>
-            <a href="https://tiktok.com/@maquina" target="_blank" rel="noopener" class="social-pill tk">🎵 TikTok</a>
-            <a href="https://facebook.com/maquina" target="_blank" rel="noopener" class="social-pill fb">📘 Facebook</a>
+          <p class="ft-slogan">Drip para gente que ya trae su propia energía.</p>
+          <div class="ft-soc">
+            <a class="ft-box" href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener" aria-label="Instagram"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></a>
+            <a class="ft-box" href="https://tiktok.com/@maquina" target="_blank" rel="noopener" aria-label="TikTok"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3c.3 2.4 1.8 4 4 4.2v3.2a7 7 0 0 1-4-1.3V15a6 6 0 1 1-6-6v3.3a2.8 2.8 0 1 0 2.8 2.7V3z"/></svg></a>
+            <a class="ft-box" href="https://facebook.com/maquina" target="_blank" rel="noopener" aria-label="Facebook"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
           </div>
         </div>
 
-        <div class="footer-col">
-          <h4>CONTÁCTANOS</h4>
-          <ul>
-            <li><a href="tel:+573239523623">📞 +57 323 952 3623</a></li>
-            <li><a href="https://wa.me/573239523623" target="_blank" rel="noopener">💬 WhatsApp: +57 323 952 3623</a></li>
-            <li><a href="mailto:contacto@maquina.co">✉️ contacto@maquina.co</a></li>
-            <li>📍 Calle 50 #45-30, Medellín, Colombia</li>
+        <div class="ft-col">
+          <h4 class="ft-h">Contáctanos</h4>
+          <ul class="ft-list">
+            <li><a class="ft-item" href="tel:+573239523623"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg><span><b>+57 323 952 3623</b><small>Llámanos</small></span></a></li>
+            <li><a class="ft-item" href="https://wa.me/573239523623" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg><span><b>WhatsApp</b><small>Escríbenos directo</small></span></a></li>
+            <li><a class="ft-item" href="mailto:contacto@maquina.co"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg><span><b>contacto@maquina.co</b><small>Te respondemos pronto</small></span></a></li>
+            <li><div class="ft-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span><b>Calle 50 #45-30, Medellín</b><small>Envíos a toda Colombia</small></span></div></li>
           </ul>
         </div>
 
-        <div class="footer-col">
-          <h4>REDES SOCIALES</h4>
-          <ul class="redes">
-            <li><a href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener">📸 Instagram: @maquina.oficial</a></li>
-            <li><a href="https://tiktok.com/@maquina" target="_blank" rel="noopener">🎵 TikTok: @maquina</a></li>
-            <li><a href="https://facebook.com/maquina" target="_blank" rel="noopener">📘 Facebook: MAQUINA</a></li>
+        <div class="ft-col">
+          <h4 class="ft-h">Redes sociales</h4>
+          <ul class="ft-list">
+            <li><a class="ft-item" href="https://www.instagram.com/maquina.oficial/" target="_blank" rel="noopener"><span class="ft-box"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></span><span><b>Instagram</b><small>@maquina.oficial</small></span></a></li>
+            <li><a class="ft-item" href="https://tiktok.com/@maquina" target="_blank" rel="noopener"><span class="ft-box"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3c.3 2.4 1.8 4 4 4.2v3.2a7 7 0 0 1-4-1.3V15a6 6 0 1 1-6-6v3.3a2.8 2.8 0 1 0 2.8 2.7V3z"/></svg></span><span><b>TikTok</b><small>@maquina</small></span></a></li>
+            <li><a class="ft-item" href="https://facebook.com/maquina" target="_blank" rel="noopener"><span class="ft-box"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></span><span><b>Facebook</b><small>/maquina</small></span></a></li>
           </ul>
         </div>
 
-        <div class="footer-col">
-          <h4>AYUDA Y LEGAL</h4>
-          <ul>
-            <li><a href="seguimiento.html">Rastrear mi pedido</a></li>
-            <li><a href="servicios.html#faq">Preguntas frecuentes</a></li>
-            <li><a href="legal.html#cambios-devoluciones">Cambios y devoluciones</a></li>
-            <li><a href="legal.html#garantia">Garantía</a></li>
-            <li><a href="legal.html#terminos">Términos y condiciones</a></li>
-            <li><a href="legal.html#datos-personales">Tratamiento de datos</a></li>
+        <div class="ft-col">
+          <h4 class="ft-h">Ayuda y legal</h4>
+          <ul class="ft-legal">
+            <li><a href="seguimiento.html">Rastrear pedido<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li>
+            <li><a href="servicios.html#faq">Preguntas frecuentes<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li>
+            <li><a href="legal.html#cambios-devoluciones">Cambios y devoluciones<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li>
+            <li><a href="legal.html#garantia">Garantía<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li>
+            <li><a href="legal.html#terminos">Términos y condiciones<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li>
+            <li><a href="legal.html#datos-personales">Tratamiento de datos<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li>
           </ul>
         </div>
       </div>
-      <div class="footer-bottom">
-        <p>© 2026 MAQUINA — Todos los derechos reservados. <span class="hand">hecho en Medellín ⚡</span></p>
-        <a href="admin.html" class="footer-admin-link">Panel del vendedor</a>
+      <div class="ft-bottom">
+        <p class="ft-copy">© 2026 MAQUINA — Todos los derechos reservados.</p>
+        <span class="ft-made">Hecho en Medellín ⚡</span>
+        <a href="admin.html" class="ft-admin"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>Acceso administrativo<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
       </div>
     </footer>
   `;
