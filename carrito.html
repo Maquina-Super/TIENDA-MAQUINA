@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="css/carrito-pro.css?v=rev1">
 <link rel="stylesheet" href="css/carrito-v2.css?v=rev1">
 <link rel="stylesheet" href="css/checkout-v3.css?v=rev1">
+<link rel="stylesheet" href="css/confirmacion-pedido.css?v=1">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=4">
 </head>
 <body class="carrito-page">
@@ -1711,71 +1712,111 @@ function mostrarConfirmacion(pedido, metodo) {
   pedidoConfirmado = true;
   try { sessionStorage.removeItem(CLAVE_BORRADOR); } catch (e) { /* nada */ }
   cerrarOverlay();
-  // el encabezado de la página deja de hablar de "revisar el carrito"
-  const _h1 = document.getElementById('carritoTituloPagina'), _sub = document.getElementById('carritoSubPagina');
-  if (_h1) _h1.textContent = 'Gracias por tu compra';
-  if (_sub) _sub.textContent = 'Guarda tu número de pedido para consultarlo cuando quieras.';
+  // Pantalla propia a pantalla completa (css/confirmacion-pedido.css): no usa el layout del carrito ni del pago.
   const wrap = document.getElementById('carritoWrap');
+  if (wrap) wrap.innerHTML = '';
   const ce = metodo === 'contraentrega', pse = metodo === 'pse', nq = metodo === 'nequi';
+  // "Pago confirmado" SOLO si el pedido ya figura como pagado (lo cambia el equipo desde el panel).
+  const pagado = pedido.estado_pago === 'pagado';
   const total = fmtDinero(pedido.total);
-  const titulo = ce ? '¡Pedido confirmado!' : '¡Pedido recibido!';
-  const sub = ce ? `Ya estamos organizando tu pedido. Pagas ${total} cuando lo recibas.`
+  const confirmado = ce || pagado;
+  const sub = ce ? 'Gracias por tu compra, ya estamos organizando tu pedido. Pagas ' + total + ' cuando lo recibas.'
+    : pagado ? 'Gracias por tu compra, tu pago fue confirmado y ya estamos procesando tu pedido.'
     : pse ? (PSE_URL_PAGO ? 'Falta un paso: completa el pago por PSE para que podamos alistar tu pedido.' : 'Te contactaremos con el enlace de pago PSE (por correo o WhatsApp) para completar tu compra.')
     : nq ? 'Revisaremos tu transferencia por Nequi y te confirmamos el pedido.'
     : 'Estamos verificando tu pago y te confirmamos el pedido.';
-  const estadoPago = ce ? 'Pago pendiente · se cobra al entregar' : 'Pago pendiente de confirmación';
-  const metodoTxt = ce ? 'Pago contraentrega' : pse ? `PSE${pedido.pse_banco ? ' · ' + esc(pedido.pse_banco) : ''}` : nq ? 'Nequi' : 'Tarjeta';
+  const metodoTxt = ce ? 'Pago contraentrega' : pse ? 'PSE' + (pedido.pse_banco ? ' · ' + pedido.pse_banco : '') : nq ? 'Nequi' : 'Tarjeta';
+  const metodoDesc = ce ? 'El valor se cobrará al momento de recibir tu pedido.'
+    : pagado ? 'Tu pago ya fue verificado.' : 'Estamos verificando tu pago.';
   const correoOk = typeof APPS_SCRIPT_URL !== 'undefined' && APPS_SCRIPT_URL && APPS_SCRIPT_URL !== 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
+  const ico = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const icoCamion = ico('<path d="M2 6h11v10H2z"/><path d="M13 9h4l3 3v4h-7z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/>');
+  const icoSobre = ico('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>');
+  const icoTarjeta = ico('<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6 15h4"/>');
+  const icoCheckPill = ico('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>');
+  const icoReloj = ico('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
   const grupos = agruparCarrito(pedido.items || []);
   const itemsHtml = grupos.map(g => {
     const c = nombreColor(g.color);
-    return `<div class="ck-item"><div class="ck-item-img">${miniaturaProducto(g)}${g.cantidad > 1 ? `<span class="ck-item-q">×${g.cantidad}</span>` : ''}</div>
-      <div class="ck-item-info"><b>${esc(g.nombre)}</b><small>${c ? esc(c) + ' · ' : ''}Talla ${esc(g.talla || '—')}</small></div><div class="ck-item-precio">${fmtDinero(g.subtotal)}</div></div>`;
+    return `<div class="cf-item"><div class="cf-item-img">${miniaturaProducto(g)}${g.cantidad > 1 ? `<span class="cf-item-q">x${g.cantidad}</span>` : '<span class="cf-item-q">x1</span>'}</div>
+      <div><span class="cf-item-nom">${esc(g.nombre)}</span><span class="cf-item-det">${c ? esc(c) + ' / ' : ''}${esc(g.talla || '—')}</span><span class="cf-item-pre">${fmtDinero(g.subtotal)}</span></div></div>`;
   }).join('');
-  const dir = [pedido.envio_direccion, pedido.envio_edificio].filter(Boolean).join(' · ');
+  const nArt = (pedido.items || []).length;
+  const dir = [pedido.envio_direccion, pedido.envio_edificio].filter(Boolean).join(', ');
   const zona = [pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : pedido.envio_barrio, pedido.envio_municipio, pedido.envio_departamento].filter(Boolean).join(', ');
   const seg = `seguimiento.html?pedido=${encodeURIComponent(pedido.id)}`;
+  const pastilla = ce ? `<p class="cf-pago amarillo">${icoTarjeta}<span>Pago contra entrega · Pagas al recibir</span></p>`
+    : pagado ? `<p class="cf-pago verde">${icoCheckPill}<span>Pago confirmado</span></p>`
+    : `<p class="cf-pago neutro">${icoReloj}<span>Pago por verificar · ${esc(metodoTxt)}</span></p>`;
 
-  wrap.innerHTML = `
-    ${htmlStepper(5)}
-    <section class="ck-confirm" aria-labelledby="ckConfTitulo">
-      <div class="ck-confirm-head">
-        <div class="ck-check-anim" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l8 8 14-16"/></svg></div>
-        <h2 id="ckConfTitulo" tabindex="-1">${titulo}</h2>
-        <p class="ck-confirm-sub">${esc(sub)}</p>
-        <div class="ck-codigo"><span>Pedido</span><b id="ckCodigo">#${esc(pedido.codigo_pedido)}</b><button type="button" class="ck-copiar" id="ckCopiar" aria-label="Copiar número de pedido">Copiar</button></div>
-        <p class="ck-estado-pago"><i aria-hidden="true"></i>${esc(estadoPago)}</p>
-        ${correoOk ? `<p class="ck-confirm-correo">Te enviaremos la confirmación a <b>${esc(pedido.email_cliente)}</b>. Si no la ves, revisa spam.</p>` : ''}
-        ${pse && PSE_URL_PAGO ? `<a class="ck-btn ck-btn-primary ck-btn-pse" href="${esc(PSE_URL_PAGO)}" target="_blank" rel="noopener"><span>Ir a pagar con PSE</span>${svgFlechaDe()}</a>` : ''}
+  const pantalla = document.createElement('div');
+  pantalla.className = 'cf-pantalla';
+  pantalla.id = 'pantallaConfirmacion';
+  pantalla.setAttribute('role', 'main');
+  pantalla.innerHTML = `
+    <div class="cf-wrap">
+      <div class="cf-top">
+        <div class="cf-lema"><i>///</i> Ropa urbana<br>para los que<br>no siguen la corriente</div>
+        <a class="cf-logo" href="index.html" aria-label="MAQUINA, inicio"><img src="img/logo-crown.png" alt=""><span>Maquina</span></a>
+        <div class="cf-lema der">Estilo<br>actitud<br>calle <i>///</i></div>
       </div>
-      <div class="ck-two ck-confirm-grid">
-        <section class="ck-card"><header><h3>Tu pedido</h3></header>
-          <div class="ck-items">${itemsHtml}</div>
-          <dl class="ck-totals">
-            <div class="ck-t-row"><dt>Subtotal</dt><dd>${fmtDinero(pedido.subtotal)}</dd></div>
-            <div class="ck-t-row"><dt>Envío</dt><dd>${pedido.costo_envio ? fmtDinero(pedido.costo_envio) : '¡Gratis!'}</dd></div>
-            <div class="ck-t-row is-total"><dt>${ce ? 'Total a pagar al recibir' : 'Total a pagar'}</dt><dd>${total}</dd></div>
-          </dl>
+      <div class="cf-marco"><div class="cf-dentro">
+        <section class="cf-head" aria-labelledby="cfTitulo">
+          <div class="cf-check" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l8 8 14-16"/></svg></div>
+          <h1 class="cf-titulo" id="cfTitulo" tabindex="-1">¡Pedido <em>${confirmado ? 'confirmado!' : 'recibido!'}</em></h1>
+          <p class="cf-sub">${esc(sub)}</p>
+          <div class="cf-num cf-caja"><div class="cf-dentro">
+            <div><small>Número de pedido</small><b id="cfCodigo">#${esc(pedido.codigo_pedido)}</b></div>
+            <button type="button" class="cf-copiar" id="cfCopiar" aria-label="Copiar número de pedido">${ico('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>')}<span>Copiar</span></button>
+          </div></div>
+          ${pastilla}
+          ${pse && PSE_URL_PAGO ? `<a class="cf-btn primario cf-btn-pse" href="${esc(PSE_URL_PAGO)}" target="_blank" rel="noopener"><span>Ir a pagar con PSE</span>${svgFlechaDe()}</a>` : ''}
         </section>
-        <div class="ck-stack">
-          <section class="ck-card"><header><h3>Entrega</h3></header>
-            <div class="ck-rev-text"><b>${esc(pedido.nombre_cliente)}</b><span>${esc(dir)}</span><span>${esc(zona)}</span><span>+57 ${esc(fmtTelCO(pedido.telefono_cliente))}</span></div></section>
-          <section class="ck-card"><header><h3>Pago</h3></header>
-            <div class="ck-rev-text"><b>${metodoTxt}</b><span>${esc(estadoPago)}</span></div></section>
+
+        <section class="cf-caja" aria-label="Tu pedido"><div class="cf-dentro cf-pedido">
+          <div class="cf-items">${itemsHtml}</div>
+          <div class="cf-tot">
+            <div class="cf-tot-fila"><span><b>Subtotal</b> <small>(${nArt} ${nArt === 1 ? 'artículo' : 'artículos'})</small></span><b>${fmtDinero(pedido.subtotal)}</b></div>
+            <div class="cf-tot-fila"><span>Envío</span><b>${pedido.costo_envio ? fmtDinero(pedido.costo_envio) : '¡Gratis!'}</b></div>
+            <div class="cf-tot-total"><span>Total</span><b>${total}</b></div>
+          </div>
+        </div></section>
+
+        <section class="cf-caja" aria-label="Datos de entrega y pago"><div class="cf-dentro cf-info">
+          <div><div class="cf-info-cab">${icoCamion}<h4>Dirección de envío</h4></div>
+            <div class="cf-info-txt"><b>${esc(pedido.nombre_cliente)}</b><br>${esc(dir)}${dir && zona ? '<br>' : ''}${esc(zona)}<br>Colombia</div></div>
+          <div><div class="cf-info-cab">${icoSobre}<h4>Te enviaremos</h4></div>
+            <div class="cf-info-txt">${correoOk ? `El detalle de tu pedido a tu correo electrónico.<br><b>${esc(pedido.email_cliente)}</b><small>Si no lo ves, revisa spam.</small>` : `Guarda tu número de pedido para consultarlo cuando quieras con «Rastrear pedido».`}</div></div>
+          <div><div class="cf-info-cab">${icoTarjeta}<h4>Método de pago</h4></div>
+            <div class="cf-info-txt"><b>${esc(metodoTxt)}</b><small>${esc(metodoDesc)}</small></div></div>
+        </div></section>
+
+        <div class="cf-acciones">
+          <a class="cf-btn primario" href="productos.html"><span>Seguir comprando</span>${svgFlechaDe()}</a>
+          <a class="cf-btn borde" href="${seg}"><span>Rastrear pedido</span>${svgFlechaDe()}</a>
         </div>
+        <p class="cf-ayuda">¿Dudas con tu pedido? <a href="https://wa.me/573239523623" target="_blank" rel="noopener">Escríbenos por WhatsApp</a></p>
+      </div></div>
+
+      <div class="cf-pie">
+        <div>${ico('<path d="M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5L15.5 10"/>')}<span><b>Compra segura</b><small>Tus datos están protegidos.</small></span></div>
+        <div>${icoCamion}<span><b>Envíos a todo el país</b><small>Rápidos y confiables.</small></span></div>
+        <div>${icoTarjeta}<span><b>Múltiples formas de pago</b><small>Contraentrega, PSE, Nequi y tarjeta.</small></span></div>
+        <div class="cf-firma"><span>Maquina<small>La ropa habla</small></span></div>
       </div>
-      <div class="ck-confirm-actions">
-        <a class="ck-btn ck-btn-primary" href="productos.html"><span>Seguir comprando</span>${svgFlechaDe()}</a>
-        <a class="ck-btn ck-btn-ghost" href="${seg}"><span>Rastrear mi pedido</span></a>
-        <a class="ck-btn ck-btn-ghost" href="https://wa.me/573239523623" target="_blank" rel="noopener"><span>¿Dudas? WhatsApp</span></a>
-      </div>
-    </section>`;
+    </div>`;
+  document.body.appendChild(pantalla);
+  document.body.style.overflow = 'hidden';   // solo se desplaza la pantalla de confirmación
   document.getElementById('cartCount').textContent = 0;
   if (typeof actualizarBarraMovil === 'function') actualizarBarraMovil(null);   // oculta la barra fija del celular
-  const cp = document.getElementById('ckCopiar');
-  cp.addEventListener('click', () => { navigator.clipboard?.writeText('#' + pedido.codigo_pedido); cp.textContent = '¡Copiado!'; setTimeout(() => { cp.textContent = 'Copiar'; }, 1800); });
-  window.scrollTo({ top: 0, behavior: reducirMovimiento ? 'auto' : 'smooth' });
-  const t = document.getElementById('ckConfTitulo'); if (t) t.focus({ preventScroll: true });
+  const cp = document.getElementById('cfCopiar');
+  cp.addEventListener('click', () => {
+    const txt = '#' + pedido.codigo_pedido;
+    const ok = () => { cp.lastElementChild.textContent = '¡Copiado!'; setTimeout(() => { cp.lastElementChild.textContent = 'Copiar'; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, ok); else ok();
+  });
+  pantalla.scrollTop = 0;
+  const t = document.getElementById('cfTitulo'); if (t) t.focus({ preventScroll: true });
 }
 
 /* ============================================================
