@@ -324,8 +324,12 @@ a.ct-canal:hover .ct-canal-go{color:var(--forest);transform:translateX(3px);}
 .ct-foto-txt b{font-weight:600;overflow-wrap:anywhere;}
 .ct-foto-txt small{display:block;font-size:11px;opacity:.7;margin-top:2px;}
 .ct-foto-btn,.ct-foto-quitar{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid var(--line-strong,rgba(255,255,255,.25));border-radius:10px;background:transparent;color:var(--ink);font:600 13px inherit;font-family:inherit;cursor:pointer;transition:border-color .2s,color .2s;}
+<<<<<<< HEAD
 .ct-foto-btn:hover,.ct-foto-btn:focus-visible,.ct-foto-quitar:hover,.ct-foto-quitar:focus-visible{border-color:var(--forest);color:var(--forest);}
 .ct-foto-btn:focus-visible,.ct-foto-quitar:focus-visible{outline:2px solid var(--forest);outline-offset:2px;}
+=======
+.ct-foto-btn:hover,.ct-foto-btn:focus-visible,.ct-foto-quitar:hover,.ct-foto-quitar:focus-visible{border-color:var(--forest);color:var(--forest);outline:none;}
+>>>>>>> 801db22cee48b97843c0adb875ad5a5493872695
 .ct-foto-prev{border-style:solid;}
 .ct-foto-prev[hidden],.ct-foto-vacia[hidden]{display:none;}
 .ct-foto-prev img{width:56px;height:56px;flex:none;object-fit:cover;border-radius:8px;border:1px solid var(--line-strong,rgba(255,255,255,.2));}
@@ -336,7 +340,16 @@ a.ct-canal:hover .ct-canal-go{color:var(--forest);transform:translateX(3px);}
   .ct-foto-vacia .ct-foto-txt{flex-basis:calc(100% - 40px);}
   .ct-foto-btn{width:100%;justify-content:center;}
 }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 801db22cee48b97843c0adb875ad5a5493872695
 
 /* Botón "Seguir mi pedido" */
 .ct-canal-pedido{border-color:rgba(138,240,78,.6);background:rgba(138,240,78,.08);}
 .ct-canal-pedido strong{color:var(--forest);}
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 1e815fefadcc9af8c5f2c77b3e4fc2c658580ef6
+>>>>>>> 801db22cee48b97843c0adb875ad5a5493872695
