@@ -1200,14 +1200,25 @@ async function sincronizarPedidosConHoja(pedidos, alProgreso) {
 async function eliminarPedidoAdmin(id) {
   try {
     await fbDb.collection('pedidos').doc(id).delete();
-    // El Apps Script solo borra la fila si el aviso trae el token de un admin
-    // y el pedido ya no existe en Firestore (ya se borró arriba).
-    const idToken = await tokenAdminParaAviso();
-    enviarAviso({ tipo: 'pedido_eliminado', id, idToken });
-    return { ok: true };
   } catch (e) {
-    return { ok: false, msg: 'No hay conexión a internet.' };
+    return { ok: false, msg: 'No se pudo eliminar el pedido (revisa tu conexión y tus permisos).' };
   }
+  // El pedido YA se borró de Firestore. Ahora se le pide al Apps Script quitar la fila de la hoja:
+  // solo lo hace si el aviso trae el token de un admin y el pedido ya no existe en Firestore.
+  const res = { ok: true, hoja: 'desconocido' };
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT") return res;
+  const idToken = await tokenAdminParaAviso();
+  const cuerpo = JSON.stringify({ tipo: 'pedido_eliminado', id, idToken });
+  try {
+    // 1) Intento con respuesta legible: así el panel sabe si la fila de la hoja se borró de verdad.
+    const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: cuerpo });
+    const j = JSON.parse(await resp.text());
+    if (j && j.ok === true) { res.hoja = j.borradas > 0 ? 'borrada' : 'sin_fila'; return res; }
+    if (j && j.ok === false) { res.hoja = 'fallo'; res.detalle = j.error || ''; return res; }
+  } catch (e) { /* el navegador no deja leer la respuesta: se reenvía a ciegas */ }
+  // 2) Reenvío a ciegas (no-cors). Si el script ya lo procesó, no pasa nada (no duplica ni rompe).
+  enviarAviso({ tipo: 'pedido_eliminado', id, idToken });
+  return res;
 }
 
 /* ============================================================

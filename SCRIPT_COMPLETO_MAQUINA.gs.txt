@@ -34,7 +34,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-12 pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+const VERSION_SCRIPT = "2026-10-15 correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -110,7 +110,8 @@ function doPost(e) {
       respuesta = JSON.stringify(sincronizarPedidos(datos.ids, datos.idToken));
     }
     if (datos.tipo === 'pedido_eliminado') {
-      eliminarPedidoDeSheet(datos.id, datos.idToken);
+      // Responde con JSON para que el panel sepa si la fila se borró de verdad.
+      respuesta = JSON.stringify(eliminarPedidoDeSheet(datos.id, datos.idToken));
     }
     if (datos.tipo === 'codigo_panel_recuperacion') {
       enviarCorreoCodigoPanel(datos.correo); // el código NO se acepta del aviso: se lee de Firestore
@@ -561,30 +562,32 @@ function registrarErrorPedido(tipo, id, err) {
 
 function eliminarPedidoDeSheet(id, idToken) {
   const idTxt = String(id === null || id === undefined ? '' : id).trim();
-  if (!/^[A-Za-z0-9_-]{6,60}$/.test(idTxt)) { console.warn('pedido_eliminado: id ausente o inválido, se ignora.'); return; }
+  const rechazo = function (motivo) {
+    console.warn('pedido_eliminado: ' + motivo);
+    registrarErrorPedido('pedido_eliminado', idTxt.slice(-6).toUpperCase() || '(sin id)', new Error(motivo));
+    return { ok: false, borradas: 0, error: motivo };
+  };
+  if (!/^[A-Za-z0-9_-]{6,60}$/.test(idTxt)) return rechazo('id ausente o inválido.');
 
   // 1) Solo un admin puede pedir esto (Firestore valida el token con las reglas).
-  if (!esAdminConToken(idToken)) { console.warn('pedido_eliminado rechazado: no trae token de admin válido.'); return; }
+  if (!esAdminConToken(idToken)) return rechazo('no trae un token de admin válido (vuelve a entrar al panel e inténtalo otra vez).');
 
   // 2) El pedido tiene que haber sido borrado ya de Firestore (404). Si todavía existe,
   //    no se toca la hoja. (Si Firestore falla con otro código, lanza error y queda anotado.)
-  if (leerEstadoPedidoFirestore(idTxt) !== null) {
-    console.warn('pedido_eliminado rechazado: el pedido ' + idTxt + ' todavía existe en Firestore.');
-    return;
-  }
+  if (leerEstadoPedidoFirestore(idTxt) !== null) return rechazo('el pedido todavía existe en Firestore; no se tocó la hoja.');
 
   const candado = LockService.getScriptLock();
   candado.waitLock(20000);
   try {
     const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
-    if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
+    if (!hoja) return rechazo('no se encontró la pestaña "' + SHEET_TAB + '".');
 
     const idCompleto = normalizarCodigo(idTxt);
     const codigo = idCompleto.slice(-6);
     const codigoSinCeros = sinCerosIniciales(codigo);
 
     const ultimaFila = hoja.getLastRow();
-    if (ultimaFila < 2) { console.warn('La hoja no tiene pedidos que borrar.'); return; }
+    if (ultimaFila < 2) return { ok: true, borradas: 0 }; // la hoja ya está vacía: nada que borrar
 
     const columnaA = hoja.getRange(2, 1, ultimaFila - 1, 1).getDisplayValues();
 
@@ -598,11 +601,8 @@ function eliminarPedidoDeSheet(id, idToken) {
       }
     }
 
-    if (borradas === 0) {
-      console.warn('No se halló ninguna fila para el pedido ' + codigo + ' (id ' + idCompleto + ').');
-    } else {
-      console.log('Pedido ' + codigo + ': ' + borradas + ' fila(s) borrada(s) de la hoja.');
-    }
+    console.log('Pedido ' + codigo + ': ' + borradas + ' fila(s) borrada(s) de la hoja.');
+    return { ok: true, borradas: borradas };
   } finally {
     candado.releaseLock();
   }
@@ -862,22 +862,29 @@ function enviarCorreoConfirmacion(pedido) {
     const blob = fotoParaCorreo(it.foto, cid + '.jpg');
     if (blob) fotosInline[cid] = blob;
     const foto = blob
-      ? '<img src="cid:' + cid + '" width="72" height="72" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;display:block;" alt="' + esc(it.nombre) + '">'
-      : '';
+      ? '<img src="cid:' + cid + '" width="72" height="72" style="border-radius:10px;object-fit:cover;border:1px solid #2c2c33;display:block;" alt="' + esc(it.nombre) + '">'
+      : '<div style="width:72px;height:72px;border-radius:10px;background:#1c1c22;border:1px solid #2c2c33;text-align:center;line-height:72px;font-size:24px;">⚡</div>';
     const puntoColor = /^#[0-9a-f]{6}$/i.test(String(it.color || ''))
-      ? '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + esc(it.color) + ';border:1px solid #999;vertical-align:middle;margin-right:4px;"></span>'
+      ? '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + esc(it.color) + ';border:1px solid #6b6b75;vertical-align:middle;margin-right:4px;"></span>'
       : '';
     const totalLinea = Number(it.precio) * g.cantidad;
     return '<tr>' +
-      '<td style="padding:8px 0;width:72px;">' + foto + '</td>' +
-      '<td style="padding:8px 0 8px 12px;font-family:Arial,sans-serif;font-size:14px;color:#151512;">' +
-        '<strong>' + esc(it.nombre) + '</strong><br>' +
-        '<span style="color:#666;font-size:13px;">' + (col ? puntoColor + 'Color ' + esc(col) + ' · ' : '') + 'Talla ' + esc(it.talla) +
+      '<td style="padding:10px 0;width:72px;vertical-align:top;">' + foto + '</td>' +
+      '<td style="padding:10px 0 10px 12px;vertical-align:top;font-family:Arial,sans-serif;font-size:14px;color:#f5f5f0;">' +
+        '<strong style="color:#ffffff;">' + esc(it.nombre) + '</strong><br>' +
+        '<span style="color:#9a9aa3;font-size:13px;">' + (col ? puntoColor + 'Color ' + esc(col) + ' · ' : '') + 'Talla ' + esc(it.talla) +
           (g.cantidad > 1 ? ' · x' + g.cantidad : '') + '</span>' +
       '</td>' +
-      '<td style="padding:8px 0;text-align:right;font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#151512;white-space:nowrap;">$' + dinero(totalLinea) + '</td>' +
+      '<td style="padding:10px 0;vertical-align:top;text-align:right;font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;white-space:nowrap;">$' + dinero(totalLinea) + '</td>' +
     '</tr>';
   }).join('');
+
+  // Logo de MAQUINA arriba del correo (si no se puede bajar, sale el nombre en texto).
+  const logoBlob = fotoParaCorreo('img/logo-crown.png', 'logo.png');
+  if (logoBlob) fotosInline['logo'] = logoBlob;
+  const logoHtml = logoBlob
+    ? '<img src="cid:logo" height="38" style="height:38px;display:inline-block;" alt="MAQUINA">'
+    : '';
 
   const textoEnvio = Number(pedido.costo_envio) > 0 ? '$' + dinero(pedido.costo_envio) : 'Gratis';
 
@@ -916,29 +923,35 @@ function enviarCorreoConfirmacion(pedido) {
     'Gracias por tu compra ⚡\n— MAQUINA';
 
   const cuerpoHtml =
+    '<div style="background:#0b0b0d;padding:16px 10px;">' +
     '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
       '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
         '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">' + encabezado + '</div>' +
       '</div>' +
-      '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
-        '<p style="font-size:15px;color:#151512;">¡Hola <strong>' + esc(pedido.nombre_cliente) + '</strong>! ⚡</p>' +
-        '<p style="font-size:14px;color:#333;">' + lineaEstadoHtml + '</p>' +
-        '<table style="width:100%;border-collapse:collapse;margin:14px 0;">' + filasItemsHtml + '</table>' +
-        '<table style="width:100%;font-size:14px;color:#151512;border-top:1px solid #eee;padding-top:10px;">' +
-          '<tr><td>Subtotal</td><td style="text-align:right;">$' + dinero(pedido.subtotal) + '</td></tr>' +
-          '<tr><td>Envío</td><td style="text-align:right;">' + textoEnvio + '</td></tr>' +
-          '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + dinero(pedido.total) + '</td></tr>' +
+      '<div style="background:#121216;border:1px solid #2c2c33;border-top:none;border-radius:0 0 14px 14px;padding:22px 20px;">' +
+        '<div style="text-align:center;margin-bottom:14px;">' + logoHtml +
+          '<div style="font-size:15px;letter-spacing:4px;font-weight:700;color:#b4e614;margin-top:' + (logoHtml ? '6' : '0') + 'px;">MAQUINA</div>' +
+        '</div>' +
+        '<p style="font-size:15px;color:#ffffff;margin:0 0 10px;">¡Hola <strong>' + esc(pedido.nombre_cliente) + '</strong>! ⚡</p>' +
+        '<p style="font-size:14px;color:#d6d6dc;line-height:1.5;margin:0 0 6px;">' + lineaEstadoHtml + '</p>' +
+        '<table style="width:100%;border-collapse:collapse;margin:12px 0;">' + filasItemsHtml + '</table>' +
+        '<table style="width:100%;font-size:14px;color:#d6d6dc;border-top:1px solid #2c2c33;border-collapse:collapse;">' +
+          '<tr><td style="padding-top:10px;">Subtotal</td><td style="padding-top:10px;text-align:right;">$' + dinero(pedido.subtotal) + '</td></tr>' +
+          '<tr><td style="padding-top:4px;">Envío</td><td style="padding-top:4px;text-align:right;">' + textoEnvio + '</td></tr>' +
+          '<tr><td style="font-weight:700;color:#ffffff;padding-top:8px;font-size:15px;">Total</td><td style="text-align:right;font-weight:700;color:#b4e614;padding-top:8px;font-size:16px;">$' + dinero(pedido.total) + '</td></tr>' +
         '</table>' +
-        '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#2f8a1f' : '#b45309') + ';margin-top:6px;">' +
+        '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#7bd34a' : '#f5a524') + ';margin:10px 0 0;">' +
           (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 ' + esc(textoEstadoPago(pedido))) +
         '</p>' +
-        '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
-        '💳 Método de pago: ' + metodoTexto + '</p>' +
-        '<a href="' + esc(linkSeguimiento) + '" style="display:block;text-align:center;margin:14px 0;padding:12px;border-radius:10px;background:#151512;color:#fff;text-decoration:none;font-size:13px;font-weight:700;">📦 Rastrea tu pedido aquí</a>' +
-        '<p style="font-size:13px;color:#666;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp: ' +
-        '<a href="https://wa.me/573239523623">https://wa.me/573239523623</a></p>' +
-        '<p style="font-size:14px;color:#151512;margin-top:16px;">Gracias por tu compra ⚡<br>— MAQUINA</p>' +
+        '<p style="font-size:13px;color:#9a9aa3;line-height:1.6;margin:14px 0 0;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
+        '💳 Método de pago: ' + esc(metodoTexto) + '</p>' +
+        '<a href="' + esc(linkSeguimiento) + '" style="display:block;text-align:center;margin:18px 0 14px;padding:13px;border-radius:10px;background:#b4e614;color:#151512;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:.5px;">📦 RASTREA TU PEDIDO AQUÍ</a>' +
+        '<p style="font-size:13px;color:#9a9aa3;margin:0;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp:<br>' +
+        '<a href="https://wa.me/573239523623" style="color:#8ab4ff;">https://wa.me/573239523623</a></p>' +
+        '<p style="font-size:14px;color:#ffffff;margin:18px 0 0;">Gracias por tu compra ⚡</p>' +
+        '<p style="font-size:13px;color:#6b6b75;margin:4px 0 0;">— MAQUINA</p>' +
       '</div>' +
+    '</div>' +
     '</div>';
 
   MailApp.sendEmail({
