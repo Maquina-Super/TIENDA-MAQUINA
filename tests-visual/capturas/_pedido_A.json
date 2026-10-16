@@ -49,13 +49,13 @@
     "detalle": "Buso Volt (M) | Buso Volt (M) | Camiseta Bolt (L)",
     "subtotal": 459700,
     "total": 467700,
-    "fecha": "2026-10-16T01:39:49.653Z",
+    "fecha": "2026-10-16T23:40:56.383Z",
     "estado": "pendiente",
     "estado_pago": "pendiente",
     "acepta_terminos": true,
-    "acepta_terminos_fecha": "2026-10-16T01:39:49.653Z",
-    "id": "eske82LBNYyW4gCTL7j5",
-    "codigo_pedido": "CTL7J5"
+    "acepta_terminos_fecha": "2026-10-16T23:40:56.383Z",
+    "id": "vTWcvqXesCSYD3UMFCpF",
+    "codigo_pedido": "UMFCPF"
    }
   }
  ],
@@ -107,11 +107,11 @@
    "detalle": "Buso Volt (M) | Buso Volt (M) | Camiseta Bolt (L)",
    "subtotal": 459700,
    "total": 467700,
-   "fecha": "2026-10-16T01:39:49.653Z",
+   "fecha": "2026-10-16T23:40:56.383Z",
    "estado": "pendiente",
    "estado_pago": "pendiente",
    "acepta_terminos": true,
-   "acepta_terminos_fecha": "2026-10-16T01:39:49.653Z"
+   "acepta_terminos_fecha": "2026-10-16T23:40:56.383Z"
   }
  ]
 }

@@ -72,11 +72,7 @@ function renderHeader(paginaActual = "") {
         <a href="productos.html" class="${paginaActual === 'productos' ? 'active' : ''}">Tienda</a>
         <a href="categorias.html" class="${paginaActual === 'categorias' ? 'active' : ''}">Categorías</a>
         <a href="servicios.html" class="${paginaActual === 'servicios' ? 'active' : ''}">Contacto</a>
-<<<<<<< HEAD
         <a data-nav-pedido href="seguimiento.html" class="${paginaActual === 'seguimiento' ? 'active' : ''}">Mi pedido</a>
-=======
-        <a href="seguimiento.html" class="${paginaActual === 'seguimiento' ? 'active' : ''}">Mi pedido</a>
->>>>>>> 801db22cee48b97843c0adb875ad5a5493872695
       </div>
       <div class="nav-right">
         <button class="icon-only-btn nav-burger" id="navBurger" aria-label="Abrir menú" aria-expanded="false">
