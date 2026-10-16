@@ -169,6 +169,7 @@ document.getElementById('segForm').addEventListener('submit', async (e) => {
       throw new Error('El teléfono no coincide con el de este pedido. Revisa que sea el mismo que usaste al comprar.');
     }
     mostrarResultado(idPedido, pedido);
+    escucharCambios(idPedido, telefono);   // a partir de aquí el estado se actualiza solo
   } catch (err) {
     errorEl.textContent = err.message || 'No se pudo buscar tu pedido, intenta de nuevo.';
     errorEl.style.display = 'block';
@@ -177,6 +178,22 @@ document.getElementById('segForm').addEventListener('submit', async (e) => {
     btn.textContent = 'Buscar mi pedido';
   }
 });
+
+/* Mantiene la pantalla al día SIN recargar: cuando el equipo cambia el estado en el panel
+   (Confirmado → Enviado → Entregado), el cliente lo ve en segundos. Solo lee el pedido
+   que ya pasó la verificación del teléfono; no cambia nada en Firestore. */
+let dejarDeEscuchar = null;
+function escucharCambios(id, telefono) {
+  if (dejarDeEscuchar) dejarDeEscuchar();
+  let primera = true;
+  dejarDeEscuchar = fbDb.collection('pedidos').doc(id).onSnapshot((doc) => {
+    if (primera) { primera = false; return; }          // el primer dato ya se mostró arriba
+    if (!doc.exists) return;
+    const p = doc.data();
+    if (soloDigitos(p.telefono_cliente) !== soloDigitos(telefono)) return;
+    mostrarResultado(id, p);
+  }, (err) => console.warn('Seguimiento en vivo no disponible:', err && err.message));
+}
 
 function mostrarResultado(id, p) {
   document.getElementById('segForm').style.display = 'none';
@@ -190,6 +207,8 @@ function mostrarResultado(id, p) {
     document.getElementById('segStepperNormal').style.display = 'none';
     document.getElementById('segCancelado').style.display = 'block';
   } else {
+    document.getElementById('segStepperNormal').style.display = '';
+    document.getElementById('segCancelado').style.display = 'none';
     const pasoActual = ORDEN.indexOf(estado);
     document.querySelectorAll('#segStepperNormal .stepper-step').forEach((el, i) => {
       el.classList.remove('is-active', 'is-done');
@@ -224,6 +243,7 @@ function mostrarResultado(id, p) {
 }
 
 document.getElementById('segBtnOtro').addEventListener('click', () => {
+  if (dejarDeEscuchar) { dejarDeEscuchar(); dejarDeEscuchar = null; }
   document.getElementById('segResultado').style.display = 'none';
   document.getElementById('segForm').style.display = 'block';
   document.getElementById('segForm').reset();
