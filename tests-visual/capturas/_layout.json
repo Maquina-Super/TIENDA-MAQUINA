@@ -1,0 +1,124 @@
+{
+ "Contacto@320": [
+  "TAP<40px: a. 63x28 \"Entrar →\"; #navBurger 34x44 \"\"; #searchBtn 34x44 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.ft-box 34x34 \"Instagram\"; a.ft-box 34x34 \"TikTok\""
+ ],
+ "Carrito paso1@320": [
+  "TAP<40px: a. 57x28 \"Entrar →\"; #navBurger 38x44 \"\"; a.account-btn 28x36 \"Iniciar sesión\"; a.fav-pill 32x44 \"0\"; a. 68x24 \"Buso Volt\"; button.btn-eliminar 38x38 \"Quitar Buso Volt del c\""
+ ],
+ "Checkout paso2@320": [
+  "TAP<40px: a. 57x28 \"Entrar →\"; #navBurger 38x44 \"\"; a.account-btn 28x36 \"Iniciar sesión\"; a.fav-pill 32x44 \"0\"; a. 68x24 \"Buso Volt\"; button.btn-eliminar 38x38 \"Quitar Buso Volt del c\""
+ ],
+ "Checkout paso3@320": [
+  "TAP<40px: a. 57x28 \"Entrar →\"; #navBurger 38x44 \"\"; a.account-btn 28x36 \"Iniciar sesión\"; a.fav-pill 32x44 \"0\"; a. 68x24 \"Buso Volt\"; button.btn-eliminar 38x38 \"Quitar Buso Volt del c\""
+ ],
+ "Admin login@320": [
+  "TAP<40px: #adminUsuario 189x20 \"\"; #adminClave 189x20 \"\"; button.nf-eye 36x36 \"👁️\"; #adminCodigoPanel 189x20 \"\"; button.nf-eye 36x36 \"👁️\"; a.gl-back 247x29 \"← Volver a la tienda\""
+ ],
+ "Admin Resumen@320": [
+  "fuera-de-pantalla ['.admin-card <div> r=329 l=29', '.admin-card <div> r=329 l=29', '.admin-card <div> r=329 l=29']",
+  "TAP<40px: #btnClave 246x39 \"Cambiar contraseña\"; #btnSalirAdmin 246x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; button.rs-ley 74x23 \"Ingresos\"; button.rs-ley 71x23 \"Pedidos\"; #rsDescargarVentas 38x38 \"Descargar ventas de lo\""
+ ],
+ "Admin Inventario@320": [
+  "TAP<40px: #btnClave 246x39 \"Cambiar contraseña\"; #btnSalirAdmin 246x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\""
+ ],
+ "Admin Pedidos@320": [
+  "TAP<40px: #btnClave 246x39 \"Cambiar contraseña\"; #btnSalirAdmin 246x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\""
+ ],
+ "Admin Mensajes@320": [
+  "TAP<40px: #btnClave 246x39 \"Cambiar contraseña\"; #btnSalirAdmin 246x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #buscarMensajeAdmin 262x37 \"Buscar mensajes\"; #filtroEstadoMensaje 183x39 \"Todos los estados\n    \"; #filtroMensajeDesde 172x39 \"\""
+ ],
+ "Admin Drop@320": [
+  "TAP<40px: #btnClave 246x39 \"Cambiar contraseña\"; #btnSalirAdmin 246x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #dpTitulo 262x34 \"\"; #dpFechaIni 154x39 \"\"; #dpHoraIni 122x39 \"\""
+ ],
+ "Admin Usuarios@320": [
+  "TAP<40px: #btnClave 246x39 \"Cambiar contraseña\"; #btnSalirAdmin 246x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #dpTitulo 262x34 \"\"; #dpFechaIni 154x39 \"\"; #dpHoraIni 122x39 \"\""
+ ],
+ "Contacto@375": [
+  "TAP<40px: a. 63x28 \"Entrar →\"; #navBurger 38x44 \"\"; #searchBtn 38x44 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.ft-box 34x34 \"Instagram\"; a.ft-box 34x34 \"TikTok\""
+ ],
+ "Carrito paso1@375": [
+  "TAP<40px: a. 57x28 \"Entrar →\"; #navBurger 38x44 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 32x44 \"0\"; a. 68x24 \"Buso Volt\"; button.btn-eliminar 38x38 \"Quitar Buso Volt del c\""
+ ],
+ "Checkout paso2@375": [
+  "TAP<40px: a. 57x28 \"Entrar →\"; #navBurger 38x44 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 32x44 \"0\"; a. 68x24 \"Buso Volt\"; button.btn-eliminar 38x38 \"Quitar Buso Volt del c\""
+ ],
+ "Checkout paso3@375": [
+  "TAP<40px: a. 57x28 \"Entrar →\"; #navBurger 38x44 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 32x44 \"0\"; a. 68x24 \"Buso Volt\"; button.btn-eliminar 38x38 \"Quitar Buso Volt del c\""
+ ],
+ "Admin login@375": [
+  "TAP<40px: #adminUsuario 233x20 \"\"; #adminClave 233x20 \"\"; button.nf-eye 36x36 \"👁️\"; #adminCodigoPanel 233x20 \"\"; button.nf-eye 36x36 \"👁️\"; a.gl-back 299x29 \"← Volver a la tienda\""
+ ],
+ "Admin Resumen@375": [
+  "TAP<40px: #btnClave 271x39 \"Cambiar contraseña\"; #btnSalirAdmin 271x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; button.rs-ley 74x23 \"Ingresos\"; button.rs-ley 71x23 \"Pedidos\"; #rsDescargarVentas 38x38 \"Descargar ventas de lo\""
+ ],
+ "Admin Inventario@375": [
+  "TAP<40px: #btnClave 271x39 \"Cambiar contraseña\"; #btnSalirAdmin 271x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\""
+ ],
+ "Admin Pedidos@375": [
+  "TAP<40px: #btnClave 271x39 \"Cambiar contraseña\"; #btnSalirAdmin 271x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\""
+ ],
+ "Admin Mensajes@375": [
+  "TAP<40px: #btnClave 271x39 \"Cambiar contraseña\"; #btnSalirAdmin 271x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #buscarMensajeAdmin 317x37 \"Buscar mensajes\"; #filtroEstadoMensaje 183x39 \"Todos los estados\n    \"; #filtroMensajeDesde 172x39 \"\""
+ ],
+ "Admin Drop@375": [
+  "TAP<40px: #btnClave 271x39 \"Cambiar contraseña\"; #btnSalirAdmin 271x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #dpTitulo 317x34 \"\"; #dpFechaIni 154x39 \"\"; #dpHoraIni 153x39 \"\""
+ ],
+ "Admin Usuarios@375": [
+  "TAP<40px: #btnClave 271x39 \"Cambiar contraseña\"; #btnSalirAdmin 271x39 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #dpTitulo 317x34 \"\"; #dpFechaIni 154x39 \"\"; #dpHoraIni 153x39 \"\""
+ ],
+ "Contacto@768": [
+  "TAP<40px: a. 63x28 \"Entrar →\"; #navBurger 38x38 \"\"; #searchBtn 38x38 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 38x38 \"0\"; a.ft-box 34x34 \"Instagram\""
+ ],
+ "Carrito paso1@768": [
+  "TAP<40px: a. 59x28 \"Entrar →\"; #navBurger 38x38 \"\"; #searchBtn 38x38 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 38x38 \"0\"; #btnLimpiar 123x27 \"Vaciar carrito\""
+ ],
+ "Checkout paso2@768": [
+  "TAP<40px: a. 59x28 \"Entrar →\"; #navBurger 38x38 \"\"; #searchBtn 38x38 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 38x38 \"0\"; #btnLimpiar 123x27 \"Vaciar carrito\""
+ ],
+ "Checkout paso3@768": [
+  "TAP<40px: a. 59x28 \"Entrar →\"; #navBurger 38x38 \"\"; #searchBtn 38x38 \"\"; a.account-btn 36x36 \"Iniciar sesión\"; a.fav-pill 38x38 \"0\"; #btnLimpiar 123x27 \"Vaciar carrito\""
+ ],
+ "Admin login@768": [
+  "TAP<40px: #adminUsuario 490x20 \"\"; #adminClave 490x20 \"\"; button.nf-eye 36x36 \"👁️\"; #adminCodigoPanel 490x20 \"\"; button.nf-eye 36x36 \"👁️\"; a.gl-back 556x29 \"← Volver a la tienda\""
+ ],
+ "Admin Resumen@768": [
+  "TAP<40px: #btnClave 271x38 \"Cambiar contraseña\"; #btnSalirAdmin 271x38 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; button.rs-ley 74x23 \"Ingresos\"; button.rs-ley 71x23 \"Pedidos\"; #rsDescargarVentas 38x38 \"Descargar ventas de lo\""
+ ],
+ "Admin Inventario@768": [
+  "TAP<40px: #btnClave 271x38 \"Cambiar contraseña\"; #btnSalirAdmin 271x38 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\""
+ ],
+ "Admin Pedidos@768": [
+  "TAP<40px: #btnClave 271x38 \"Cambiar contraseña\"; #btnSalirAdmin 271x38 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\""
+ ],
+ "Admin Mensajes@768": [
+  "TAP<40px: #btnClave 271x38 \"Cambiar contraseña\"; #btnSalirAdmin 271x38 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #buscarMensajeAdmin 315x37 \"Buscar mensajes\"; #filtroEstadoMensaje 183x39 \"Todos los estados\n    \"; #filtroMensajeDesde 172x39 \"\""
+ ],
+ "Admin Drop@768": [
+  "TAP<40px: #btnClave 271x38 \"Cambiar contraseña\"; #btnSalirAdmin 271x38 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #dpTitulo 363x34 \"\"; #dpFechaIni 154x39 \"\"; #dpHoraIni 139x39 \"\""
+ ],
+ "Admin Usuarios@768": [
+  "TAP<40px: #btnClave 271x38 \"Cambiar contraseña\"; #btnSalirAdmin 271x38 \"Cerrar sesión\"; a.ap-brand-sm 184x26 \"⚡MAQUINA\"; #dpTitulo 363x34 \"\"; #dpFechaIni 154x39 \"\"; #dpHoraIni 139x39 \"\""
+ ],
+ "Contacto@1024": [],
+ "Carrito paso1@1024": [],
+ "Checkout paso2@1024": [],
+ "Checkout paso3@1024": [],
+ "Admin login@1024": [],
+ "Admin Resumen@1024": [],
+ "Admin Inventario@1024": [],
+ "Admin Pedidos@1024": [],
+ "Admin Mensajes@1024": [],
+ "Admin Drop@1024": [],
+ "Admin Usuarios@1024": [],
+ "Contacto@1366": [],
+ "Carrito paso1@1366": [],
+ "Checkout paso2@1366": [],
+ "Checkout paso3@1366": [],
+ "Admin login@1366": [],
+ "Admin Resumen@1366": [],
+ "Admin Inventario@1366": [],
+ "Admin Pedidos@1366": [],
+ "Admin Mensajes@1366": [],
+ "Admin Drop@1366": [],
+ "Admin Usuarios@1366": []
+}

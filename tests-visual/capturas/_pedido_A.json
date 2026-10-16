@@ -1,0 +1,117 @@
+{
+ "apps_script": [
+  {
+   "tipo": "pedido_nuevo",
+   "pedido": {
+    "usuario_uid": null,
+    "nombre_cliente": "Camila Rodríguez",
+    "email_cliente": "camila@gmail.com",
+    "telefono_cliente": "3001234567",
+    "metodo_pago": "contraentrega",
+    "tarjeta_final": null,
+    "pse_banco": null,
+    "pse_tipo_persona": null,
+    "envio_departamento": "Antioquia",
+    "envio_municipio": "Medellín",
+    "envio_zona": "medellin",
+    "envio_barrio": "",
+    "envio_vereda": "",
+    "envio_direccion": "Calle 45 # 30-12",
+    "envio_edificio": "",
+    "envio_referencia": "",
+    "costo_envio": 8000,
+    "items": [
+     {
+      "id": "1",
+      "nombre": "Buso Volt",
+      "talla": "M",
+      "color": "#151512",
+      "precio": 189900,
+      "foto": null
+     },
+     {
+      "id": "1",
+      "nombre": "Buso Volt",
+      "talla": "M",
+      "color": "#151512",
+      "precio": 189900,
+      "foto": null
+     },
+     {
+      "id": "4",
+      "nombre": "Camiseta Bolt",
+      "talla": "L",
+      "color": "#faf9f5",
+      "precio": 79900,
+      "foto": null
+     }
+    ],
+    "detalle": "Buso Volt (M) | Buso Volt (M) | Camiseta Bolt (L)",
+    "subtotal": 459700,
+    "total": 467700,
+    "fecha": "2026-10-16T01:39:49.653Z",
+    "estado": "pendiente",
+    "estado_pago": "pendiente",
+    "acepta_terminos": true,
+    "acepta_terminos_fecha": "2026-10-16T01:39:49.653Z",
+    "id": "eske82LBNYyW4gCTL7j5",
+    "codigo_pedido": "CTL7J5"
+   }
+  }
+ ],
+ "pedido": [
+  {
+   "usuario_uid": null,
+   "nombre_cliente": "Camila Rodríguez",
+   "email_cliente": "camila@gmail.com",
+   "telefono_cliente": "3001234567",
+   "metodo_pago": "contraentrega",
+   "tarjeta_final": null,
+   "pse_banco": null,
+   "pse_tipo_persona": null,
+   "envio_departamento": "Antioquia",
+   "envio_municipio": "Medellín",
+   "envio_zona": "medellin",
+   "envio_barrio": "",
+   "envio_vereda": "",
+   "envio_direccion": "Calle 45 # 30-12",
+   "envio_edificio": "",
+   "envio_referencia": "",
+   "costo_envio": 8000,
+   "items": [
+    {
+     "id": "1",
+     "nombre": "Buso Volt",
+     "talla": "M",
+     "color": "#151512",
+     "precio": 189900,
+     "foto": null
+    },
+    {
+     "id": "1",
+     "nombre": "Buso Volt",
+     "talla": "M",
+     "color": "#151512",
+     "precio": 189900,
+     "foto": null
+    },
+    {
+     "id": "4",
+     "nombre": "Camiseta Bolt",
+     "talla": "L",
+     "color": "#faf9f5",
+     "precio": 79900,
+     "foto": null
+    }
+   ],
+   "detalle": "Buso Volt (M) | Buso Volt (M) | Camiseta Bolt (L)",
+   "subtotal": 459700,
+   "total": 467700,
+   "fecha": "2026-10-16T01:39:49.653Z",
+   "estado": "pendiente",
+   "estado_pago": "pendiente",
+   "acepta_terminos": true,
+   "acepta_terminos_fecha": "2026-10-16T01:39:49.653Z"
+  }
+ ]
+}
