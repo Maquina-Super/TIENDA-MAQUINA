@@ -1209,15 +1209,22 @@ async function eliminarPedidoAdmin(id) {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT") return res;
   const idToken = await tokenAdminParaAviso();
   const cuerpo = JSON.stringify({ tipo: 'pedido_eliminado', id, idToken });
+  let resp = null;
   try {
     // 1) Intento con respuesta legible: así el panel sabe si la fila de la hoja se borró de verdad.
-    const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: cuerpo });
+    resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: cuerpo });
+  } catch (e) {
+    // El navegador no deja leer la respuesta (CORS/red): se reenvía a ciegas (no-cors).
+    // Si el script ya lo procesó, repetirlo no duplica ni rompe nada (ya no hay fila que borrar).
+    enviarAviso({ tipo: 'pedido_eliminado', id, idToken });
+    return res;
+  }
+  // Hubo respuesta: el script SÍ recibió el aviso, así que NO se reenvía.
+  try {
     const j = JSON.parse(await resp.text());
-    if (j && j.ok === true) { res.hoja = j.borradas > 0 ? 'borrada' : 'sin_fila'; return res; }
-    if (j && j.ok === false) { res.hoja = 'fallo'; res.detalle = j.error || ''; return res; }
-  } catch (e) { /* el navegador no deja leer la respuesta: se reenvía a ciegas */ }
-  // 2) Reenvío a ciegas (no-cors). Si el script ya lo procesó, no pasa nada (no duplica ni rompe).
-  enviarAviso({ tipo: 'pedido_eliminado', id, idToken });
+    if (j && j.ok === true) res.hoja = j.borradas > 0 ? 'borrada' : 'sin_fila';
+    else if (j && j.ok === false) { res.hoja = 'fallo'; res.detalle = j.error || ''; }
+  } catch (e) { /* script de una versión vieja: responde texto simple; queda 'desconocido' */ }
   return res;
 }
 

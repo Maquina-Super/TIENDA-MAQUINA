@@ -34,7 +34,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-15 correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+const VERSION_SCRIPT = "2026-10-16 correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -894,19 +894,28 @@ function enviarCorreoConfirmacion(pedido) {
 
   const linkSeguimiento = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(pedido.id || '');
 
-  const encabezado = yaPago ? '✅ Pago confirmado' : (esContraentrega ? '📦 Pedido confirmado' : '📦 Pedido recibido');
+  // Contraentrega NUNCA dice "pago exitoso". "Pago exitoso" solo si el pedido figura como pagado
+  // (lo confirma el equipo desde el panel o una pasarela real); si no, queda "por verificar".
+  const encabezado = yaPago ? '✅ Pago exitoso' : (esContraentrega ? '📦 Contraentrega' : '🕒 Pago por verificar');
   const asunto = yaPago
-    ? 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo
+    ? 'MAQUINA — ✅ Pago exitoso, pedido #' + codigo
     : (esContraentrega
-        ? 'MAQUINA — 📦 Pedido confirmado (pago contraentrega), #' + codigo
-        : 'MAQUINA — 📦 Pedido recibido (pago pendiente), #' + codigo);
+        ? 'MAQUINA — 📦 Contraentrega, pedido #' + codigo
+        : 'MAQUINA — 🕒 Pedido recibido (pago por verificar), #' + codigo);
   const lineaEstadoTexto = yaPago
-    ? 'Tu pago por ' + metodoTexto + ' se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
-    : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Queda PENDIENTE de pago: ' + textoPendiente;
+    ? 'Tu pago por ' + metodoTexto + ' fue exitoso. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
+    : (esContraentrega
+        ? 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Es CONTRAENTREGA: ' + textoPendiente
+        : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Tu pago está por verificar: ' + textoPendiente);
   const lineaEstadoHtml = yaPago
-    ? 'Tu pago por <strong>' + metodoTexto + '</strong> se realizó <strong>correctamente</strong> y ya recibimos tu pedido ' +
+    ? 'Tu pago por <strong>' + esc(metodoTexto) + '</strong> fue <strong>exitoso</strong> y ya recibimos tu pedido ' +
       '<strong>#' + esc(codigo) + '</strong> en MAQUINA. Esto fue lo que compraste:'
-    : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Queda <strong>pendiente de pago</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:';
+    : (esContraentrega
+        ? 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Es <strong>contraentrega</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:'
+        : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Tu pago está <strong>por verificar</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:');
+  // Línea de estado de pago que se ve en el correo (texto y HTML).
+  const estadoPagoCorreo = yaPago ? 'Pago exitoso (' + metodoTexto + ')'
+    : (esContraentrega ? 'Contraentrega · pagas al recibir' : 'Pago por verificar (' + metodoTexto + ')');
 
   const cuerpoTexto =
     '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
@@ -915,7 +924,7 @@ function enviarCorreoConfirmacion(pedido) {
     'Subtotal: $' + dinero(pedido.subtotal) + '\n' +
     'Envío: ' + textoEnvio + '\n' +
     'Total: $' + dinero(pedido.total) + '\n' +
-    'Estado del pago: ' + (yaPago ? 'Pagado (' + metodoTexto + ')' : textoEstadoPago(pedido)) + '\n\n' +
+    'Estado del pago: ' + estadoPagoCorreo + '\n\n' +
     'Dirección de entrega: ' + direccion + '\n' +
     'Método de pago: ' + metodoTexto + '\n\n' +
     'Rastrea tu pedido cuando quieras: ' + linkSeguimiento + '\n\n' +
@@ -940,8 +949,8 @@ function enviarCorreoConfirmacion(pedido) {
           '<tr><td style="padding-top:4px;">Envío</td><td style="padding-top:4px;text-align:right;">' + textoEnvio + '</td></tr>' +
           '<tr><td style="font-weight:700;color:#ffffff;padding-top:8px;font-size:15px;">Total</td><td style="text-align:right;font-weight:700;color:#b4e614;padding-top:8px;font-size:16px;">$' + dinero(pedido.total) + '</td></tr>' +
         '</table>' +
-        '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#7bd34a' : '#f5a524') + ';margin:10px 0 0;">' +
-          (yaPago ? '✅ Pagado (' + metodoTexto + ')' : '🕒 ' + esc(textoEstadoPago(pedido))) +
+        '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#7bd34a' : '#ffd23f') + ';margin:10px 0 0;">' +
+          (yaPago ? '✅ ' : (esContraentrega ? '📦 ' : '🕒 ')) + esc(estadoPagoCorreo) +
         '</p>' +
         '<p style="font-size:13px;color:#9a9aa3;line-height:1.6;margin:14px 0 0;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
         '💳 Método de pago: ' + esc(metodoTexto) + '</p>' +

@@ -186,12 +186,43 @@ service cloud.firestore {
         && (!('stock' in despues) || (despues.stock is number && antes.stock is number && despues.stock >= 0 && despues.stock <= antes.stock));
     }
 
+    // Promedio de reseñas: al publicar una reseña, el navegador del cliente
+    // actualiza SOLO "rating" y "resenas" del producto. Se exige que el conteo
+    // suba exactamente de 1 en 1 y que el promedio quede entre 1 y 5.
+    function soloActualizaResenas() {
+      let antes = resource.data;
+      let despues = request.resource.data;
+      let conteoAntes = ('resenas' in antes && antes.resenas is number) ? antes.resenas : 0;
+      return despues.diff(antes).affectedKeys().hasOnly(['rating', 'resenas'])
+        && despues.resenas is int && despues.resenas == conteoAntes + 1
+        && despues.rating is number && despues.rating >= 1 && despues.rating <= 5;
+    }
+
     // Catálogo: lectura pública. Crear/borrar y cualquier otro cambio
-    // (precio, fotos, nombre...) solo admin. Bajar stock también el checkout.
+    // (precio, fotos, nombre...) solo admin. Bajar stock también el checkout
+    // y el promedio de reseñas lo actualiza quien publica una reseña.
     match /productos/{productoId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || soloDescuentaStock();
+      allow update: if isAdmin() || soloDescuentaStock() || soloActualizaResenas();
+    }
+
+    // Reseñas de productos (producto.html y sección del Inicio):
+    // - lectura pública;
+    // - create: cualquier visitante, solo con la forma exacta del formulario
+    //   (nombre, estrellas 1-5, comentario hasta 500 letras) y para un producto que exista;
+    // - update / delete: solo admin (así se borran las reseñas malas desde el panel o la consola).
+    match /resenas/{resenaId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['productoId','nombre','estrellas','comentario','fecha'])
+        && request.resource.data.keys().hasAll(['productoId','nombre','estrellas','fecha'])
+        && request.resource.data.productoId is string && request.resource.data.productoId.size() <= 40
+        && exists(/databases/$(database)/documents/productos/$(request.resource.data.productoId))
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() >= 1 && request.resource.data.nombre.size() <= 60
+        && request.resource.data.estrellas is int && request.resource.data.estrellas >= 1 && request.resource.data.estrellas <= 5
+        && (!('comentario' in request.resource.data) || (request.resource.data.comentario is string && request.resource.data.comentario.size() <= 500))
+        && request.resource.data.fecha is string && request.resource.data.fecha.size() <= 40;
+      allow update, delete: if isAdmin();
     }
 
     // Config del "drop" y de los costos de envío: lectura pública,

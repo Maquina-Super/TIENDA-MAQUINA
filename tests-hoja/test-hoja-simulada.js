@@ -3,7 +3,7 @@
    simulador en memoria: hoja, correo y Firestore FALSOS. No usa red ni credenciales
    y no toca ningún dato real.   Uso:  node tests-hoja/test-hoja-simulada.js        */
 const fs = require('fs'), vm = require('vm'), path = require('path'), assert = require('assert');
-const codigoGs = fs.readFileSync(path.join(__dirname, '..', 'APPS_SCRIPT_pegar_en_script.google.com.txt'), 'utf8');
+const codigoGs = fs.readFileSync(path.join(__dirname, '..', 'SCRIPT_COMPLETO_MAQUINA.gs.txt'), 'utf8');
 
 /* Codifica un valor como lo hace la API REST de Firestore. */
 function aFs(v) {
@@ -417,7 +417,32 @@ t('fecha inválida en Firestore: la fila se escribe igual con una fecha válida'
 t('los items y totales del correo salen del documento de Firestore (con foto, talla y precio)', () => {
   const E7 = crearEntorno([], ENC);
   const a = pedidoNuevo('ITEM01', 150000); a.pedido.items = [{ id: 'p1', nombre: 'Hoodie Voltage', talla: 'M', precio: 140000, foto: 'https://x.test/h.jpg' }]; E7.post(a);
-  const c = E7.correos[0]; assert.ok(/Hoodie Voltage — talla M — \$140\.000/.test(c.body)); assert.ok(/https:\/\/x\.test\/h\.jpg/.test(c.htmlBody));
+  const c = E7.correos[0]; assert.ok(/Hoodie Voltage — talla M — \$140\.000/.test(c.body)); // La foto va ADJUNTA dentro del correo (cid), no como enlace: el script la descarga de la tienda.
+  assert.ok(E7.fetchs.some(u => /x\.test\/h\.jpg/.test(u)));
+});
+t('correo CONTRAENTREGA: dice "Contraentrega" y NUNCA "pago exitoso"', () => {
+  const E7 = crearEntorno([], ENC);
+  const a = pedidoNuevo('CONT01'); a.pedido.items = [{ id: 'p1', nombre: 'Gorra', talla: 'U', precio: 120000 }]; E7.post(a);
+  const c = E7.correos[0];
+  assert.ok(/Contraentrega, pedido #CONT01/.test(c.subject)); assert.ok(/CONTRAENTREGA|Contraentrega/.test(c.htmlBody));
+  assert.ok(!/exitoso|Pago confirmado/i.test(c.subject + c.body + c.htmlBody));
+});
+t('correo TARJETA sin verificar: dice "por verificar" y NO "exitoso"', () => {
+  const E7 = crearEntorno([], ENC);
+  const a = pedidoNuevo('TARJ01'); a.pedido.metodo_pago = 'tarjeta'; a.pedido.estado_pago = 'por_verificar'; a.pedido.items = [{ id: 'p1', nombre: 'Gorra', talla: 'U', precio: 120000 }]; E7.post(a);
+  const c = E7.correos[0];
+  assert.ok(/por verificar/i.test(c.subject)); assert.ok(!/exitoso/i.test(c.subject + c.body + c.htmlBody));
+});
+t('correo con pago YA confirmado (estado_pago = pagado): dice "Pago exitoso"', () => {
+  const E7 = crearEntorno([], ENC);
+  const a = pedidoNuevo('PAGO01'); a.pedido.metodo_pago = 'tarjeta'; a.pedido.estado_pago = 'pagado'; a.pedido.items = [{ id: 'p1', nombre: 'Gorra', talla: 'U', precio: 120000 }]; E7.post(a);
+  const c = E7.correos[0];
+  assert.ok(/Pago exitoso, pedido #PAGO01/.test(c.subject)); assert.ok(/Pago exitoso/.test(c.htmlBody));
+});
+t('borrar pedido: el script responde JSON con cuántas filas borró (y rechaza sin token)', () => {
+  const E7 = crearEntorno([hist('DEL001', 100000, '')], ENC);
+  const r = E7.post({ tipo: 'pedido_eliminado', id: ID('DEL001'), idToken: 'sin.permiso.x' });
+  assert.ok(!JSON.parse(r).ok); assert.strictEqual(E7.hojas.Pedidos.getLastRow(), 2);
 });
 
 console.log('\n8) Estado de pago y sincronizar pedidos con la hoja');
