@@ -335,7 +335,10 @@ a.ct-canal:hover .ct-canal-go{color:var(--forest);transform:translateX(3px);}
   .ct-foto-vacia .ct-foto-txt{flex-basis:calc(100% - 40px);}
   .ct-foto-btn{width:100%;justify-content:center;}
 }
+<<<<<<< HEAD
 
 /* Botón "Seguir mi pedido" */
 .ct-canal-pedido{border-color:rgba(138,240,78,.6);background:rgba(138,240,78,.08);}
 .ct-canal-pedido strong{color:var(--forest);}
+=======
+>>>>>>> 1e815fefadcc9af8c5f2c77b3e4fc2c658580ef6
