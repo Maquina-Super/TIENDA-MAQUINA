@@ -46,6 +46,9 @@
     codigo: $('ctCodigo'),
     exitoWa: $('ctExitoWa'),
     otro: $('ctOtro'),
+    foto: $('ctFoto'), fotoInput: $('ctFotoInput'), fotoBtn: $('ctFotoBtn'),
+    fotoVacia: $('ctFotoVacia'), fotoPrev: $('ctFotoPrev'), fotoImg: $('ctFotoImg'),
+    fotoNombre: $('ctFotoNombre'), fotoInfo: $('ctFotoInfo'), fotoQuitar: $('ctFotoQuitar'), fotoErr: $('ctFotoErr'),
   };
 
   /* ------------------------------------------------------------
@@ -307,6 +310,94 @@
   actualizarContador();
 
   /* ------------------------------------------------------------
+     FOTO OPCIONAL: valida tipo y tamaño, vista previa, quitar.
+     Se reduce a JPG liviano (<= ~650 KB) para guardarla junto al
+     mensaje en Firestore (el sitio no usa Firebase Storage).
+     ------------------------------------------------------------ */
+  const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+  const FOTO_TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
+  const FOTO_EXT = /\.(jpe?g|png|webp)$/i;
+  const FOTO_MAX_CHARS = 650000;       // tope del dataURL guardado (las reglas aceptan hasta 700000)
+  const foto = { dataUrl: null, procesando: false };
+
+  function errorFoto(msg) {
+    el.foto.dataset.estado = msg ? 'error' : '';
+    el.fotoErr.textContent = msg || '';
+  }
+  function kb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+
+  function quitarFoto(limpiarError = true) {
+    foto.dataUrl = null;
+    el.fotoInput.value = '';
+    el.fotoImg.removeAttribute('src');
+    el.fotoPrev.hidden = true;
+    el.fotoVacia.hidden = false;
+    if (limpiarError) errorFoto('');
+  }
+
+  /** Reduce la imagen hasta que el dataURL quepa en FOTO_MAX_CHARS. */
+  function reducirFoto(img) {
+    let lado = 1280, calidad = 0.82, url = '';
+    for (let i = 0; i < 8; i++) {
+      const esc = Math.min(1, lado / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * esc));
+      c.height = Math.max(1, Math.round(img.naturalHeight * esc));
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);   // PNG/WEBP con transparencia
+      g.drawImage(img, 0, 0, c.width, c.height);
+      url = c.toDataURL('image/jpeg', calidad);
+      if (url.length <= FOTO_MAX_CHARS) return url;
+      if (calidad > 0.55) calidad -= 0.12; else lado = Math.round(lado * 0.75);
+    }
+    return url.length <= FOTO_MAX_CHARS ? url : null;
+  }
+
+  function cargarImagen(archivo) {
+    return new Promise((resolve, reject) => {
+      const obj = URL.createObjectURL(archivo);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(obj); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(obj); reject(new Error('imagen')); };
+      img.src = obj;
+    });
+  }
+
+  async function elegirFoto(archivo) {
+    if (!archivo) return;
+    const tipoOk = FOTO_TIPOS.includes(archivo.type) || (!archivo.type && FOTO_EXT.test(archivo.name));
+    if (!tipoOk || !FOTO_EXT.test(archivo.name || 'x.jpg') && !FOTO_TIPOS.includes(archivo.type)) {
+      quitarFoto(false); errorFoto('Formato no permitido. Usa una imagen JPG, PNG o WEBP.'); return;
+    }
+    if (archivo.size > FOTO_MAX_BYTES) {
+      quitarFoto(false); errorFoto('La foto pesa ' + kb(archivo.size) + '. El máximo es 5 MB.'); return;
+    }
+    if (archivo.size === 0) { quitarFoto(false); errorFoto('El archivo está vacío.'); return; }
+    foto.procesando = true;
+    try {
+      const img = await cargarImagen(archivo);
+      const url = reducirFoto(img);
+      if (!url) throw new Error('grande');
+      foto.dataUrl = url;
+      el.fotoImg.src = url;
+      el.fotoNombre.textContent = archivo.name;
+      el.fotoInfo.textContent = kb(archivo.size) + ' · lista para enviar';
+      el.fotoVacia.hidden = true;
+      el.fotoPrev.hidden = false;
+      errorFoto('');
+    } catch (e) {
+      quitarFoto(false);
+      errorFoto('No pudimos leer esa imagen. Prueba con otra foto JPG, PNG o WEBP.');
+    } finally {
+      foto.procesando = false;
+    }
+  }
+
+  el.fotoBtn.addEventListener('click', () => el.fotoInput.click());
+  el.fotoInput.addEventListener('change', () => elegirFoto(el.fotoInput.files && el.fotoInput.files[0]));
+  el.fotoQuitar.addEventListener('click', () => { quitarFoto(); el.fotoBtn.focus(); });
+
+  /* ------------------------------------------------------------
      Avisos (banner) y estados del botón
      ------------------------------------------------------------ */
   function mostrarAviso(tipo, html) {
@@ -364,6 +455,7 @@
       telefono: soloDigitosColombia(el.telefono.value),
       asunto: el.asunto.value.trim(),
       mensaje: el.mensaje.value.trim(),
+      foto: foto.dataUrl || null,
     };
   }
 
@@ -396,6 +488,8 @@
     // 2) Campo trampa: si un bot lo llenó, se finge éxito y no se envía nada
     if (el.trampa.value) { mostrarExito({ nombre: el.nombre.value, asunto: el.asunto.value }, 'ABC123'); return; }
 
+    if (foto.procesando) { mostrarAviso('info', 'Estamos preparando tu foto, intenta de nuevo en un segundo.'); return; }
+
     // 3) Validaciones
     const { errores, primerError } = validarTodo();
     if (errores) {
@@ -406,7 +500,7 @@
     }
 
     const datos = leerDatos();
-    const hash = hashSimple([datos.correo, datos.asunto, datos.mensaje].join('|'));
+    const hash = hashSimple([datos.correo, datos.asunto, datos.mensaje, datos.foto ? datos.foto.length : 0].join('|'));
 
     // 4) Espera entre envíos y mensaje repetido
     const ultimo = leerUltimo();
@@ -500,6 +594,7 @@
   /* "Enviar otro mensaje": limpia todo y vuelve al formulario */
   el.otro.addEventListener('click', () => {
     form.reset();
+    quitarFoto();
     REGLAS.forEach((r) => marcar(r, '', false));
     tocados.clear();
     el.sugerencia.classList.remove('visible');

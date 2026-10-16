@@ -1415,10 +1415,22 @@ async function enviarMensajeContacto(datos, intento) {
     fecha:    intento.fecha,
     origen:   'servicios.html',
   };
+  // Foto opcional (dataURL jpeg ya reducido): va en una colección aparte para no
+  // engordar la lista del panel; el mensaje solo lleva la marca "con_foto".
+  const foto = (typeof datos.foto === 'string' && /^data:image\/jpeg;base64,/.test(datos.foto) && datos.foto.length <= 700000) ? datos.foto : null;
+  if (foto) doc.con_foto = true;
   const codigo = intento.id.slice(-6).toUpperCase();
 
   try {
-    await fbDb.collection('mensajes_contacto').doc(intento.id).set(doc);
+    if (foto) {
+      // Atómico: o se guardan mensaje y foto, o ninguno (el reintento idéntico es válido).
+      const lote = fbDb.batch();
+      lote.set(fbDb.collection('mensajes_contacto').doc(intento.id), doc);
+      lote.set(fbDb.collection('mensajes_contacto_fotos').doc(intento.id), { foto, fecha: intento.fecha });
+      await lote.commit();
+    } else {
+      await fbDb.collection('mensajes_contacto').doc(intento.id).set(doc);
+    }
   } catch (e) {
     console.error('No se pudo guardar el mensaje de contacto:', e);
     const sinRed = (typeof navigator !== 'undefined' && navigator.onLine === false) || (e && e.code === 'unavailable');

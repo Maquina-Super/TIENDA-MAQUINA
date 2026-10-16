@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="css/estilos.css?v=rev1">
 <link rel="stylesheet" href="css/maquina-ui.css?v=10">
 <link rel="stylesheet" href="css/extras-cliente.css?v=2">
-<link rel="stylesheet" href="css/contacto.css?v=1">
+<link rel="stylesheet" href="css/contacto.css?v=2">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=4">
 </head>
 <body>
@@ -40,6 +40,9 @@
   <symbol id="ct-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
   <symbol id="ct-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="ct-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="ct-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="ct-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="ct-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
   <symbol id="ct-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
 </svg>
 
@@ -155,6 +158,21 @@
                 <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true" style="right:14px"><use href="#ct-alert"/></svg>
               </div>
               <div class="ct-error" id="ctMensajeErr"></div>
+            </div>
+
+            <div class="ct-field ct-full ct-foto" data-campo="foto" id="ctFoto">
+              <input type="file" id="ctFotoInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden aria-describedby="ctFotoErr">
+              <div class="ct-foto-vacia" id="ctFotoVacia">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-camera"/></svg>
+                <div class="ct-foto-txt"><b>Opcional:</b> adjunta una foto para ayudarnos a entender mejor tu solicitud.<small>JPG, PNG o WEBP · máximo 5 MB</small></div>
+                <button type="button" class="ct-foto-btn" id="ctFotoBtn"><svg class="ct-i sm" aria-hidden="true"><use href="#ct-upload"/></svg>Adjuntar foto</button>
+              </div>
+              <div class="ct-foto-prev" id="ctFotoPrev" hidden>
+                <img id="ctFotoImg" alt="Vista previa de la foto adjunta">
+                <div class="ct-foto-txt"><b id="ctFotoNombre"></b><small id="ctFotoInfo"></small></div>
+                <button type="button" class="ct-foto-quitar" id="ctFotoQuitar" aria-label="Quitar foto"><svg class="ct-i sm" aria-hidden="true"><use href="#ct-x"/></svg>Quitar</button>
+              </div>
+              <div class="ct-error" id="ctFotoErr"></div>
             </div>
 
             <div class="ct-field ct-full ct-acepto" data-campo="acepto" id="ctAcepto">
@@ -424,11 +442,11 @@
 <script src="js/firebase-config.js?v=4"></script>
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=6"></script>
-<script src="js/store.js?v=7"></script>
+<script src="js/store.js?v=8"></script>
 <script src="js/layout.js?v=4"></script>
 <script src="js/maquina-ui.js?v=4"></script>
 <script src="js/extras-cliente.js?v=1"></script>
-<script src="js/contacto.js?v=1"></script>
+<script src="js/contacto.js?v=2"></script>
 <script>
 renderHeader('servicios');
 renderFooter();

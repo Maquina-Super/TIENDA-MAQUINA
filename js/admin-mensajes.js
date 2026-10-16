@@ -349,6 +349,7 @@
       '</dl>' +
       '<div class="msg-det-texto-etq">Mensaje</div>' +
       '<div class="msg-det-texto">' + esc(m.mensaje || '') + '</div>' +
+      (m.con_foto ? '<div class="msg-det-texto-etq">Foto adjunta</div><div class="msg-det-foto" data-foto-id="' + esc(m.id) + '" style="margin-bottom:12px;">Cargando foto…</div>' : '') +
 
       '<div class="msg-det-acciones">' +
         '<button type="button" class="admin-btn admin-btn-ghost" data-accion="copiar-correo">📋 Copiar correo</button>' +
@@ -369,6 +370,25 @@
       '<div class="msg-det-texto-etq" style="margin-top:16px;">Historial de gestión</div>' +
       '<div class="msg-det-historial">' + (historial || '<p class="admin-foto-hint">Todavía no hay cambios registrados.</p>') + '</div>' +
       '<p class="admin-foto-hint" style="margin-top:10px;">Ref. <span class="mono">' + esc(codigoDe(m)) + '</span> — el mismo código que ve el cliente al enviar el formulario y que llega en el aviso por correo.</p>';
+    cargarFotoMensaje(m);
+  }
+
+  /* Foto opcional del cliente: vive en "mensajes_contacto_fotos/{id}" (solo admin). */
+  async function cargarFotoMensaje(m) {
+    const caja = cuerpo.querySelector('.msg-det-foto');
+    if (!caja || !m.con_foto) return;
+    try {
+      const d = await fbDb.collection('mensajes_contacto_fotos').doc(m.id).get();
+      const src = d.exists ? String((d.data() || {}).foto || '') : '';
+      if (!/^data:image\/jpeg;base64,/.test(src)) { caja.textContent = 'No se encontró la foto.'; return; }
+      caja.textContent = '';
+      const a = document.createElement('a');
+      a.href = src; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = 'Abrir foto completa';
+      const img = document.createElement('img');
+      img.src = src; img.alt = 'Foto adjunta por el cliente';
+      img.style.cssText = 'max-width:100%;max-height:320px;border-radius:10px;border:1px solid var(--line,#333);display:block;';
+      a.appendChild(img); caja.appendChild(a);
+    } catch (e) { caja.textContent = 'No se pudo cargar la foto.'; }
   }
 
   cuerpo.addEventListener('click', async (ev) => {
