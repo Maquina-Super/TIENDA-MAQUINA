@@ -1,0 +1,50 @@
+CÓMO PUBLICAR CAMBIOS SIN RIESGO (GitHub Desktop)
+==================================================
+
+Idea: nunca editar directamente "main" (lo que ve el público). Trabajas en una
+rama aparte, GitHub revisa el cambio solo, y recién entonces lo unes a main.
+
+Cada vez que quieras cambiar algo
+---------------------------------
+1. GitHub Desktop -> "Current Branch" -> "New Branch". Ponle un nombre corto,
+   por ejemplo  banner-drop  (sin espacios). "Create branch".
+2. Haz tus cambios en los archivos como siempre.
+3. En GitHub Desktop, abajo a la izquierda: escribe un mensaje y "Commit to banner-drop".
+4. "Publish branch" y luego "Create Pull Request" (se abre el navegador).
+5. En GitHub, espera 1 minuto: debe salir "Verificar sitio" con la palomita verde.
+   - Verde  -> pulsa "Merge pull request" y "Confirm". En 1-2 min está publicado.
+   - Rojo   -> pulsa "Details" y lee el ERROR; corrige, haz otro commit y vuelve a subir.
+6. Vuelve a GitHub Desktop, cambia a la rama "main", pulsa "Fetch origin" y "Pull".
+   Puedes borrar la rama vieja (Branch -> Delete).
+
+Qué revisa "Verificar sitio" (scripts/verificar.py)
+---------------------------------------------------
+- Que no se hayan colado archivos internos de .git (lo que rompió la tienda el 16-oct-2026).
+- Que existan las páginas principales.
+- Que el JavaScript no tenga errores de sintaxis.
+- Que ningún enlace, imagen o CSS apunte a un archivo que no existe.
+- Que no se haya subido un archivo de más de 5 MB.
+También puedes correrlo en tu PC antes de subir:  python scripts/verificar.py
+No reemplaza abrir la página y mirarla: revisa errores técnicos, no el diseño.
+
+Para que sea obligatorio (una sola vez, en github.com)
+------------------------------------------------------
+Repositorio -> Settings -> Branches -> "Add branch protection rule":
+  - Branch name pattern: main
+  - Marca "Require a pull request before merging"
+  - Marca "Require status checks to pass before merging" y elige "Verificar sitio"
+    (aparece en la lista después de que corra una primera vez)
+Así nadie (ni tú por accidente) puede subir a main sin pasar la verificación.
+Ojo: en repositorios privados con plan gratuito esta opción puede no estar
+disponible; revisa en Settings si te deja.
+
+Reglas de oro para que no se repita el problema de los archivos de .git
+-----------------------------------------------------------------------
+- Guarda el proyecto FUERA de OneDrive (por ejemplo C:\GitHub\TIENDA-MAQUINA).
+  OneDrive sincroniza la carpeta .git y la puede dañar.
+- Nunca copies la carpeta oculta ".git" de un proyecto a otro, ni la metas en un zip
+  para subirla a otro repositorio.
+- Antes de cada commit, mira la lista de archivos en GitHub Desktop: si ves nombres
+  como "objects", "hooks", "HEAD" o "COMMIT_EDITMSG", NO hagas commit.
+- Si un commit salió mal y aún no lo has subido: History -> clic derecho -> "Undo commit".
+  Si ya lo subiste: avísame antes de tocar nada.

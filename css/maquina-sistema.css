@@ -305,3 +305,45 @@
 
 .footer-contacto .ft-bottom::after{content:"";}
 @media (max-width:700px){.footer-contacto .ft-bottom::after{display:none;}}
+
+
+/* NAV: el menú completo necesita ~1150px de ancho. Hasta 1100px se usa la hamburguesa
+   (antes era hasta 820px y entre 820 y 1180 la barra se desbordaba o se apretaba). */
+@media (max-width:1100px){
+  .nav-links{display:none;}
+  .nav-burger{display:flex;}
+  .nav-right{gap:12px;}
+}
+@media (min-width:1101px){
+  .nav{gap:clamp(16px,2vw,32px);}
+  .nav-links{gap:clamp(12px,1.3vw,28px);}
+  .nav-links a{letter-spacing:.08em;}
+  .nav-right{gap:clamp(8px,1vw,16px);}
+}
+
+/* ZONAS TÁCTILES: botones y enlaces con al menos ~40-44px en tablet y celular.
+   Solo se agranda el área de toque; el dibujo visual casi no cambia. */
+@media (max-width:1100px), (pointer:coarse){
+  .nav-logo,.foot-logo{min-height:44px;}
+  .icon-only-btn,.account-btn,.fav-pill,.cart-pill,.admin-access{min-width:44px;min-height:44px;}
+  .footer-contacto a.ft-box{min-width:44px;min-height:44px;}
+  .footer-contacto a.ft-item{min-height:44px;}
+  .footer-contacto .ft-legal a{min-height:40px;}
+  .fav-heart{min-width:44px;min-height:44px;}
+  .add-btn{min-height:40px;}
+  .yd-size,.yd-side .yd-size{min-height:40px;min-width:40px;}
+  .yd-color-tile{min-width:40px;min-height:40px;}
+  .yd-side-close{min-width:44px;min-height:44px;}
+  .yd-clear,#fLimpiar{min-height:40px;display:inline-flex;align-items:center;justify-content:center;}
+  .yd-tab{min-height:40px;}
+  .sort-select{min-height:40px;}
+  .yd-range{height:32px;margin:4px 0;}
+  .method-option{min-height:44px;}
+  .cart-chip{min-height:40px;display:inline-flex;align-items:center;}
+  .legal-link-mini,.auth-brand{display:inline-flex;align-items:center;min-height:40px;}
+  .yd-resena-estrellas button{min-width:40px;min-height:40px;}
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select{min-height:40px;}
+  /* círculos de color y puntos del carrusel: área de toque ampliada sin cambiar su tamaño visible */
+  .swatch::after,.yd-hero-dots button::after{content:"";position:absolute;inset:-11px;}
+  .yd-hero-dots button{position:relative;}
+}

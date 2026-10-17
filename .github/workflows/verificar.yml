@@ -1,0 +1,19 @@
+name: Verificar sitio
+
+# Se ejecuta con cada Pull Request y cada vez que se sube algo a main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verificar:
+    name: Verificar sitio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Revisar archivos, enlaces y JavaScript
+        run: python3 scripts/verificar.py

@@ -16,8 +16,8 @@
 <link rel="stylesheet" href="css/admin-club-envios.css?v=2">
 <link rel="stylesheet" href="css/admin-envios-v2.css?v=5">
 <link rel="stylesheet" href="css/admin-resumen.css?v=1">
-<link rel="stylesheet" href="css/admin-drop.css?v=1">
-<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
+<link rel="stylesheet" href="css/admin-drop.css?v=2">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=8">
 <link rel="stylesheet" href="css/admin-usuarios.css?v=2">
 <link rel="stylesheet" href="css/admin-modales.css?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -207,21 +207,21 @@
           <div class="gl-field">
             <label>CORREO</label>
             <div class="gl-box">
-              <input type="email" id="adminUsuario" placeholder="tucorreo@maquina.com" autocomplete="email" required>
+              <input type="email" id="adminUsuario" aria-label="Correo del administrador" placeholder="tucorreo@maquina.com" autocomplete="email" required>
             </div>
           </div>
 
           <div class="gl-field">
             <label>CONTRASEÑA</label>
             <div class="gl-box">
-              <input type="password" id="adminClave" placeholder="••••••••" autocomplete="current-password" required data-ojito-listo="1">
+              <input type="password" id="adminClave" aria-label="Contraseña" placeholder="••••••••" autocomplete="current-password" required data-ojito-listo="1">
               <button type="button" class="nf-eye" data-target="adminClave" aria-label="Mostrar contraseña">👁️</button>
             </div>
           </div>
 
           <div class="gl-field" style="margin-bottom:6px;">
             <div class="gl-box">
-              <input type="password" id="adminCodigoPanel" placeholder="Código de acceso (6 números)" inputmode="numeric" maxlength="6" autocomplete="off" data-ojito-listo="1">
+              <input type="password" id="adminCodigoPanel" aria-label="Código de acceso de 6 números" placeholder="Código de acceso (6 números)" inputmode="numeric" maxlength="6" autocomplete="off" data-ojito-listo="1">
               <button type="button" class="nf-eye" data-target="adminCodigoPanel" aria-label="Mostrar código">👁️</button>
             </div>
           </div>
@@ -905,10 +905,10 @@
               </div>
               <div style="display:flex;flex-direction:column;gap:18px;min-width:0;">
                 <div class="dp-f">Fecha y hora de inicio *
-                  <div class="dp-row2"><input type="date" id="dpFechaIni" class="admin-input"><input type="time" id="dpHoraIni" class="admin-input"></div>
+                  <div class="dp-row2"><input type="date" id="dpFechaIni" aria-label="Fecha de inicio" class="admin-input"><input type="time" id="dpHoraIni" aria-label="Hora de inicio" class="admin-input"></div>
                 </div>
                 <div class="dp-f">Fecha y hora de finalización <em>(opcional)</em>
-                  <div class="dp-row2"><input type="date" id="dpFechaFin" class="admin-input"><input type="time" id="dpHoraFin" class="admin-input"></div>
+                  <div class="dp-row2"><input type="date" id="dpFechaFin" aria-label="Fecha de fin" class="admin-input"><input type="time" id="dpHoraFin" aria-label="Hora de fin" class="admin-input"></div>
                 </div>
                 <label class="dp-f">Zona horaria
                   <select id="dpZona" class="admin-input"></select>
@@ -920,9 +920,9 @@
           <section class="admin-card dp-card" aria-labelledby="dpProdT">
             <div class="dd-prod-head"><h3 id="dpProdT"><svg class="ap-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Productos del drop</h3><span class="dp-sel-count" id="dpProdContador">0 productos seleccionados</span></div>
             <div class="dp-filtros">
-              <input type="search" id="dpBuscar" class="admin-input" placeholder="Buscar productos…" autocomplete="off">
-              <select id="dpFiltroCat" class="admin-input"><option value="">Todas las categorías</option></select>
-              <select id="dpFiltroTalla" class="admin-input"><option value="">Todas las tallas</option></select>
+              <input type="search" id="dpBuscar" aria-label="Buscar productos" class="admin-input" placeholder="Buscar productos…" autocomplete="off">
+              <select id="dpFiltroCat" aria-label="Filtrar por categoría" class="admin-input"><option value="">Todas las categorías</option></select>
+              <select id="dpFiltroTalla" aria-label="Filtrar por talla" class="admin-input"><option value="">Todas las tallas</option></select>
               <button type="button" class="admin-btn admin-btn-ghost" id="dpSelVisibles">Seleccionar visibles</button>
               <button type="button" class="admin-btn admin-btn-ghost" id="dpSelLimpiar">Limpiar</button>
             </div>
@@ -1216,6 +1216,7 @@
 <script src="js/admin-ui.js?v=rev3"></script>
 <script src="js/admin-mensajes.js?v=msg2"></script>
 <script src="js/admin-extras.js"></script>
+<script src="js/admin-respaldo.js?v=1"></script>
 <script src="js/login-orbit.js"></script>
 
 </body>

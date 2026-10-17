@@ -1,0 +1,57 @@
+RESPALDO DE LOS DATOS DE LA TIENDA (Firestore)
+===============================================
+
+Qué es
+------
+En el panel admin (menú lateral, arriba de "Cerrar sesión") hay un botón
+"Descargar respaldo". Baja a tu computador un archivo
+respaldo-maquina-AAAA-MM-DD_HHMM.json con:
+
+  productos, pedidos, reseñas, mensajes de contacto, Voltage Club,
+  configuración (config, admin_config) y borradores del drop.
+
+Opcional: al pulsar el botón te pregunta si quieres incluir también las fotos
+de reseñas y de mensajes de contacto. Con fotos el archivo puede pesar varios MB.
+
+El botón SOLO LEE datos. No modifica ni borra nada.
+
+Qué NO incluye (a propósito, por seguridad)
+-------------------------------------------
+  admin_usuarios, admin_sesiones, panel_codigos, telefonos
+  usuarios (cuentas de clientes): las reglas de Firestore solo dejan a cada
+  cliente leer la suya, así que el panel no puede bajarlas todas.
+
+Cada cuánto hacerlo
+-------------------
+Sugerencia: una vez por semana y SIEMPRE antes de borrar productos en bloque,
+cambiar las reglas de Firestore o tocar el script de Apps Script.
+Guarda los archivos en un lugar distinto al computador (Drive, correo, USB).
+Ponles la fecha en el nombre (ya la trae).
+
+Respaldo automático
+-------------------
+El botón es manual. Hasta donde sé, las copias programadas de Firestore que
+ofrece Google Cloud exigen el plan de pago (Blaze). Revísalo en la consola de
+Firebase antes de decidir: si algún día cambias de plan, ese es el momento de
+activarlas. Mientras tanto:
+  - Tus pedidos ya se copian a la hoja de Google (ver LEEME_PAGO_Y_SINCRONIZAR.txt),
+    que sirve como segunda copia de los pedidos.
+  - Usa el botón de arriba para todo lo demás.
+
+Cómo recuperar algo borrado
+---------------------------
+Abre el .json con el Bloc de notas (o VS Code). Está organizado así:
+   colecciones -> nombre de la colección -> id del documento -> datos
+Las fechas aparecen como {"__fecha": "2026-10-16T19:00:00.000Z"}.
+Para volver a crear un producto/pedido, copia sus datos y créalo de nuevo en la
+consola de Firebase (Firestore Database -> la colección -> Agregar documento).
+
+Todavía NO existe una herramienta de "restaurar todo con un clic". Si la
+necesitas, se puede construir, pero hay que hacerla con mucho cuidado para no
+pisar datos actuales.
+
+Fotos de contacto
+-----------------
+Las fotos de la sección Contacto se guardan dentro de Firestore, lo cual
+funciona en tu plan gratuito. Si algún día pasas a un plan de pago, conviene
+moverlas a Firebase Storage (más barato por foto y no engorda la base).

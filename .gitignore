@@ -15,3 +15,13 @@ package-lock.json
 
 # Capturas generadas por las pruebas visuales (se regeneran)
 tests-visual/capturas/
+
+# Archivos internos de git que nunca deben entrar al proyecto (por si se copia .git por error)
+/objects/
+/hooks/
+/refs/
+/logs/
+/COMMIT_EDITMSG
+/FETCH_HEAD
+/ORIG_HEAD
+/HEAD

@@ -44,10 +44,10 @@
 .dp-card h3 svg{width:22px;height:22px;color:var(--dp-g);}
 .dp-form{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px 24px;}
 .dp-f{display:flex;flex-direction:column;gap:6px;min-width:0;font-family:var(--ap-font-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--adm-text-dim);}
-.dp-f em{font-style:normal;color:#6b7567;text-transform:none;}
+.dp-f em{font-style:normal;color:#8a9686;text-transform:none;}
 .dp-f .admin-input,.dp-f select,.dp-f textarea{width:100%;box-sizing:border-box;text-transform:none;letter-spacing:0;font-size:14px;}
 .dp-f textarea{resize:vertical;min-height:84px;font-family:inherit;}
-.dp-count{align-self:flex-end;font-size:10.5px;color:#6b7567;margin-top:-2px;}
+.dp-count{align-self:flex-end;font-size:10.5px;color:#8a9686;margin-top:-2px;}
 .dp-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .dp-span{grid-column:1/-1;}
 .dp-portada{display:flex;gap:12px;align-items:stretch;}
