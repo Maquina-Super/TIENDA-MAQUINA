@@ -18,6 +18,8 @@
      aviso_drop_nuevo           -> correo del drop al Voltage Club (SOLO con token de admin;
                                    los destinatarios se leen de Firestore, no del aviso)
      voltage_club_bienvenida    -> correo de bienvenida al suscribirse
+     registro_codigo_enviar     -> manda por correo el código de 6 dígitos del registro (se genera aquí)
+     registro_codigo_verificar  -> comprueba el código del registro (máx. 5 intentos, vence a los 10 min)
      contacto_nuevo             -> escribe la fila en la pestaña "Contactos" + correo
      contactos_sincronizar      -> reenvía contactos que faltaron (sin duplicar)
      contacto_estado            -> actualiza el estado en la pestaña "Contactos"
@@ -34,7 +36,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-17b estado-listo + pestana-pedidos-flexible + aviso-estado-pedido-por-correo + correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+const VERSION_SCRIPT = "2026-10-17e registro-codigo-servidor + preparar-hoja + colores-estado + estado-listo + pestana-pedidos-flexible + aviso-estado-pedido-por-correo + correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -83,6 +85,7 @@ const LIMITES_ENVIO = {
   voltage_club_bienvenida:   { porCorreo: 1,    global: 30,  ventana: 21600 },
   contacto_nuevo:            { porCorreo: 5,    global: 30,  ventana: 3600  },
   codigo_panel_recuperacion: { porCorreo: 1,    global: 10,  ventana: 600   },
+  registro_codigo:           { porCorreo: 4,    global: 40,  ventana: 3600  },
   aviso_drop_nuevo:          { porCorreo: null, global: 5,   ventana: 3600  },
 };
 
@@ -118,6 +121,12 @@ function doPost(e) {
     }
     if (datos.tipo === 'codigo_panel_recuperacion') {
       enviarCorreoCodigoPanel(datos.correo); // el código NO se acepta del aviso: se lee de Firestore
+    }
+    if (datos.tipo === 'registro_codigo_enviar') {
+      respuesta = JSON.stringify(registroCodigoEnviar(datos.correo, datos.nombre));   // JSON: registro.html lo lee
+    }
+    if (datos.tipo === 'registro_codigo_verificar') {
+      respuesta = JSON.stringify(registroCodigoVerificar(datos.correo, datos.codigo));
     }
     if (datos.tipo === 'aviso_drop_nuevo') {
       enviarAvisoDropVoltageClub(datos.idToken, datos.asunto, datos.mensaje); // los correos NO se aceptan del aviso
@@ -290,6 +299,97 @@ function puedoEnviar(tipo, clave, cantidad) {
   }
 }
 
+/* ---------- 4e) CÓDIGO DE VERIFICACIÓN DEL REGISTRO (correo) ----------
+   registro.html pide el código y lo verifica AQUÍ, no en el navegador:
+     - El código de 6 dígitos se genera en el servidor y NUNCA viaja al navegador;
+       solo llega por correo al dueño de la dirección.
+     - Se guarda únicamente su huella (HMAC con un secreto que solo vive en las
+       propiedades del script), 10 minutos, y se borra al usarse.
+     - Máximo 5 intentos por código: después hay que pedir otro (no se puede adivinar).
+     - Límites de envío por dirección y globales (ver LIMITES_ENVIO.registro_codigo).
+     - La respuesta es igual exista o no la cuenta: no revela qué correos están registrados. */
+const OTP_VIGENCIA_SEG = 600;
+const OTP_MAX_INTENTOS = 5;
+
+function otpSecreto() {
+  const props = PropertiesService.getScriptProperties();
+  let s = props.getProperty('OTP_SECRETO');
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); props.setProperty('OTP_SECRETO', s); }
+  return s;
+}
+function otpHuella(correo, codigo) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(correo + '|' + codigo, otpSecreto()));
+}
+function otpClave(correo) {
+  return 'otp_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, correo)).slice(0, 40);
+}
+function otpCodigoNuevo() {
+  // 6 dígitos a partir de un UUID v4 (aleatorio del sistema, no Math.random)
+  const n = parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 10), 16);
+  return String(100000 + (n % 900000));
+}
+function otpIgual(a, b) {   // comparación de tiempo constante
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+function otpCorreoValido(entrada) {
+  const c = String(entrada === null || entrada === undefined ? '' : entrada).trim().toLowerCase();
+  return (c && c.length <= 160 && REGEX_CORREO.test(c)) ? c : '';
+}
+
+function registroCodigoEnviar(correoEntrada, nombreEntrada) {
+  const correo = otpCorreoValido(correoEntrada);
+  if (!correo) return { ok: false, error: 'correo' };
+  const nombre = String(nombreEntrada || '').replace(/[\r\n<>]/g, ' ').trim().slice(0, 40);
+  if (!puedoEnviar('registro_codigo', correo, 1)) return { ok: false, error: 'limite' };
+
+  const codigo = otpCodigoNuevo();
+  CacheService.getScriptCache().put(
+    otpClave(correo),
+    JSON.stringify({ h: otpHuella(correo, codigo), n: 0, e: Date.now() + OTP_VIGENCIA_SEG * 1000 }),
+    OTP_VIGENCIA_SEG
+  );
+  MailApp.sendEmail({
+    to: correo,
+    subject: 'MAQUINA — Tu código de verificación',
+    body:
+      'Hola' + (nombre ? ' ' + nombre : '') + ',\n\n' +
+      'Tu código de verificación de MAQUINA es: ' + codigo + '\n\n' +
+      'Vence en 10 minutos. Si tú no estás creando una cuenta, ignora este correo:\n' +
+      'sin el código nadie puede completar el registro con tu dirección.\n\n' +
+      '— MAQUINA',
+    name: 'MAQUINA',
+  });
+  return { ok: true };
+}
+
+function registroCodigoVerificar(correoEntrada, codigoEntrada) {
+  const correo = otpCorreoValido(correoEntrada);
+  const codigo = String(codigoEntrada === null || codigoEntrada === undefined ? '' : codigoEntrada).trim();
+  if (!correo || !/^\d{6}$/.test(codigo)) return { ok: false, error: 'incorrecto' };
+
+  const cache = CacheService.getScriptCache();
+  const clave = otpClave(correo);
+  const candado = LockService.getScriptLock();
+  let tengoCandado = false;
+  try { candado.waitLock(5000); tengoCandado = true; } catch (e) { /* mejor esfuerzo */ }
+  try {
+    let r = null;
+    try { r = JSON.parse(cache.get(clave)); } catch (e) { r = null; }
+    if (!r || typeof r.h !== 'string' || Date.now() > r.e) { cache.remove(clave); return { ok: false, error: 'expirado' }; }
+    if (r.n >= OTP_MAX_INTENTOS) { cache.remove(clave); return { ok: false, error: 'intentos' }; }
+    if (otpIgual(r.h, otpHuella(correo, codigo))) { cache.remove(clave); return { ok: true }; }
+    r.n++;
+    if (r.n >= OTP_MAX_INTENTOS) { cache.remove(clave); return { ok: false, error: 'intentos' }; }
+    cache.put(clave, JSON.stringify(r), Math.max(1, Math.ceil((r.e - Date.now()) / 1000)));
+    return { ok: false, error: 'incorrecto', quedan: OTP_MAX_INTENTOS - r.n };
+  } finally {
+    if (tengoCandado) candado.releaseLock();
+  }
+}
+
 /* ---------- 4d) PEDIDO REAL DESDE FIRESTORE ----------
    La API REST de Firestore devuelve cada valor con su tipo ({stringValue: ...},
    {integerValue: "5"}, {mapValue: ...}). Estas funciones lo vuelven a objeto normal. */
@@ -446,11 +546,45 @@ function columnaEstadoPedido(hoja) {
   try { hoja.getRange(1, ultimaCol).copyTo(celda, { formatOnly: true }); } catch (errFmt) { /* solo estético */ }
   celda.setValue(TITULO_COLUMNA_ESTADO_PEDIDO);
   celda.setFontWeight(hoja.getRange(1, ultimaCol).getFontWeight());
+  try { aplicarColoresEstadoPedido(hoja, nueva); } catch (errColor) { /* solo estético */ }
   return nueva;
 }
 
 function escribirEstadoEnFila(hoja, fila, etiqueta) {
   hoja.getRange(fila, columnaEstadoPedido(hoja)).setValue(etiqueta);
+}
+
+/* Número de la columna "Estado del pedido" si ya existe (0 si no). No crea nada. */
+function buscarColumnaEstadoPedido(hoja) {
+  const ultimaCol = Math.max(hoja.getLastColumn(), 1);
+  const encabezados = hoja.getRange(1, 1, 1, ultimaCol).getDisplayValues()[0];
+  for (let c = 0; c < encabezados.length; c++) {
+    if (String(encabezados[c]).trim().toLowerCase() === TITULO_COLUMNA_ESTADO_PEDIDO.toLowerCase()) return c + 1;
+  }
+  return 0;
+}
+
+/* Colores por estado en la columna "Estado del pedido" (solo visual).
+   Se puede repetir sin duplicar: primero quita las reglas anteriores de esa misma columna. */
+const COLORES_ESTADO_PEDIDO = [
+  ['Pendiente',  '#fff2cc', '#7f6000'],
+  ['Listo',      '#cfe2f3', '#1c4587'],
+  ['Enviado',    '#d9d2e9', '#351c75'],
+  ['Entregado',  '#d9ead3', '#274e13'],
+  ['Cancelado',  '#f4cccc', '#990000'],
+];
+function aplicarColoresEstadoPedido(hoja, columna) {
+  if (!columna) return;
+  const rango = hoja.getRange(2, columna, Math.max(hoja.getMaxRows() - 1, 1), 1);
+  const otras = hoja.getConditionalFormatRules().filter(function (regla) {
+    return !regla.getRanges().some(function (r) { return r.getColumn() === columna && r.getNumColumns() === 1; });
+  });
+  const nuevas = COLORES_ESTADO_PEDIDO.map(function (c) {
+    return SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo(c[0]).setBackground(c[1]).setFontColor(c[2]).setBold(true)
+      .setRanges([rango]).build();
+  });
+  hoja.setConditionalFormatRules(otras.concat(nuevas));
 }
 
 /* Estado real del pedido en Firestore (lectura pública del documento, igual que
@@ -622,6 +756,11 @@ function sincronizarPedidos(ids, idToken) {
       registrarErrorPedido('pedidos_sincronizar', String(id).slice(-6).toUpperCase(), err);
     }
   });
+  // Deja los colores de estado puestos aunque la columna ya existiera (no duplica reglas).
+  try {
+    const hojaP = obtenerHojaPedidos();
+    if (hojaP) aplicarColoresEstadoPedido(hojaP, buscarColumnaEstadoPedido(hojaP));
+  } catch (errColor) { /* solo estético */ }
   return r;
 }
 
@@ -1252,6 +1391,30 @@ function enviarCorreoContacto(d) {
 }
 
 /* ---------- 7) DIAGNÓSTICO (se ejecuta a mano en el editor) ---------- */
+
+/* Ejecútala UNA vez a mano (menú de funciones -> prepararHojaPedidos -> Ejecutar):
+   deja listos en la hoja "Pedidos" los encabezados "Estado de pago" (columna M) y
+   "Estado del pedido" (la columna siguiente) y los colores por estado, SIN esperar a un
+   pedido nuevo. No borra ni cambia ningún dato. Los estados de los pedidos que ya
+   existen se llenan después con el botón "Sincronizar pedidos con la hoja" del panel. */
+function prepararHojaPedidos() {
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = obtenerHojaPedidos();
+    if (!hoja) { console.error('No se encontró la pestaña de pedidos (debe llamarse "' + SHEET_TAB + '").'); return; }
+    const encM = hoja.getRange(1, COLUMNA_ESTADO_PAGO);
+    if (!String(encM.getDisplayValue()).trim()) {
+      try { hoja.getRange(1, COLUMNA_ESTADO_PAGO - 1).copyTo(encM, { formatOnly: true }); } catch (e) { /* solo estético */ }
+      encM.setValue('Estado de pago');
+    }
+    const col = columnaEstadoPedido(hoja);   // la crea al final si no existe
+    aplicarColoresEstadoPedido(hoja, col);
+    console.log('Hoja lista: "Estado de pago" en la columna ' + COLUMNA_ESTADO_PAGO + ' y "Estado del pedido" en la columna ' + col + '.');
+  } finally {
+    candado.releaseLock();
+  }
+}
 function diagnosticoColumnaA() {
   const hoja = obtenerHojaPedidos();
   if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }

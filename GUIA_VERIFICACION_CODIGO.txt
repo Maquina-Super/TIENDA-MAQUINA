@@ -9,41 +9,38 @@ cuenta. La pantalla del código usa un morado/azul llamativo,
 distinto al resto de la tienda.
 
 ------------------------------------------------------------
-1) VERIFICACIÓN POR CORREO — con EmailJS (gratis, sin backend)
+1) VERIFICACIÓN POR CORREO — con tu Apps Script (sin EmailJS)
 ------------------------------------------------------------
-EmailJS te deja enviar correos desde el navegador (sin montar
-un servidor propio). Plan gratis: 200 correos al mes.
+El código ya NO se genera ni se compara en el navegador (ahí se
+podía leer con F12). Ahora lo hace tu Google Apps Script, el mismo
+que ya manda los correos de pedidos:
 
-Pasos:
-1. Entra a https://www.emailjs.com y crea una cuenta gratis.
-2. Ve a "Email Services" -> "Add New Service" -> conecta tu
-   Gmail (o el correo que quieras que envíe los códigos).
-   Te da un SERVICE_ID (algo como "service_abc1234").
-3. Ve a "Email Templates" -> "Create New Template". En el
-   cuerpo escribe algo como:
+  - Genera el código de 6 dígitos en el servidor y lo manda desde
+    tu Gmail. El navegador nunca lo ve.
+  - Guarda solo su huella (no el número) durante 10 minutos.
+  - Máximo 5 intentos por código; después hay que pedir otro.
+  - Máximo 4 códigos por correo cada hora y 40 en total por hora,
+    y respeta la reserva de cuota de Gmail para los pedidos.
+  - No cuesta nada y no necesitas cuenta ni claves de terceros.
 
-     Hola {{to_name}},
-     Tu código de verificación de MAQUINA es: {{code}}
-     Vence en 10 minutos.
+Lo único que tienes que hacer (3 minutos):
+1. Abre tu proyecto en https://script.google.com.
+2. Reemplaza TODO el contenido por el de SCRIPT_COMPLETO_MAQUINA.gs.txt
+   (versión 2026-10-17c o posterior).
+3. "Implementar" > "Administrar implementaciones" > lápiz >
+   Versión: "Nueva versión" > Implementar. (Misma URL: no cambies
+   nada en el sitio.) Si Google pide permisos, acéptalos.
+4. Prueba: abre registro.html en tu sitio, elige Correo y registra
+   un correo tuyo. Debe llegar "MAQUINA — Tu código de verificación".
+   Si ves el aviso "Ahora mismo no podemos enviar el código", el
+   script publicado todavía es el viejo (repite el paso 3).
 
-   Y en el campo "To email" del template escribe: {{to_email}}
-   Guarda y copia el TEMPLATE_ID (algo como "template_xyz789").
-4. Ve a "Account" -> "General" y copia tu "Public Key".
-5. Abre registro.html, busca este bloque cerca del final del
-   archivo:
-
-     const EMAILJS_CONFIG = {
-       PUBLIC_KEY: "PEGA_AQUI_TU_PUBLIC_KEY",
-       SERVICE_ID: "PEGA_AQUI_TU_SERVICE_ID",
-       TEMPLATE_ID: "PEGA_AQUI_TU_TEMPLATE_ID",
-     };
-
-   Reemplaza los 3 valores por los tuyos. Guarda el archivo.
-
-Listo. Mientras no reemplaces esos 3 valores, si alguien elige
-"Correo" como método, verá un aviso pidiendo que se configure
-esto — no se romperá la página, simplemente no podrá enviar el
-código todavía.
+Límite honesto: la cuenta se crea desde el navegador con Firebase
+Auth, así que alguien técnico podría saltarse la pantalla del
+código llamando a Firebase directamente. Esta verificación impide
+adivinar o leer códigos y frena altas falsas por la interfaz; para
+bloquearlo del todo hace falta pasar el registro a Cloud Functions
+(plan Blaze).
 
 ------------------------------------------------------------
 2) VERIFICACIÓN POR TELÉFONO — con Firebase Phone Auth
@@ -76,5 +73,5 @@ NOTAS
   porque es lo que usa Firebase para iniciar sesión después.
   El teléfono es solo un método extra de verificación, y si lo
   usas queda guardado (ya verificado) en el perfil del usuario.
-- El código por correo vence a los 10 minutos.
+- El código por correo vence a los 10 minutos (lo controla el servidor).
 - El botón "Reenviar código" se activa a los 60 segundos.

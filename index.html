@@ -174,7 +174,7 @@
 <script src="js/analitica.js?v=1"></script>
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=6"></script>
-<script src="js/store.js?v=12"></script>
+<script src="js/store.js?v=13"></script>
 <script src="js/catalog-render.js?v=5"></script>
 <script src="js/layout.js?v=7"></script>
 <script src="js/maquina-ui.js?v=4b"></script>
@@ -404,7 +404,7 @@ actualizarCountdown();
 // la portada se actualiza sola cuando se cambia el Drop desde el panel
 suscribirConfigDrop(async (cfg) => {
   const cat = getCatalogo();
-  if ((cfg.productos || []).some(id => !cat.find(p => p.id == id))) { try { await cargarCatalogo(); } catch (e) {} }
+  if ((cfg.productos || []).some(id => !cat.find(p => p.id == id))) { try { await cargarCatalogo({ fresco: true }); } catch (e) {} }
   dhClave = null;
   actualizarCountdown();
 });

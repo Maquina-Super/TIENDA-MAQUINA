@@ -147,7 +147,9 @@ async function entrarAlPanel() {
   permisosActuales = await obtenerPermisosUsuarioActual();
   usuariosTabDesbloqueada = false;
   aplicarPermisosUI();
-  await Promise.all([cargarCatalogo(), cargarConfigDrop(), cargarConfigEnvio()]); // catálogo, config del drop y costos de envío desde Firestore antes de pintar la tabla
+  await Promise.all([cargarCatalogo({ fresco: true }), cargarConfigDrop(), cargarConfigEnvio()]); // catálogo, config del drop y costos de envío desde Firestore antes de pintar la tabla
+  // Tienda nueva: Firestore no tiene productos todavía. Solo el admin los siembra (los visitantes ya no).
+  if (typeof catalogoNubeVacio === 'function' && catalogoNubeVacio()) { try { await sembrarCatalogoInicial(); } catch (e) { console.error('No se pudo sembrar el catálogo:', e); } }
   pintarTodo();
   pintarVoltageClub();
   pintarCostosEnvio();

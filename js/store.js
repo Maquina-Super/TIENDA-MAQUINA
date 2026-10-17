@@ -118,50 +118,111 @@ let _catalogoCache = [];
 let _catalogoDesdeNube = false;
 function catalogoDesdeNube() { return _catalogoDesdeNube; }
 
-/** Carga el catálogo desde Firestore a la memoria (_catalogoCache).
-    Si la colección "productos" está vacía (primera vez que se usa
-    la tienda), la siembra con el catálogo de fábrica (PRODUCTS, de
-    js/products.js). Cada página HTML debe hacer
-    "await cargarCatalogo();" al iniciar, ANTES de llamar a
-    productosActivos(), buscarProducto(), obtenerProductosAdmin(),
-    etc. — si no, esas funciones van a devolver una lista vacía. */
-async function cargarCatalogo() {
+/* ------------------------------------------------------------
+   CACHÉ DEL CATÁLOGO (localStorage, vence a los 5 minutos)
+   Antes, CADA página descargaba TODOS los productos de Firestore en
+   cada visita (y se pagaba una lectura por producto). Ahora la copia
+   se guarda en el navegador del visitante y se reutiliza mientras
+   tenga menos de 5 minutos: navegar entre Inicio, Catálogo y
+   Producto ya no vuelve a leer Firestore.
+
+   Es seguro porque el checkout NO confía en esta copia: dentro de la
+   transacción de guardarPedido() se vuelve a leer el stock y el
+   precio reales de cada producto y se rechaza el pedido si cambió.
+   El carrito y el panel admin piden datos frescos (ver abajo).
+   ------------------------------------------------------------ */
+const CATALOGO_CACHE_KEY = "maquina_catalogo_cache_v1";
+const CATALOGO_CACHE_TTL_MS = 5 * 60 * 1000;   // cambia este número si quieres más/menos tiempo
+function _leerCacheCatalogo() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CATALOGO_CACHE_KEY));
+    if (c && typeof c.t === 'number' && Array.isArray(c.productos) && c.productos.length) return c;
+  } catch (e) { /* caché dañada: se ignora */ }
+  return null;
+}
+function _guardarCacheCatalogo() {
+  try {
+    if (!_catalogoDesdeNube || !_catalogoCache.length) return;
+    localStorage.setItem(CATALOGO_CACHE_KEY, JSON.stringify({ t: Date.now(), productos: _catalogoCache }));
+  } catch (e) { /* sin espacio o localStorage bloqueado: la tienda sigue sin caché */ }
+}
+/** Borra la copia guardada: la próxima página que se abra vuelve a leer Firestore.
+    Se llama cuando algo cambia el stock, el precio o las reseñas. */
+function _invalidarCacheCatalogo() {
+  try { localStorage.removeItem(CATALOGO_CACHE_KEY); } catch (e) { /* no importa */ }
+}
+
+/* true si Firestore respondió pero la colección "productos" está vacía */
+let _catalogoNubeVacio = false;
+function catalogoNubeVacio() { return _catalogoNubeVacio; }
+
+/** Carga el catálogo a la memoria (_catalogoCache).
+    · Normal:  usa la copia guardada si tiene menos de 5 min; si no, lee Firestore.
+    · cargarCatalogo({ fresco: true }): se salta la copia y lee Firestore siempre
+      (lo usan el panel admin, el carrito y los lugares donde el stock acaba de cambiar).
+    · Si no hay internet: usa la última copia guardada (aunque sea vieja) o, en último
+      caso, el catálogo de fábrica (js/products.js).
+    Ya NO se siembra Firestore desde el navegador de los visitantes: si la colección
+    está vacía, la siembra el admin con sembrarCatalogoInicial() (js/admin.js lo llama solo).
+    Cada página HTML debe hacer "await cargarCatalogo();" al iniciar, ANTES de llamar a
+    productosActivos(), buscarProducto(), obtenerProductosAdmin(), etc. */
+async function cargarCatalogo(opciones) {
+  const fresco = !!(opciones && opciones.fresco);
   // La config del drop (fecha del lanzamiento) se carga siempre junto
   // con el catálogo: productosActivos() la necesita para saber si un
-  // producto "oculto hasta el drop" ya se puede mostrar o no, así
-  // cualquier página que haga "await cargarCatalogo()" queda lista
-  // sin tener que acordarse de pedir la config del drop aparte.
+  // producto "oculto hasta el drop" ya se puede mostrar o no.
   const configDropListo = cargarConfigDrop();
+  const cache = _leerCacheCatalogo();
+  const edad = cache ? Date.now() - cache.t : Infinity;
+  if (!fresco && cache && edad >= 0 && edad < CATALOGO_CACHE_TTL_MS) {
+    _catalogoCache = cache.productos;
+    _catalogoDesdeNube = true;      // son datos de Firestore de hace menos de 5 min
+    _catalogoNubeVacio = false;
+    await configDropListo.catch(() => {});
+    return _catalogoCache;
+  }
+  const fabrica = () => (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).map(p => ({ ...p, descuento: 0 }));
   try {
     const snap = await fbDb.collection('productos').get();
     if (snap.empty) {
-      const base = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).map(p => ({
-        ...p,
-        descuento: 0, // % que pone el admin (0 a 90). 0 = sin descuento.
-      }));
-      const batch = fbDb.batch();
-      base.forEach(p => {
-        const { id, ...datos } = p;
-        batch.set(fbDb.collection('productos').doc(String(id)), datos);
-      });
-      await batch.commit();
-      _catalogoCache = base;
-      _catalogoDesdeNube = true;
+      // Colección vacía (tienda recién creada): se muestra el catálogo de fábrica SIN escribir nada.
+      _catalogoNubeVacio = true;
+      _catalogoDesdeNube = false;
+      _catalogoCache = fabrica();
     } else {
+      _catalogoNubeVacio = false;
       _catalogoCache = snap.docs.map(d => {
         const datos = d.data();
         return { ...datos, id: isNaN(d.id) ? d.id : Number(d.id) };
       });
       _catalogoDesdeNube = true;
+      _guardarCacheCatalogo();
     }
   } catch (e) {
-    _catalogoDesdeNube = false;
     console.error('Error cargando el catálogo desde Firestore:', e);
-    // Si falla internet, al menos que la tienda muestre el catálogo de fábrica
-    _catalogoCache = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).map(p => ({ ...p, descuento: 0 }));
+    _catalogoNubeVacio = false;
+    _catalogoDesdeNube = false;     // el carrito no "corrige" precios con datos que pueden estar viejos
+    _catalogoCache = cache ? cache.productos : fabrica();
   }
   await configDropListo.catch(() => {});
   return _catalogoCache;
+}
+/** Solo para el panel admin (las reglas solo dejan crear productos al admin):
+    copia el catálogo de fábrica a Firestore cuando la colección está vacía. */
+async function sembrarCatalogoInicial() {
+  if (!_catalogoNubeVacio) return false;
+  const base = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).map(p => ({ ...p, descuento: 0 }));
+  const batch = fbDb.batch();
+  base.forEach(p => {
+    const { id, ...datos } = p;
+    batch.set(fbDb.collection('productos').doc(String(id)), datos);
+  });
+  await batch.commit();
+  _catalogoNubeVacio = false;
+  _catalogoCache = base;
+  _catalogoDesdeNube = true;
+  _invalidarCacheCatalogo();
+  return true;
 }
 /** Lectura sincrónica del catálogo ya cargado en memoria (ver
     cargarCatalogo más arriba). */
@@ -173,7 +234,9 @@ function getCatalogo() {
     cambio en _catalogoCache antes de llamar a esto. */
 function _guardarProductoEnNube(producto) {
   const { id, ...datos } = producto;
+  _invalidarCacheCatalogo();
   fbDb.collection('productos').doc(String(id)).set(datos, { merge: true })
+    .then(_invalidarCacheCatalogo)
     .catch(e => console.error('Error guardando el producto en la nube:', e));
 }
 /** Precio BASE (sin descuento) de una talla específica. Si el admin no le
@@ -415,7 +478,9 @@ function agregarProductoAdmin(nuevo) {
 /** Elimina un producto del catálogo por completo */
 function eliminarProductoAdmin(id) {
   _catalogoCache = _catalogoCache.filter(p => p.id != id);
+  _invalidarCacheCatalogo();
   fbDb.collection('productos').doc(String(id)).delete()
+    .then(_invalidarCacheCatalogo)
     .catch(e => console.error('Error eliminando el producto en la nube:', e));
 }
 
@@ -953,6 +1018,7 @@ async function crearPedido(datosCliente) {
 
       tx.set(pedidoRef, pedido);
     });
+    _invalidarCacheCatalogo();   // el stock cambió: la próxima página lee datos frescos
   } catch (e) {
     console.error('Error guardando el pedido en Firestore:', e);
     if (!e || !_CODIGOS_PEDIDO_ESPERADOS.includes(e.code)) {
@@ -1175,7 +1241,7 @@ async function actualizarEstadoPedidoAdmin(id, estado) {
       return { sinCambio: false, stockMovido, accionStock };
     });
     if (!r.sinCambio) enviarAviso({ tipo: 'pedido_estado', id, estado, usuario });
-    if (r.stockMovido > 0) { try { await cargarCatalogo(); } catch (e) { /* no crítico */ } }
+    if (r.stockMovido > 0) { try { await cargarCatalogo({ fresco: true }); } catch (e) { /* no crítico */ } }
     return { ok: true, sinCambio: r.sinCambio, entradaHistorial: r.sinCambio ? null : entradaHistorial, stockMovido: r.stockMovido, accionStock: r.accionStock };
   } catch (e) {
     console.error('Error cambiando el estado del pedido:', e);
@@ -1329,7 +1395,7 @@ async function eliminarPedidoAdmin(id) {
     return { ok: false, msg: 'No se pudo eliminar el pedido (revisa tu conexión y tus permisos).' };
   }
   // Refresca el catálogo en memoria para que el panel y la tienda muestren el stock ya devuelto
-  try { await cargarCatalogo(); } catch (e) { /* no crítico */ }
+  try { await cargarCatalogo({ fresco: true }); } catch (e) { /* no crítico */ }
   // El pedido YA se borró de Firestore. Ahora se le pide al Apps Script quitar la fila de la hoja:
   // solo lo hace si el aviso trae el token de un admin y el pedido ya no existe en Firestore.
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT") return res;
@@ -1502,6 +1568,7 @@ async function crearResena(productoId, nombreInput, estrellasInput, comentarioIn
     });
 
     localStorage.setItem('yd_resena_' + id, '1');
+    _invalidarCacheCatalogo();   // el promedio de estrellas cambió
     return { ok: true };
   } catch (e) {
     return { ok: false, msg: 'No hay conexión a internet.' };

@@ -153,37 +153,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js?v=4"></script>
 <script src="js/analitica.js?v=1"></script>
-<script src="js/store.js?v=12"></script>
+<script src="js/store.js?v=13"></script>
 
-<!-- ============================================================
-     EmailJS — para enviar el código de verificación por CORREO
-     sin necesitar servidor propio. Es gratis (200 correos/mes).
-
-     CÓMO CONFIGURARLO (5 minutos):
-     1) Crea una cuenta gratis en https://www.emailjs.com
-     2) "Email Services" -> conecta tu Gmail/Outlook -> copia el
-        SERVICE_ID que te da.
-     3) "Email Templates" -> crea uno nuevo. En el cuerpo del
-        correo escribe algo como:
-          Hola {{to_name}}, tu código de verificación de MAQUINA es: {{code}}
-        Y en el campo "To email" del template pon: {{to_email}}
-        Copia el TEMPLATE_ID que te da.
-     4) "Account" -> "General" -> copia tu PUBLIC KEY.
-     5) Reemplaza los 3 valores de EMAILJS_CONFIG aquí abajo.
-     Mientras no los reemplaces, el registro por correo no podrá
-     enviar el código (se mostrará un error explicándolo).
-     ============================================================ -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script>
-const EMAILJS_CONFIG = {
-  PUBLIC_KEY: "PEGA_AQUI_TU_PUBLIC_KEY",
-  SERVICE_ID: "PEGA_AQUI_TU_SERVICE_ID",
-  TEMPLATE_ID: "PEGA_AQUI_TU_TEMPLATE_ID",
-};
-if (EMAILJS_CONFIG.PUBLIC_KEY !== "PEGA_AQUI_TU_PUBLIC_KEY" && typeof emailjs !== 'undefined') {
-  emailjs.init({ publicKey: EMAILJS_CONFIG.PUBLIC_KEY });
-}
-</script>
+<!-- El código de verificación por correo lo genera, envía y comprueba el Apps Script (ver GUIA_VERIFICACION_CODIGO.txt): nunca pasa por el navegador. -->
 
 <script>
 /* ============================================================
@@ -212,8 +184,6 @@ const btnVolver   = document.getElementById('btnVolver');
 
 let metodoActual = 'correo';       // 'correo' | 'telefono'
 let datosPendientes = null;        // datos del form, guardados mientras se verifica
-let codigoEmailGenerado = null;    // código de 6 dígitos (solo método correo)
-let codigoExpira = 0;
 let confirmationResult = null;     // resultado de Firebase Phone Auth (solo método teléfono)
 let recaptchaVerifier = null;
 let resendCountdown = null;
@@ -232,10 +202,6 @@ methodToggle.addEventListener('click', (e) => {
     telefonoInput.removeAttribute('required');
   }
 });
-
-function generarCodigo6() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
 
 function formatearTelefono(valor) {
   // deja solo dígitos y el + inicial
@@ -284,24 +250,25 @@ formRegistro.addEventListener('submit', async function (e) {
   mostrarPantallaOtp();
 });
 
-// ---------- envío de código por correo (EmailJS) ----------
-async function enviarCodigoPorCorreo(correo, nombre) {
-  if (EMAILJS_CONFIG.PUBLIC_KEY === "PEGA_AQUI_TU_PUBLIC_KEY") {
-    return { ok: false, msg: 'Falta configurar EmailJS en registro.html (ver los comentarios en el código) para poder enviar el código por correo.' };
-  }
-  codigoEmailGenerado = generarCodigo6();
-  codigoExpira = Date.now() + 10 * 60 * 1000; // 10 minutos
+// ---------- código por correo: lo genera, envía y verifica el servidor (Apps Script) ----------
+async function llamarServidorCodigo(cuerpo) {
+  if (typeof APPS_SCRIPT_URL === 'undefined' || !APPS_SCRIPT_URL || /^PEGA_AQUI/.test(APPS_SCRIPT_URL)) return null;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 20000);
   try {
-    await emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
-      to_email: correo,
-      to_name: nombre,
-      code: codigoEmailGenerado,
-    });
-    return { ok: true };
+    const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(cuerpo), signal: ctl.signal });
+    return JSON.parse(await resp.text());   // si el script publicado es viejo responde "ok" -> no es JSON -> null
   } catch (e) {
-    console.error('Error enviando código por EmailJS:', e);
-    return { ok: false, msg: 'No se pudo enviar el correo. Revisa tu conexión o inténtalo de nuevo.' };
-  }
+    console.warn('Código de registro: no se pudo hablar con el servidor.', e);
+    return null;
+  } finally { clearTimeout(t); }
+}
+async function enviarCodigoPorCorreo(correo, nombre) {
+  const r = await llamarServidorCodigo({ tipo: 'registro_codigo_enviar', correo, nombre });
+  if (r && r.ok === true) return { ok: true };
+  if (r && r.error === 'limite') return { ok: false, msg: 'Pediste varios códigos seguidos. Espera unos minutos e inténtalo de nuevo.' };
+  if (r && r.error === 'correo') return { ok: false, msg: 'Ese correo no parece válido.' };
+  return { ok: false, msg: 'Ahora mismo no podemos enviar el código por correo. Inténtalo de nuevo en unos minutos o verifica con tu teléfono.' };
 }
 
 // ---------- envío de código por SMS (Firebase Phone Auth) ----------
@@ -413,10 +380,17 @@ formOtp.addEventListener('submit', async function (e) {
   let errorMsg = 'Código incorrecto, inténtalo de nuevo.';
 
   if (metodoActual === 'correo') {
-    if (Date.now() > codigoExpira) {
-      errorMsg = 'El código expiró, pide uno nuevo con "Reenviar código".';
-    } else if (codigo === codigoEmailGenerado) {
+    const r = await llamarServidorCodigo({ tipo: 'registro_codigo_verificar', correo: datosPendientes.correo, codigo });
+    if (r && r.ok === true) {
       verificado = true;
+    } else if (!r) {
+      errorMsg = 'No pudimos comprobar el código (revisa tu conexión) e inténtalo de nuevo.';
+    } else if (r.error === 'expirado') {
+      errorMsg = 'El código expiró, pide uno nuevo con "Reenviar código".';
+    } else if (r.error === 'intentos') {
+      errorMsg = 'Demasiados intentos con ese código. Pide uno nuevo con "Reenviar código".';
+    } else if (r.quedan) {
+      errorMsg = 'Código incorrecto. Te quedan ' + r.quedan + ' intento' + (r.quedan === 1 ? '' : 's') + '.';
     }
   } else {
     try {

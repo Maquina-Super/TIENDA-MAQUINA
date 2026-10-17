@@ -69,7 +69,7 @@
 <script src="js/icons.js"></script>
 <script src="js/products.js"></script>
 <script src="js/envio-municipios.js?v=1"></script>
-<script src="js/store.js?v=12"></script>
+<script src="js/store.js?v=13"></script>
 <script src="js/carrito-core.js"></script>
 <script src="js/layout.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -127,7 +127,7 @@ const PAGO_NEQUI_ACTIVO = !!(NEQUI_NUMERO.trim() && NEQUI_TITULAR.trim());
 
 /* El catálogo se carga en segundo plano: lo necesita el botón "+"
    (para revisar stock) y el menú del encabezado. */
-const catalogoListo = cargarCatalogo().then(() => renderHeader('carrito')).catch(e => console.error('Catálogo:', e));
+const catalogoListo = cargarCatalogo({ fresco: true }).then(() => renderHeader('carrito')).catch(e => console.error('Catálogo:', e));
 
 /* Los costos de envío por zona también se cargan en segundo plano
    (pueden haber cambiado desde el panel). Si ya llegaron antes de
@@ -1854,7 +1854,7 @@ function revalidar() {
   if (_revalidando) return _revalidando;
   _revalidando = (async () => {
     try {
-      await cargarCatalogo();
+      await cargarCatalogo({ fresco: true });
       CarritoCore.reconciliar(typeof catalogoDesdeNube === 'function' && catalogoDesdeNube());
     } catch (e) {
       CarritoCore.reconciliar(false);

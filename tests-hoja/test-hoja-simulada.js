@@ -38,7 +38,7 @@ function crearEntorno(filasIniciales, encabezados) {
   }
   const grid = [encabezados].concat(filasIniciales).map(f => f.slice());
   Hoja('Pedidos', grid);
-  const correos = []; const firestore = {}; const fetchs = []; const cache = {}; let cuota = 100;
+  const correos = []; const firestore = {}; const fetchs = []; const cache = {}; const props = {}; let cuota = 100;
   const voltageClub = ['cliente1@x.com', 'cliente2@x.com', 'a@b.com,victima@x.com', 'no-es-correo']; // las dos últimas son basura
   const panelCodigos = { 'admin@tienda.com': '123456' };
   const ctx = {
@@ -48,8 +48,15 @@ function crearEntorno(filasIniciales, encabezados) {
     MailApp: { sendEmail: o => { correos.push(o); cuota -= 1 + (o.bcc ? String(o.bcc).split(',').length : 0); }, getRemainingDailyQuota: () => cuota },
     ContentService: { createTextOutput: t => ({ t }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'dueno@test.com' }) },
-    CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; } }) },
-    Utilities: { base64EncodeWebSafe: t => Buffer.from(String(t)).toString('base64url') },
+    CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
+    Utilities: {
+      base64EncodeWebSafe: t => Buffer.from(typeof t === 'string' ? t : Buffer.from(t)).toString('base64url'),
+      computeHmacSha256Signature: (v, clave) => [...require('crypto').createHmac('sha256', clave).update(v).digest()],
+      computeDigest: (alg, v) => [...require('crypto').createHash('sha256').update(v).digest()],
+      DigestAlgorithm: { SHA_256: 'SHA_256' },
+      getUuid: () => require('crypto').randomUUID(),
+    },
     UrlFetchApp: { fetch: (url, opc) => {
       fetchs.push(url);
       const resp = (code, obj) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(obj || {}) });
@@ -529,6 +536,54 @@ t('pedidos_sincronizar: procesa como máximo 15 ids por llamada', () => {
   const ids = []; for (let i = 0; i < 20; i++) { const c = 'LOT' + String(i).padStart(3, '0'); const d = pedidoNuevo(c).pedido; delete d.id; delete d.codigo_pedido; E8.firestore[ID(c)] = d; ids.push(ID(c)); }
   const r = J(E8.post({ tipo: 'pedidos_sincronizar', ids, idToken: ADMIN_TOKEN }));
   assert.strictEqual(r.agregados, 15); assert.strictEqual(E8.hojas.Pedidos.getLastRow(), 16);
+});
+
+/* ---------- código de verificación del registro (registro.html) ---------- */
+const codigoDe = (E, i) => (E.correos[i === undefined ? E.correos.length - 1 : i].body.match(/\b(\d{6})\b/) || [])[1];
+t('registro_codigo: envía UN correo con un código de 6 dígitos y la respuesta NO lo revela (ni se guarda en claro)', () => {
+  const E9 = crearEntorno([], ENC);
+  const r = J(E9.post({ tipo: 'registro_codigo_enviar', correo: 'Nuevo@Cliente.com ', nombre: 'Ana' }));
+  assert.deepStrictEqual(r, { ok: true });
+  assert.strictEqual(E9.correos.length, 1); assert.strictEqual(E9.correos[0].to, 'nuevo@cliente.com');
+  const cod = codigoDe(E9); assert.ok(/^\d{6}$/.test(cod));
+  assert.ok(!JSON.stringify(r).includes(cod));
+  assert.ok(!JSON.stringify(E9.cache).includes(cod), 'en el caché solo debe quedar la huella');
+});
+t('registro_codigo: el código correcto verifica UNA sola vez; reutilizarlo ya no sirve', () => {
+  const E9 = crearEntorno([], ENC);
+  E9.post({ tipo: 'registro_codigo_enviar', correo: 'a@x.com', nombre: 'A' }); const cod = codigoDe(E9);
+  assert.deepStrictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: cod })), { ok: true });
+  assert.deepStrictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: cod })), { ok: false, error: 'expirado' });
+});
+t('registro_codigo: código incorrecto avisa los intentos que quedan y a los 5 se invalida (ni el correcto sirve ya)', () => {
+  const E9 = crearEntorno([], ENC);
+  E9.post({ tipo: 'registro_codigo_enviar', correo: 'a@x.com', nombre: 'A' }); const cod = codigoDe(E9);
+  const malo = cod === '000000' ? '111111' : '000000';
+  assert.deepStrictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: malo })), { ok: false, error: 'incorrecto', quedan: 4 });
+  for (let i = 0; i < 3; i++) E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: malo });
+  assert.deepStrictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: malo })), { ok: false, error: 'intentos' });
+  assert.deepStrictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: cod })), { ok: false, error: 'expirado' });
+});
+t('registro_codigo: el código de un correo no sirve para otro; vencido o sin pedir -> expirado; formato raro -> incorrecto', () => {
+  const E9 = crearEntorno([], ENC);
+  E9.post({ tipo: 'registro_codigo_enviar', correo: 'a@x.com', nombre: 'A' }); const cod = codigoDe(E9);
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'otro@x.com', codigo: cod })).ok, false);
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: '12ab56' })).error, 'incorrecto');
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: { $ne: 1 } })).error, 'incorrecto');
+  const k = Object.keys(E9.cache).find(x => /^otp_/.test(x)); const r = JSON.parse(E9.cache[k]); r.e = Date.now() - 1; E9.cache[k] = JSON.stringify(r);
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_verificar', correo: 'a@x.com', codigo: cod })).error, 'expirado');
+});
+t('registro_codigo: correo inválido no envía nada; máximo 4 códigos por dirección; respeta la reserva de cuota', () => {
+  const E9 = crearEntorno([], ENC);
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_enviar', correo: 'no-es-correo' })).error, 'correo');
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_enviar', correo: 'a@b.com,victima@x.com' })).error, 'correo');
+  assert.strictEqual(E9.correos.length, 0);
+  for (let i = 0; i < 4; i++) assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_enviar', correo: 'a@x.com' })).ok, true);
+  assert.strictEqual(J(E9.post({ tipo: 'registro_codigo_enviar', correo: 'a@x.com' })).error, 'limite');
+  assert.strictEqual(E9.correos.length, 4);
+  const E10 = crearEntorno([], ENC); E10.setCuota(20);   // por debajo de la reserva de pedidos
+  assert.strictEqual(J(E10.post({ tipo: 'registro_codigo_enviar', correo: 'b@x.com' })).error, 'limite');
+  assert.strictEqual(E10.correos.length, 0);
 });
 
 console.log(`\n${ok} pruebas OK` + (process.exitCode ? '  —  HAY FALLOS' : '')); 
