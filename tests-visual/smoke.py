@@ -1,7 +1,7 @@
 import sys, json, os
 from common import *
 
-PAGES = ['index.html','productos.html','categorias.html','catalogo.html','favoritos.html','producto.html?id=1',
+PAGES = ['index.html','productos.html','categorias.html','catalogo.html','favoritos.html','producto.html?id=1','quienes-somos.html',
          'servicios.html','carrito.html','seguimiento.html','legal.html','login.html','registro.html','admin.html']
 OUT = os.environ.get('SHOTS', 'capturas')
 os.makedirs(OUT, exist_ok=True)

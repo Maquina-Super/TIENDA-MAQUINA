@@ -383,7 +383,9 @@
       if (!/^data:image\/jpeg;base64,/.test(src)) { caja.textContent = 'No se encontró la foto.'; return; }
       caja.textContent = '';
       const a = document.createElement('a');
-      a.href = src; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = 'Abrir foto completa';
+      a.href = '#'; a.title = 'Abrir foto completa';
+      // Chrome bloquea abrir "data:" en una pestaña nueva: se convierte a un enlace temporal (blob).
+      a.addEventListener('click', (ev) => { ev.preventDefault(); fetch(src).then(r => r.blob()).then(b => window.open(URL.createObjectURL(b), '_blank', 'noopener')).catch(() => {}); });
       const img = document.createElement('img');
       img.src = src; img.alt = 'Foto adjunta por el cliente';
       img.style.cssText = 'max-width:100%;max-height:320px;border-radius:10px;border:1px solid var(--line,#333);display:block;';

@@ -12,12 +12,8 @@
 <meta property="og:type" content="product">
 <meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
 <meta name="theme-color" content="#0a0a0a">
-<<<<<<< HEAD
-<link rel="stylesheet" href="css/estilos.css?v=rev3">
-=======
-<link rel="stylesheet" href="css/estilos.css?v=rev2">
->>>>>>> 801db22cee48b97843c0adb875ad5a5493872695
-<link rel="stylesheet" href="css/maquina-ui.css?v=10">
+<link rel="stylesheet" href="css/estilos.css?v=rev4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=11">
 <link rel="stylesheet" href="css/extras-cliente.css?v=2">
 <link rel="stylesheet" href="css/tarjetas.css?v=2">
 <link rel="stylesheet" href="css/maquina-sistema.css?v=4">
@@ -47,6 +43,15 @@
       </div>
       <input type="text" id="resNombre" maxlength="60" placeholder="Tu nombre">
       <textarea id="resComentario" maxlength="500" placeholder="¿Qué te pareció? (opcional)"></textarea>
+      <div class="yd-resena-foto-box">
+        <input type="file" id="resFotoInput" accept="image/jpeg,image/png,image/webp" hidden>
+        <button type="button" class="yd-btn-second yd-resena-foto-btn" id="resFotoBtn">📷 Agregar foto (opcional)</button>
+        <div class="yd-resena-foto-prev" id="resFotoPrev" hidden>
+          <img id="resFotoImg" alt="Vista previa de tu foto">
+          <button type="button" id="resFotoQuitar" aria-label="Quitar foto">Quitar</button>
+        </div>
+        <small class="yd-resena-foto-info">JPG, PNG o WEBP · máximo 5 MB</small>
+      </div>
       <button type="submit" class="yd-btn-second" id="resEnviar">Publicar reseña</button>
       <p class="yd-resena-msg" id="resMsg"></p>
     </form>
@@ -69,11 +74,11 @@
 <script src="js/firebase-config.js?v=4"></script>
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=6"></script>
-<script src="js/store.js?v=7"></script>
+<script src="js/store.js?v=9"></script>
 <script src="js/envio-municipios.js?v=1"></script>
 <script src="js/catalog-render.js?v=5"></script>
-<script src="js/layout.js?v=5"></script>
-<script src="js/maquina-ui.js?v=4"></script>
+<script src="js/layout.js?v=7"></script>
+<script src="js/maquina-ui.js?v=4b"></script>
 <script src="js/extras-cliente.js?v=1"></script>
 <script>
 renderHeader('productos');
@@ -289,7 +294,7 @@ const formResena = document.getElementById('ydResenaForm');
 const estrellasEl = document.getElementById('resEstrellas');
 const resMsg = document.getElementById('resMsg');
 
-function pintarResenas(lista) {
+let pintarResenas = function (lista) {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   if (!lista.length) {
     listaResenasEl.innerHTML = '<p class="yd-resenas-vacio">Todavía no hay reseñas de este producto. ¡Sé el primero en opinar!</p>';
@@ -303,10 +308,43 @@ function pintarResenas(lista) {
       <div class="yd-resena-item">
         <div class="yd-resena-top"><b>${esc(r.nombre)}</b><span class="yd-resena-estr">${estr}</span></div>
         ${r.comentario ? `<p>${esc(r.comentario)}</p>` : ''}
+        ${r.con_foto ? `<button type="button" class="yd-resena-foto" data-foto-id="${esc(r.id)}" aria-label="Ver foto de la reseña"></button>` : ''}
         <span class="yd-resena-fecha">${fecha}</span>
       </div>`;
   }).join('');
+};
+
+/* Fotos de reseñas: se piden solo cuando se acercan a la pantalla. */
+function verFotoGrande(src) {
+  const ov = document.createElement('div');
+  ov.className = 'yd-resena-lightbox';
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Foto de la reseña');
+  ov.innerHTML = '<img alt="Foto de la reseña"><button type="button" aria-label="Cerrar">✕</button>';
+  ov.querySelector('img').src = src;
+  const cerrar = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') cerrar(); };
+  ov.addEventListener('click', cerrar); document.addEventListener('keydown', onKey);
+  document.body.appendChild(ov); ov.querySelector('button').focus();
 }
+const obsFotos = ('IntersectionObserver' in window) ? new IntersectionObserver((ents) => {
+  ents.forEach(async (en) => {
+    if (!en.isIntersecting) return;
+    obsFotos.unobserve(en.target);
+    cargarFotoResena(en.target);
+  });
+}, { rootMargin: '200px' }) : null;
+async function cargarFotoResena(btn) {
+  const src = await obtenerFotoResena(btn.dataset.fotoId);
+  if (!src) { btn.remove(); return; }
+  btn.innerHTML = '<img alt="Foto de la reseña" loading="lazy">';
+  btn.querySelector('img').src = src;
+  btn.addEventListener('click', () => verFotoGrande(src));
+}
+const _pintarResenasBase = pintarResenas;
+pintarResenas = function (lista) {
+  _pintarResenasBase(lista);
+  listaResenasEl.querySelectorAll('.yd-resena-foto').forEach(b => (obsFotos ? obsFotos.observe(b) : cargarFotoResena(b)));
+};
 
 listarResenas(p.id).then(pintarResenas);
 
@@ -327,21 +365,46 @@ if (localStorage.getItem('yd_resena_' + p.id)) {
     });
   });
 
+  /* Foto opcional: valida tipo y tamaño (5 MB), la reduce a JPG liviano y muestra vista previa. */
+  const fotoResena = { dataUrl: null, procesando: false };
+  const fInput = document.getElementById('resFotoInput'), fPrev = document.getElementById('resFotoPrev'),
+        fImg = document.getElementById('resFotoImg'), fBtn = document.getElementById('resFotoBtn');
+  function quitarFotoResena() { fotoResena.dataUrl = null; fInput.value = ''; fImg.removeAttribute('src'); fPrev.hidden = true; fBtn.hidden = false; }
+  function errFoto(m) { resMsg.textContent = m; resMsg.className = 'yd-resena-msg is-error'; }
+  fBtn.addEventListener('click', () => fInput.click());
+  document.getElementById('resFotoQuitar').addEventListener('click', () => { quitarFotoResena(); resMsg.textContent = ''; });
+  fInput.addEventListener('change', async () => {
+    const f = fInput.files && fInput.files[0]; if (!f) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) { quitarFotoResena(); errFoto('Formato no permitido. Usa JPG, PNG o WEBP.'); return; }
+    if (f.size > 5 * 1024 * 1024) { quitarFotoResena(); errFoto('La foto pesa más de 5 MB.'); return; }
+    fotoResena.procesando = true;
+    try {
+      let url = await comprimirImagen(f, 800, 0.7);
+      if (url.length > 380000) url = await comprimirImagen(f, 600, 0.6);
+      if (url.length > 380000) throw new Error('grande');
+      fotoResena.dataUrl = url; fImg.src = url; fPrev.hidden = false; fBtn.hidden = true; resMsg.textContent = '';
+    } catch (e) { quitarFotoResena(); errFoto('No pudimos leer esa foto. Prueba con otra.'); }
+    finally { fotoResena.procesando = false; }
+  });
+
   formResena.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('resEnviar');
     btn.disabled = true;
+    if (fotoResena.procesando) { resMsg.textContent = 'Estamos preparando tu foto, intenta de nuevo en un segundo.'; resMsg.className = 'yd-resena-msg is-error'; btn.disabled = false; return; }
     const res = await crearResena(
       p.id,
       document.getElementById('resNombre').value,
       estrellasElegidas,
       document.getElementById('resComentario').value,
+      fotoResena.dataUrl,
     );
     btn.disabled = false;
     if (res.ok) {
       resMsg.textContent = '¡Gracias por tu reseña!';
       resMsg.className = 'yd-resena-msg is-ok';
       formResena.reset();
+      quitarFotoResena();
       estrellasElegidas = 0;
       estrellasEl.dataset.valor = 0;
       estrellasEl.querySelectorAll('button').forEach(b => b.textContent = '☆');

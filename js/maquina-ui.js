@@ -24,7 +24,7 @@
    ============================================================ */
 const YD_HERO_SLIDES = [
   {
-    imagen: "img/banner-hoodie-1.jpg",
+    imagen: "img/banner-hoodie-1.webp",
     eyebrow: "MAQUINA · Streetwear",
     titulo: 'Viste tu <span>actitud.</span>',
     texto: "Ropa urbana para gente que no sigue la corriente.",
@@ -32,7 +32,7 @@ const YD_HERO_SLIDES = [
     href: "productos.html",
   },
   {
-    imagen: "img/banner-hoodie-3.jpg",
+    imagen: "img/banner-hoodie-3.webp",
     eyebrow: "MAQUINA · Streetwear",
     titulo: 'Disciplina que <span>se nota.</span>',
     texto: "Prendas hechas para entrenar, salir y repetir.",
@@ -40,7 +40,7 @@ const YD_HERO_SLIDES = [
     href: "productos.html",
   },
   {
-    imagen: "img/banner-hoodie-2.jpg",
+    imagen: "img/banner-hoodie-2.webp",
     eyebrow: "MAQUINA · Busos",
     titulo: 'Una marca que <span>habla por ti.</span>',
     texto: "Mira los busos de la colección.",
@@ -194,7 +194,7 @@ function ydFotosProducto(p) {
 function ydVisual(p, color) {
   const foto = (p.fotos && p.fotos[color]) || p.foto;
   return foto
-    ? `<img src="${foto}" alt="${p.nombre}">`
+    ? `<img src="${foto}" alt="${p.nombre}" loading="lazy" decoding="async">`
     : (typeof iconoProducto === "function" ? iconoProducto(p.icono, color || "#dfe8da") : "");
 }
 

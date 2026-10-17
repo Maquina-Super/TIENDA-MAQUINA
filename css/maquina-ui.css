@@ -912,3 +912,18 @@ body{
   #btnLimpiar { min-height: 44px; }
   .footer-admin-link { display: inline-block; padding: 10px 0; }
 }
+
+/* Reseñas con foto */
+.yd-resena-foto{display:block;width:84px;height:84px;padding:0;margin:2px 0 8px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface-2,var(--surface));cursor:zoom-in;}
+.yd-resena-foto img{width:100%;height:100%;object-fit:cover;display:block;}
+.yd-resena-foto-box{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+.yd-resena-foto-btn{min-height:40px;}
+.yd-resena-foto-info{color:var(--gray);font-size:11.5px;}
+.yd-resena-foto-prev{display:flex;align-items:center;gap:10px;}
+.yd-resena-foto-prev[hidden],.yd-resena-foto-btn[hidden]{display:none;}
+.yd-resena-foto-prev img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
+.yd-resena-foto-prev button{background:none;border:1px solid var(--line);border-radius:8px;color:var(--ink);min-height:40px;padding:0 14px;cursor:pointer;font:inherit;font-size:13px;}
+.yd-resena-foto-prev button:hover,.yd-resena-foto-prev button:focus-visible,.yd-resena-foto:focus-visible{border-color:var(--acento);outline:2px solid var(--acento);outline-offset:2px;}
+.yd-resena-lightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;}
+.yd-resena-lightbox img{max-width:100%;max-height:100%;border-radius:12px;}
+.yd-resena-lightbox button{position:absolute;top:14px;right:14px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:rgba(20,20,20,.9);color:#fff;font-size:18px;cursor:pointer;}

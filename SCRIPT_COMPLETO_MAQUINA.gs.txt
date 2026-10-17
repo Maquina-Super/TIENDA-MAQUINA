@@ -34,7 +34,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-16 correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+const VERSION_SCRIPT = "2026-10-17 aviso-estado-pedido-por-correo + correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -79,6 +79,7 @@ const DESTINO_CONTACTO = '';
 const RESERVA_CUOTA_PEDIDOS = 30;
 const LIMITES_ENVIO = {
   pedido_nuevo:              { porCorreo: 5,    global: 100, ventana: 3600,  prioritario: true },
+  pedido_estado:             { porCorreo: 10,   global: 150, ventana: 3600  },
   voltage_club_bienvenida:   { porCorreo: 1,    global: 30,  ventana: 21600 },
   contacto_nuevo:            { porCorreo: 5,    global: 30,  ventana: 3600  },
   codigo_panel_recuperacion: { porCorreo: 1,    global: 10,  ventana: 600   },
@@ -100,7 +101,9 @@ function doPost(e) {
       if (pedidoReal && guardarPedidoEnSheet(pedidoReal)) enviarCorreoConfirmacion(pedidoReal);
     }
     if (datos.tipo === 'pedido_estado') {
-      actualizarEstadoPedidoEnSheet(datos.id);
+      // Aviso al cliente por correo (si el estado cambió de verdad), aunque la hoja falle.
+      try { actualizarEstadoPedidoEnSheet(datos.id); }
+      finally { try { avisarCambioEstadoPedido(datos.id); } catch (errAviso) { console.warn('pedido_estado: no se pudo avisar al cliente: ' + errAviso); } }
     }
     if (datos.tipo === 'pedido_pago') {
       actualizarPagoPedidoEnSheet(datos.id);
@@ -436,6 +439,60 @@ function leerEstadoPedidoFirestore(id) {
   const campos = (JSON.parse(resp.getContentText()).fields) || {};
   const estado = campos.estado && campos.estado.stringValue;
   return ESTADOS_PEDIDO_TXT[estado] ? estado : 'pendiente'; // sin campo = pendiente (pedidos antiguos)
+}
+
+/* ---------- 5b) AVISO AL CLIENTE CUANDO CAMBIA EL ESTADO DEL PEDIDO ----------
+   - El estado y el correo se LEEN de Firestore (pedido real); del aviso solo se usa el ID.
+   - Solo avisa: confirmado, enviado, entregado y cancelado (pendiente no).
+   - No repite: guarda el último estado avisado de cada pedido, así que reenviar el
+     mismo aviso (o un cambio de ida y vuelta al mismo estado) no manda otro correo.
+   - Respeta los límites de correo (LIMITES_ENVIO.pedido_estado) y la cuota diaria. */
+const MENSAJES_ESTADO_PEDIDO = {
+  confirmado: { emoji: '✅', titulo: 'Pedido confirmado',  texto: 'Confirmamos tu pedido y lo estamos preparando.' },
+  enviado:    { emoji: '🚚', titulo: 'Tu pedido va en camino', texto: 'Tu pedido ya salió de nuestras manos y va rumbo a tu dirección.' },
+  entregado:  { emoji: '🎉', titulo: 'Pedido entregado',   texto: 'Tu pedido fue entregado. ¡Esperamos que lo disfrutes!' },
+  cancelado:  { emoji: '⚠️', titulo: 'Pedido cancelado',   texto: 'Tu pedido fue cancelado. Si no lo esperabas, escríbenos y lo revisamos contigo.' },
+};
+
+function avisarCambioEstadoPedido(id) {
+  const idCompleto = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(idCompleto)) return;
+  const pedido = leerPedidoFirestore(idCompleto);
+  if (!pedido || !pedido.email_cliente) return;
+  const estado = pedido.estado || 'pendiente';
+  const msg = MENSAJES_ESTADO_PEDIDO[estado];
+  if (!msg) return;
+
+  const props = PropertiesService.getScriptProperties();
+  const clave = 'estado_avisado_' + idCompleto;
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    if (props.getProperty(clave) === estado) return;                 // ya se avisó este estado
+    if (!puedoEnviar('pedido_estado', pedido.email_cliente, 1)) return;
+    const codigo = pedido.codigo_pedido || idCompleto.slice(-6).toUpperCase();
+    const link = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(idCompleto);
+    const asunto = msg.emoji + ' ' + msg.titulo + ' — Pedido #' + codigo + ' | MAQUINA';
+    const cuerpoTexto = 'Hola ' + (pedido.nombre_cliente || '') + ',\n\n' + msg.texto + '\n\nPedido #' + codigo +
+      '\nSigue tu pedido: ' + link + '\n\n¿Dudas? WhatsApp: https://wa.me/573239523623\n\n— MAQUINA';
+    const cuerpoHtml =
+      '<div style="background:#0b0b0d;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">' +
+      '<div style="max-width:520px;margin:0 auto;background:#121216;border:1px solid #2c2c33;border-radius:14px;padding:24px 20px;">' +
+        '<div style="text-align:center;font-size:15px;letter-spacing:4px;font-weight:700;color:#b4e614;">MAQUINA</div>' +
+        '<p style="font-size:30px;text-align:center;margin:14px 0 4px;">' + msg.emoji + '</p>' +
+        '<p style="font-size:18px;font-weight:700;color:#ffffff;text-align:center;margin:0 0 14px;">' + esc(msg.titulo) + '</p>' +
+        '<p style="font-size:15px;color:#ffffff;margin:0 0 8px;">¡Hola <strong>' + esc(pedido.nombre_cliente || '') + '</strong>!</p>' +
+        '<p style="font-size:14px;color:#d6d6dc;line-height:1.5;margin:0 0 6px;">' + esc(msg.texto) + '</p>' +
+        '<p style="font-size:13px;color:#9a9aa3;margin:0 0 4px;">Pedido <strong style="color:#b4e614;">#' + esc(codigo) + '</strong> · Total $' + dinero(pedido.total) + '</p>' +
+        '<a href="' + esc(link) + '" style="display:block;text-align:center;margin:18px 0 14px;padding:13px;border-radius:10px;background:#b4e614;color:#151512;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:.5px;">📦 SEGUIR MI PEDIDO</a>' +
+        '<p style="font-size:13px;color:#9a9aa3;margin:0;">¿Dudas? Escríbenos por WhatsApp:<br><a href="https://wa.me/573239523623" style="color:#8ab4ff;">https://wa.me/573239523623</a></p>' +
+        '<p style="font-size:13px;color:#6b6b75;margin:16px 0 0;">— MAQUINA</p>' +
+      '</div></div>';
+    MailApp.sendEmail({ to: pedido.email_cliente, subject: asunto, body: cuerpoTexto, htmlBody: cuerpoHtml, name: 'MAQUINA' });
+    props.setProperty(clave, estado);
+  } finally {
+    candado.releaseLock();
+  }
 }
 
 function actualizarEstadoPedidoEnSheet(id) {

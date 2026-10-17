@@ -114,7 +114,7 @@
 }
 .pg-inicio .yd-promo::before{
   inset:0;right:0;top:0;width:auto;height:auto;border-radius:0;
-  background:linear-gradient(90deg,rgba(10,10,10,.96) 0%,rgba(10,10,10,.82) 45%,rgba(10,10,10,.35) 100%),url("../img/banner-hoodie-2.jpg") 72% 30%/cover no-repeat;
+  background:linear-gradient(90deg,rgba(10,10,10,.96) 0%,rgba(10,10,10,.82) 45%,rgba(10,10,10,.35) 100%),url("../img/banner-hoodie-2.webp") 72% 30%/cover no-repeat;
 }
 .pg-inicio .yd-promo h3{font-size:clamp(28px,3.6vw,44px);line-height:1.02;}
 .pg-inicio .yd-promo p{font-size:15px;color:#bdbdb9;}
@@ -160,7 +160,7 @@
   .pg-inicio .yd-tab{white-space:nowrap;flex-shrink:0;}
   .pg-inicio .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
   .pg-inicio .yd-cats{grid-template-columns:repeat(2,1fr);}
-  .pg-inicio .yd-promo::before{background:linear-gradient(0deg,rgba(10,10,10,.95) 0%,rgba(10,10,10,.6) 100%),url("../img/banner-hoodie-2.jpg") 70% 20%/cover no-repeat;}
+  .pg-inicio .yd-promo::before{background:linear-gradient(0deg,rgba(10,10,10,.95) 0%,rgba(10,10,10,.6) 100%),url("../img/banner-hoodie-2.webp") 70% 20%/cover no-repeat;}
   .pg-inicio .yd-promo{align-items:flex-end;}
 }
 @media (max-width:420px){

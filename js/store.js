@@ -1332,7 +1332,7 @@ async function listarResenas(productoId) {
     Un mismo navegador solo puede dejar una reseña por producto
     (se recuerda en localStorage), para frenar el spam sin tener
     que armar un sistema de "solo quien compró" todavía. */
-async function crearResena(productoId, nombreInput, estrellasInput, comentarioInput) {
+async function crearResena(productoId, nombreInput, estrellasInput, comentarioInput, fotoInput) {
   const id = String(productoId);
   const nombre = String(nombreInput || '').trim().slice(0, 60);
   const comentario = String(comentarioInput || '').trim().slice(0, 500);
@@ -1344,11 +1344,23 @@ async function crearResena(productoId, nombreInput, estrellasInput, comentarioIn
     return { ok: false, msg: 'Ya dejaste una reseña para este producto desde este navegador.' };
   }
 
+  // Foto opcional (dataURL jpeg ya reducido). Va en "resenas_fotos/{mismo id}" para que
+  // la lista de reseñas siga siendo liviana; la reseña solo lleva la marca "con_foto".
+  const foto = (typeof fotoInput === 'string' && /^data:image\/jpeg;base64,/.test(fotoInput) && fotoInput.length <= 400000) ? fotoInput : null;
+
   try {
-    await fbDb.collection('resenas').add({
-      productoId: id, nombre, estrellas, comentario,
-      fecha: new Date().toISOString(),
-    });
+    const fecha = new Date().toISOString();
+    const refResena = fbDb.collection('resenas').doc();
+    const datosResena = { productoId: id, nombre, estrellas, comentario, fecha };
+    if (foto) {
+      datosResena.con_foto = true;
+      const lote = fbDb.batch();     // atómico: reseña y foto, o ninguna
+      lote.set(refResena, datosResena);
+      lote.set(fbDb.collection('resenas_fotos').doc(refResena.id), { foto, fecha });
+      await lote.commit();
+    } else {
+      await refResena.set(datosResena);
+    }
 
     // Recalcula el promedio dentro de una transacción, para que
     // dos reseñas que lleguen casi al mismo tiempo no se pisen.
@@ -1368,6 +1380,15 @@ async function crearResena(productoId, nombreInput, estrellasInput, comentarioIn
   } catch (e) {
     return { ok: false, msg: 'No hay conexión a internet.' };
   }
+}
+
+/** Foto (dataURL) de una reseña, o null si no existe o no se puede leer. */
+async function obtenerFotoResena(resenaId) {
+  try {
+    const d = await fbDb.collection('resenas_fotos').doc(String(resenaId)).get();
+    const src = d.exists ? String((d.data() || {}).foto || '') : '';
+    return /^data:image\/jpeg;base64,/.test(src) ? src : null;
+  } catch (e) { return null; }
 }
 
 /* ---------- SOLICITUDES DE SERVICIO (cambios, garantías, quejas) ----------

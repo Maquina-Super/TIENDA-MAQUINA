@@ -215,14 +215,32 @@ service cloud.firestore {
     // - update / delete: solo admin (así se borran las reseñas malas desde el panel o la consola).
     match /resenas/{resenaId} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasOnly(['productoId','nombre','estrellas','comentario','fecha'])
+      allow create: if request.resource.data.keys().hasOnly(['productoId','nombre','estrellas','comentario','fecha','con_foto'])
         && request.resource.data.keys().hasAll(['productoId','nombre','estrellas','fecha'])
         && request.resource.data.productoId is string && request.resource.data.productoId.size() <= 40
         && exists(/databases/$(database)/documents/productos/$(request.resource.data.productoId))
         && request.resource.data.nombre is string && request.resource.data.nombre.size() >= 1 && request.resource.data.nombre.size() <= 60
         && request.resource.data.estrellas is int && request.resource.data.estrellas >= 1 && request.resource.data.estrellas <= 5
         && (!('comentario' in request.resource.data) || (request.resource.data.comentario is string && request.resource.data.comentario.size() <= 500))
-        && request.resource.data.fecha is string && request.resource.data.fecha.size() <= 40;
+        && request.resource.data.fecha is string && request.resource.data.fecha.size() <= 40
+        && (!('con_foto' in request.resource.data) || request.resource.data.con_foto == true);
+      allow update, delete: if isAdmin();
+    }
+
+    // Foto opcional de una reseña (JPG reducido en base64, mismo id que la reseña).
+    // - get abierto (la tienda la muestra); list cerrado (nadie baja todas de golpe).
+    // - create: solo en el mismo lote que crea su reseña marcada con_foto.
+    // - update / delete: solo admin (para quitar fotos que no deban estar).
+    match /resenas_fotos/{resenaId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.resource.data.keys().hasOnly(['foto','fecha'])
+                    && request.resource.data.foto is string
+                    && request.resource.data.foto.matches('^data:image/jpeg;base64,.*')
+                    && request.resource.data.foto.size() <= 400000
+                    && request.resource.data.fecha is string && request.resource.data.fecha.size() <= 40
+                    && existsAfter(/databases/$(database)/documents/resenas/$(resenaId))
+                    && getAfter(/databases/$(database)/documents/resenas/$(resenaId)).data.get('con_foto', false) == true;
       allow update, delete: if isAdmin();
     }
 

@@ -59,6 +59,16 @@
   "http": [],
   "blocked": []
  },
+ "quienes-somos.html@movil": {
+  "overflowX": false,
+  "scrollW": 375,
+  "vw": 375,
+  "offenders": [],
+  "console": [],
+  "pageerr": [],
+  "http": [],
+  "blocked": []
+ },
  "servicios.html@movil": {
   "overflowX": false,
   "scrollW": 375,
@@ -189,6 +199,16 @@
   "http": [],
   "blocked": []
  },
+ "quienes-somos.html@tablet": {
+  "overflowX": false,
+  "scrollW": 768,
+  "vw": 768,
+  "offenders": [],
+  "console": [],
+  "pageerr": [],
+  "http": [],
+  "blocked": []
+ },
  "servicios.html@tablet": {
   "overflowX": false,
   "scrollW": 768,
@@ -310,6 +330,16 @@
   "blocked": []
  },
  "producto.html?id=1@escritorio": {
+  "overflowX": false,
+  "scrollW": 1366,
+  "vw": 1366,
+  "offenders": [],
+  "console": [],
+  "pageerr": [],
+  "http": [],
+  "blocked": []
+ },
+ "quienes-somos.html@escritorio": {
   "overflowX": false,
   "scrollW": 1366,
   "vw": 1366,
