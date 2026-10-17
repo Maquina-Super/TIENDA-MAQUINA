@@ -1544,7 +1544,7 @@ function dineroDetalle(v) {
 function filasDetalle(pares) {
   const filas = pares.filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '');
   return filas.length
-    ? `<dl class="dp-grid">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
+    ? `<dl class="pd-grid">${filas.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
     : '<p class="admin-foto-hint">Sin datos registrados.</p>';
 }
 
@@ -1561,7 +1561,7 @@ function chipColorDetalle(color) {
   const c = String(color == null ? '' : color).trim();
   if (!c) return '';
   const muestra = COLOR_HEX_DETALLE.test(c) ? `<i class="dp-muestra" style="background:${c}"></i>` : '';
-  return `<span class="dp-chip">${muestra}${escaparHtml(COLOR_HEX_DETALLE.test(c) ? c.toUpperCase() : c)}</span>`;
+  return `<span class="pd-chip">${muestra}${escaparHtml(COLOR_HEX_DETALLE.test(c) ? c.toUpperCase() : c)}</span>`;
 }
 
 /* Cada prenda del carrito se guarda como una línea (1 unidad). Las líneas idénticas
@@ -1588,9 +1588,9 @@ function filaProductoDetalle({ item: it, cantidad }) {
     ? `<img class="dp-foto-img" src="${escaparHtml(foto)}" alt="${escaparHtml(it.nombre || 'Producto')}" loading="lazy">`
     : '';
   const chips = [
-    it.talla ? `<span class="dp-chip">Talla ${escaparHtml(it.talla)}</span>` : '',
+    it.talla ? `<span class="pd-chip">Talla ${escaparHtml(it.talla)}</span>` : '',
     chipColorDetalle(it.color),
-    `<span class="dp-chip dp-chip-cant">×${cantidad}</span>`,
+    `<span class="pd-chip pd-chip-cant">×${cantidad}</span>`,
   ].join('');
   const tienePrecio = it.precio !== null && it.precio !== undefined && it.precio !== '' && !isNaN(Number(it.precio));
   const precio = tienePrecio
