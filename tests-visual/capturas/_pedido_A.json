@@ -49,6 +49,7 @@
     "detalle": "Buso Volt (M) | Buso Volt (M) | Camiseta Bolt (L)",
     "subtotal": 459700,
     "total": 467700,
+<<<<<<< HEAD
     "fecha": "2026-10-17T00:01:34.943Z",
     "estado": "pendiente",
     "estado_pago": "pendiente",
@@ -56,6 +57,15 @@
     "acepta_terminos_fecha": "2026-10-17T00:01:34.943Z",
     "id": "ROL24lWoLx9SQssQV7zN",
     "codigo_pedido": "SQV7ZN"
+=======
+    "fecha": "2026-10-16T23:40:56.383Z",
+    "estado": "pendiente",
+    "estado_pago": "pendiente",
+    "acepta_terminos": true,
+    "acepta_terminos_fecha": "2026-10-16T23:40:56.383Z",
+    "id": "vTWcvqXesCSYD3UMFCpF",
+    "codigo_pedido": "UMFCPF"
+>>>>>>> f2f3829f0af83a0074a631d11a48e38e417aed51
    }
   }
  ],
@@ -107,11 +117,19 @@
    "detalle": "Buso Volt (M) | Buso Volt (M) | Camiseta Bolt (L)",
    "subtotal": 459700,
    "total": 467700,
+<<<<<<< HEAD
    "fecha": "2026-10-17T00:01:34.943Z",
    "estado": "pendiente",
    "estado_pago": "pendiente",
    "acepta_terminos": true,
    "acepta_terminos_fecha": "2026-10-17T00:01:34.943Z"
+=======
+   "fecha": "2026-10-16T23:40:56.383Z",
+   "estado": "pendiente",
+   "estado_pago": "pendiente",
+   "acepta_terminos": true,
+   "acepta_terminos_fecha": "2026-10-16T23:40:56.383Z"
+>>>>>>> f2f3829f0af83a0074a631d11a48e38e417aed51
   }
  ]
 }
