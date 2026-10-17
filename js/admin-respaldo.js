@@ -16,7 +16,7 @@
 
   const COLECCIONES = [
     'productos', 'pedidos', 'resenas', 'mensajes_contacto',
-    'voltage_club', 'config', 'drop_borradores', 'admin_config'
+    'voltage_club', 'avisos_stock', 'config', 'drop_borradores', 'admin_config'
   ];
   const COLECCIONES_FOTOS = ['resenas_fotos', 'mensajes_contacto_fotos'];
 

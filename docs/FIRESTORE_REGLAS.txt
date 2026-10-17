@@ -93,10 +93,20 @@ service cloud.firestore {
        guarda esa lista en config/envio (campo "costos") cada vez que se guardan
        los costos de envío. Mientras ese campo no exista, solo se exige >= 0
        (así el checkout no se rompe antes de guardar los costos una vez). */
-    function envioPermitido(costo) {
+    // El costo de envío debe ser uno de los configurados (zonas / ciudades)...
+    // ...o 0 SOLO si el subtotal alcanza el monto de "envío gratis desde" guardado en config/envio.
+    // (Se lee config/envio UNA sola vez: Firestore limita las lecturas por petición.)
+    function envioPermitido(costo, subtotal) {
       return !exists(/databases/$(database)/documents/config/envio)
-        || !('costos' in get(/databases/$(database)/documents/config/envio).data)
-        || costo in get(/databases/$(database)/documents/config/envio).data.costos;
+        || envioEnConfig(get(/databases/$(database)/documents/config/envio).data, costo, subtotal);
+    }
+    function envioEnConfig(cfg, costo, subtotal) {
+      return !('costos' in cfg)
+        || costo in cfg.costos
+        || (costo == 0
+            && cfg.get('gratisDesde', 0) is number
+            && cfg.get('gratisDesde', 0) > 0
+            && subtotal >= cfg.get('gratisDesde', 0));
     }
     function pedidoValido() {
       let d = request.resource.data;
@@ -109,7 +119,7 @@ service cloud.firestore {
         && d.items is list && d.items.size() >= 1 && d.items.size() <= 8
         && todosLosItemsOk(d.items)
         && d.subtotal is number && d.subtotal == sumaPrecios(d.items)
-        && d.costo_envio is number && d.costo_envio >= 0 && envioPermitido(d.costo_envio)
+        && d.costo_envio is number && d.costo_envio >= 0 && envioPermitido(d.costo_envio, d.subtotal)
         && d.total is number && d.total == d.subtotal + d.costo_envio
         && d.nombre_cliente is string && d.nombre_cliente.size() >= 3 && d.nombre_cliente.size() <= 120
         && d.email_cliente is string && d.email_cliente.size() <= 160 && d.email_cliente.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
@@ -289,6 +299,31 @@ service cloud.firestore {
     // Correos del Voltage Club: cualquiera puede dejar su correo
     // (create; update si ya existía, porque el sitio guarda con
     // merge:true). Solo el admin puede leer la lista o borrar.
+    // Lista de espera "Avísame cuando haya" (producto agotado, producto.html).
+    // - create: cualquier visitante, con la forma exacta y un producto que exista.
+    // - update: el admin (marcar como avisado) o el mismo cliente renovando SU aviso
+    //   (solo cambian fecha / notificado), para que pedirlo dos veces no dé error.
+    // - get / list / delete: SOLO admin (son correos de clientes).
+    function avisoStockValido() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['producto_id','correo','talla','color','fecha','notificado'])
+        && d.keys().hasAll(['producto_id','correo','fecha','notificado'])
+        && d.producto_id is string && d.producto_id.size() >= 1 && d.producto_id.size() <= 40
+        && exists(/databases/$(database)/documents/productos/$(d.producto_id))
+        && d.correo is string && d.correo.size() <= 160 && d.correo.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && (!('talla' in d) || (d.talla is string && d.talla.size() <= 20))
+        && (!('color' in d) || (d.color is string && d.color.size() <= 20))
+        && d.fecha is number
+        && d.notificado == false;
+    }
+    match /avisos_stock/{avisoId} {
+      allow create: if avisoStockValido();
+      allow update: if isAdmin()
+                    || (avisoStockValido()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fecha','notificado','notificado_fecha']));
+      allow get, list, delete: if isAdmin();
+    }
+
     match /voltage_club/{correoId} {
       allow create, update: if request.resource.data.correo is string
         && request.resource.data.correo.matches('.*@.*')

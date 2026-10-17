@@ -347,3 +347,18 @@
   .swatch::after,.yd-hero-dots button::after{content:"";position:absolute;inset:-11px;}
   .yd-hero-dots button{position:relative;}
 }
+
+/* Envío gratis desde $X (producto) + "Avísame cuando haya" (agotado) */
+.yd-envio-gratis{margin:10px 0 0;font-size:13.5px;color:var(--gray);}
+.yd-envio-gratis b{color:var(--acento,#8af04e);}
+.yd-aviso{margin:14px 0 0;padding:14px;border:1px solid var(--line,#262626);border-radius:6px;background:rgba(255,255,255,.03);}
+.yd-aviso[hidden]{display:none;}
+.yd-aviso-t{margin:0 0 10px;font-size:14px;line-height:1.5;color:var(--offwhite,#f2f2f2);}
+.yd-aviso-row{display:flex;gap:10px;flex-wrap:wrap;}
+.yd-aviso-row input{flex:1 1 200px;min-width:0;min-height:44px;padding:8px 12px;background:var(--surface,#141414);color:var(--offwhite,#f2f2f2);border:1px solid var(--line,#262626);border-radius:4px;font:inherit;}
+.yd-aviso-row input:focus-visible{outline:2px solid var(--acento,#8af04e);outline-offset:1px;}
+.yd-aviso-row .btn{min-height:44px;}
+.yd-aviso small{display:block;margin-top:8px;color:var(--gray);font-size:12px;}
+.yd-aviso-msg{margin:8px 0 0;font-size:13.5px;min-height:1em;}
+.yd-aviso-msg.is-ok{color:var(--acento,#8af04e);}
+.yd-aviso-msg.is-err{color:var(--red,#ff6b6b);}

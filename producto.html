@@ -2,7 +2,7 @@
 <html lang="es" translate="no">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://unpkg.com https://cdn.jsdelivr.net https://www.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com https://www.google.com https://script.google.com https://script.googleusercontent.com https://nominatim.openstreetmap.org https://api.emailjs.com; frame-src https://www.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.googletagmanager.com https://unpkg.com https://cdn.jsdelivr.net https://www.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com https://www.google.com https://script.google.com https://script.googleusercontent.com https://nominatim.openstreetmap.org https://api.emailjs.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; frame-src https://www.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google" content="notranslate">
 <title>Producto — MAQUINA</title>
@@ -72,7 +72,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js?v=4"></script>
+<script src="js/analitica.js?v=1"></script>
 <script src="js/icons.js?v=4"></script>
 <script src="js/products.js?v=6"></script>
 <script src="js/store.js?v=12"></script>
@@ -106,6 +108,7 @@ if (!p || !p.activo || estaOcultoPorDrop(p)) {
 }
 
 document.title = p.nombre + ' — MAQUINA';
+try { if (typeof track === 'function') track('view_item', { currency: 'COP', value: Number(precioConDescuentoTalla(p, (p.tallas || [])[0])) || 0, items: [gaItem({ id: p.id, nombre: p.nombre, categoria: p.categoria, precio: precioConDescuentoTalla(p, (p.tallas || [])[0]) })] }); } catch (e) {}
 
 /* ---------- datos iniciales ---------- */
 const colorInicial = (p.colores || []).find(c => !colorAgotado(p, c)) || (p.colores || [])[0];
@@ -151,6 +154,7 @@ cont.innerHTML = `
         <button data-paso="1" aria-label="Sumar uno">+</button>
       </div>
       <div class="yd-stock" id="pdpStock"></div>
+      <div class="yd-aviso" id="pdpAviso" hidden></div>
     </div>
 
     <div class="yd-qv-actions">
@@ -165,6 +169,7 @@ cont.innerHTML = `
         <select id="envDep" aria-label="Departamento"></select>
         <select id="envMun" aria-label="Municipio" disabled><option value="">Municipio</option></select>
       </div>
+      <p class="yd-envio-gratis" id="envGratis" hidden></p>
       <p class="yd-envio-out" id="envOut" aria-live="polite">Elige tu ciudad para ver cuánto cuesta el envío.</p>
     </div>
 
@@ -192,6 +197,10 @@ const addBtn = document.getElementById('pdpAdd');
   const LS = 'maquina_envio_pref';
   const pesos = n => '$' + Number(n).toLocaleString('es-CO');
   try { await cargarConfigEnvio(); } catch (e) {}
+  try {
+    const g = envioGratisDesde(), eg = document.getElementById('envGratis');
+    if (g > 0 && eg) { eg.hidden = false; eg.innerHTML = `Env\u00edo <b>gratis</b> en compras desde ${pesos(g)}`; }
+  } catch (e) {}
   dep.innerHTML = '<option value="">Departamento</option>' + departamentosColombia().map(d => `<option>${d}</option>`).join('');
   let lista = [];
   function pintarMunicipios(depto, munId) {
@@ -225,12 +234,51 @@ function refrescarStock() {
     stockEl.className = 'yd-stock is-out';
     stockEl.innerHTML = 'Disponibilidad: <b>Agotado</b>';
     addBtn.disabled = true;
+    mostrarAvisoStock(true);
   } else {
+    mostrarAvisoStock(false);
     stockEl.className = 'yd-stock';
     stockEl.innerHTML = d <= 5 ? `Disponibilidad: <b>¡Quedan ${d}!</b>` : 'Disponibilidad: <b>En stock</b>';
     addBtn.disabled = false;
   }
   if (sel.cantidad > Math.max(d, 1)) { sel.cantidad = Math.max(d, 1); cantEl.textContent = sel.cantidad; }
+}
+/* ---------- "Avísame cuando haya" (lista de espera de productos agotados) ---------- */
+function mostrarAvisoStock(agotado) {
+  const box = document.getElementById('pdpAviso');
+  if (!box) return;
+  if (!agotado) { box.hidden = true; return; }
+  const LS = 'maquina_aviso_correo';
+  if (!box.dataset.listo) {
+    let previo = '';
+    try { previo = localStorage.getItem(LS) || ''; } catch (e) {}
+    box.innerHTML = `
+      <p class="yd-aviso-t"><b>¿Lo quieres?</b> Déjanos tu correo y te avisamos apenas vuelva a haber.</p>
+      <div class="yd-aviso-row">
+        <input type="email" id="pdpAvisoCorreo" placeholder="tu@correo.com" autocomplete="email" aria-label="Tu correo para avisarte" maxlength="160">
+        <button type="button" class="btn btn-primary" id="pdpAvisoBtn">Avísame</button>
+      </div>
+      <p class="yd-aviso-msg" id="pdpAvisoMsg" role="status" aria-live="polite"></p>
+      <small>Solo usaremos tu correo para avisarte de esta pieza.</small>`;
+    const inp = box.querySelector('#pdpAvisoCorreo'), btn = box.querySelector('#pdpAvisoBtn'), msg = box.querySelector('#pdpAvisoMsg');
+    inp.value = previo;
+    async function enviar() {
+      msg.className = 'yd-aviso-msg'; msg.textContent = '';
+      btn.disabled = true; const txt = btn.textContent; btn.textContent = 'Guardando…';
+      const r = await guardarAvisoStock(p, inp.value, sel.talla, sel.color);
+      btn.disabled = false; btn.textContent = txt;
+      if (r.ok) {
+        try { localStorage.setItem(LS, inp.value.trim().toLowerCase()); } catch (e) {}
+        msg.className = 'yd-aviso-msg is-ok'; msg.textContent = '¡Listo! Te escribiremos cuando esta pieza vuelva a estar disponible.';
+      } else { msg.className = 'yd-aviso-msg is-err'; msg.textContent = r.msg || 'No se pudo guardar tu aviso.'; }
+    }
+    btn.addEventListener('click', enviar);
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); enviar(); } });
+    box.dataset.listo = '1';
+  } else {
+    const m = box.querySelector('#pdpAvisoMsg'); if (m) { m.className = 'yd-aviso-msg'; m.textContent = ''; }   // cambió de talla/color: mensaje limpio
+  }
+  box.hidden = false;
 }
 refrescarStock();
 

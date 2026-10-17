@@ -1,0 +1,79 @@
+VENTAS Y CONVERSIÓN — qué se agregó y cómo ponerlo en marcha
+============================================================
+
+⚠ ORDEN IMPORTANTE (si lo haces al revés, algo falla):
+   1) PRIMERO publica las reglas nuevas:  Firebase Console → Firestore Database → Reglas →
+      pega el contenido de firestore.rules → Publicar.
+   2) DESPUÉS publica el sitio (Pull Request → merge).
+   3) Por último, configura el monto de envío gratis en el panel.
+   Si activas el envío gratis SIN las reglas nuevas, Firestore rechaza el pedido del cliente que
+   llegue al monto (las reglas viejas no aceptan envío en $0). Y sin las reglas, "Avísame" mostrará
+   "No pudimos guardar tu aviso".
+
+   Recomendado antes del paso 1: probar las reglas en el emulador (tests-reglas/LEEME.txt):
+      npx firebase emulators:exec --only firestore "node test-conversion.js"
+   (No pude ejecutar el emulador al preparar este cambio: sin red y sin firebase-tools.)
+
+------------------------------------------------------------
+1) ANALÍTICA (Firebase Analytics = Google Analytics 4)
+------------------------------------------------------------
+   Usa el measurementId que YA estaba en js/firebase-config.js. No hay que crear cuentas.
+   Dónde verlo: Firebase Console → Analytics → Events (o analytics.google.com). Los datos
+   tardan hasta ~24 h en aparecer en los informes (en "Realtime" casi al instante).
+
+   Eventos que se envían:
+     view_item       alguien abre un producto
+     add_to_cart     agrega al carrito
+     view_cart       abre el carrito
+     begin_checkout  avanza del primer paso del pago
+     checkout_paso   cada paso del pago (paso 1, 2, 3) -> ahí ves dónde se van
+     checkout_error  falló al confirmar (solo el código del error)
+     purchase        compra completada (valor, envío, método de pago, productos)
+     generate_lead   se suscribió al Voltage Club
+     notify_me       pidió "avísame" de un producto agotado
+
+   PASO RECOMENDADO: en Analytics → Events, marca "purchase" como "evento clave" (conversión).
+   Con eso verás el embudo: producto → carrito → pago → compra.
+
+   Privacidad: NO se envían nombre, correo, teléfono ni dirección. Respeta "No rastrear".
+   No se carga en admin.html. legal.html (sección 4) ya menciona la analítica: revísala con
+   tu asesor legal (Ley 1581).
+   Si lo prefieres, quitar la analítica = borrar las 2 líneas "firebase-analytics-compat.js" y
+   "js/analitica.js" de cada página (todo lo demás sigue funcionando: track() no hace nada sin ella).
+
+------------------------------------------------------------
+2) ENVÍO GRATIS POR MONTO (ya configurable)
+------------------------------------------------------------
+   Ya existía una barra de "te faltan $X para el envío gratis", pero el monto estaba fijo en 0 dentro
+   de carrito.html y el servidor no lo conocía (activarlo habría hecho fallar los pedidos).
+   Ahora:
+     · Panel → pestaña Envíos → tarjeta "Envío gratis por monto" → escribe el monto y Guardar.
+       Vacío o 0 = desactivado.
+     · Se guarda en config/envio.gratisDesde. El carrito, la validación del pedido en store.js y
+       firestore.rules usan ese mismo valor (el navegador ya no puede inventarse un envío gratis).
+     · La página de cada producto muestra "Envío gratis en compras desde $X".
+   Tip: pon el monto un poco por encima de tu ticket promedio (si hoy vendes ~$180.000 por pedido,
+   prueba con $220.000).
+
+------------------------------------------------------------
+3) "AVÍSAME CUANDO HAYA" (lista de espera)
+------------------------------------------------------------
+   Si una talla/color está agotado, la página del producto muestra un formulario de correo.
+   · Los avisos se guardan en la colección avisos_stock (un aviso por correo y producto).
+   · Panel → Resumen → tarjeta "Lista de espera": agrupada por producto, con
+       "Escribirles"  (abre tu correo con todos en copia oculta y el enlace al producto),
+       "Copiar correos", "Marcar como avisados" y "Borrar lista".
+     Si son muchísimos correos y no cabe en el enlace, usa "Copiar correos".
+   · Quien pide el aviso otra vez no se duplica. Si ya lo avisaste y vuelve a pedirlo, queda pendiente de nuevo.
+   · avisos_stock entra en la copia de seguridad del panel.
+   · Los clientes NO pueden leer esos correos (solo el admin).
+
+------------------------------------------------------------
+LO QUE NO SE HIZO (a propósito) y por qué
+------------------------------------------------------------
+   · Cupones de descuento: obligan a cambiar cómo las reglas validan el precio del pedido (la parte
+     más delicada del sitio) y a controlar cuántas veces se usa cada código. Conviene hacerlo con el
+     emulador de reglas a mano y probarlo con calma.
+   · Carritos abandonados: exige guardar el correo/teléfono ANTES de que el cliente compre. Eso pide un
+     aviso y consentimiento claros (Ley 1581) y abrir una escritura pública en Firestore. Mejor
+     decidirlo con tu asesor legal.

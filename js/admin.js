@@ -152,6 +152,7 @@ async function entrarAlPanel() {
   pintarVoltageClub();
   pintarCostosEnvio();
   if (typeof pintarEnviosCiudades === 'function') pintarEnviosCiudades();   // tarifas por ciudad (js/admin-envios.js)
+  if (typeof iniciarConversionAdmin === 'function') iniciarConversionAdmin();   // envío gratis por monto + lista de espera (js/admin-conversion.js)
   if (permisosActuales.mensajes && typeof cargarBadgeMensajes === 'function') cargarBadgeMensajes(); // contador de "sin leer" en el menú
   iniciarVigiaInactividadAdmin();
 }

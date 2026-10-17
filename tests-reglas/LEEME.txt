@@ -6,6 +6,9 @@ pedidos con precio correcto y RECHACE pedidos con precio manipulado,
 usando el emulador de Firestore en tu propio computador (no toca tu
 base de datos real, nadie ve esto salvo tú).
 
+(Pruebas de ventas y conversión: después de la instalación del paso 2, corre
+     npx firebase emulators:exec --only firestore "node test-conversion.js")
+
 1) Necesitas tener instalado Node.js (https://nodejs.org) y Java
    (el emulador de Firestore corre sobre Java). Si no tienes Java,
    instálalo primero (en Windows/Mac, busca "instalar Java JDK").

@@ -509,6 +509,16 @@ async function publicarDropAdmin(datos) {
     "await cargarConfigEnvio()" al iniciar, igual que se hace con
     cargarConfigDrop(). */
 let _envioActualizadoMs = null;   // cuándo se guardaron por última vez los costos (null = nunca desde el panel)
+let _envioGratisDesde = 0;   // subtotal (COP) desde el cual el envío es gratis; 0 = desactivado. Se configura en el panel (Envíos).
+/** Monto de compra desde el cual el envío es gratis (0 = no hay promoción). */
+function envioGratisDesde() { return _envioGratisDesde; }
+/** (Panel admin) Guarda el monto de envío gratis. 0 = desactivar. Espera la confirmación de Firestore. */
+async function guardarEnvioGratisDesde(valor) {
+  if (!Number.isInteger(valor) || valor < 0 || valor > 50000000) throw new Error('Monto no válido');
+  await fbDb.collection('config').doc('envio').set({ gratisDesde: valor, actualizado: Date.now() }, { merge: true });
+  _envioGratisDesde = valor;
+  return valor;
+}
 async function cargarConfigEnvio() {
   try {
     const doc = await fbDb.collection('config').doc('envio').get();
@@ -516,6 +526,7 @@ async function cargarConfigEnvio() {
       setZonasEnvioCache(doc.data().zonas);
       if (typeof setMunicipiosEnvioCache === 'function') setMunicipiosEnvioCache(doc.data().municipios);
       _envioActualizadoMs = Number(doc.data().actualizado) || null;
+      _envioGratisDesde = Number(doc.data().gratisDesde) || 0;
     }
   } catch (e) {
     console.error('Error cargando la configuración de envío:', e);
@@ -625,6 +636,12 @@ function agregarAlCarrito(producto, color, talla) {
     talla: talla,
   });
   _guardar(LS_KEYS.carrito, carrito);
+  try {
+    if (typeof track === 'function') {
+      const it = carrito[carrito.length - 1];
+      track('add_to_cart', { currency: 'COP', value: Number(it.precio) || 0, items: [gaItem(it)] });
+    }
+  } catch (e) { /* la analítica nunca rompe la compra */ }
   return carrito.length;
 }
 /** Quita SOLO una unidad de un producto (mismo id + color + talla) */
@@ -911,7 +928,8 @@ async function crearPedido(datosCliente) {
         ? cfgEnvio.data().zonas : ZONAS_ENVIO_POR_DEFECTO;
       const tarifaCiudad = cfgEnvio.exists && cfgEnvio.data().municipios ? cfgEnvio.data().municipios[pedido.envio_zona] : null;
       const zona = tarifaCiudad ? { costo: tarifaCiudad.gratis === true ? 0 : tarifaCiudad.costo } : zonas.find(z => z.id === pedido.envio_zona);
-      const gratisDesde = Number(datosCliente.envioGratisDesde) || 0;
+      // El umbral sale de config/envio (Firestore), NO del navegador: así nadie puede inventarse un envío gratis.
+      const gratisDesde = cfgEnvio.exists ? (Number(cfgEnvio.data().gratisDesde) || 0) : 0;
       const envioEsperado = zona ? (gratisDesde > 0 && subtotal >= gratisDesde ? 0 : Number(zona.costo) || 0) : null;
       if (envioEsperado === null || envioEsperado !== costoEnvioPedido) {
         throw _errorPedido('ENVIO_CAMBIO', 'El costo de envío de tu zona cambió. Vuelve a elegir tu ciudad para ver el valor actualizado.');
@@ -1652,6 +1670,7 @@ async function suscribirVoltageClub(email) {
     // Correo de bienvenida al que se acaba de suscribir, confirmándole
     // que ya quedó anotado para que le avisen de los próximos drops.
     enviarAviso({ tipo: 'voltage_club_bienvenida', correo });
+    try { if (typeof track === 'function') track('generate_lead', { method: 'voltage_club' }); } catch (e) {}
     return { ok: true };
   } catch (e) {
     // sin internet: ya quedó guardado localmente, se puede reintentar después
@@ -2652,3 +2671,41 @@ if (document.readyState === 'loading') {
 } else {
   _activarOjitos();
 }
+
+
+/* ============================================================
+   LISTA DE ESPERA — "Avísame cuando haya" (productos agotados)
+   Colección "avisos_stock". Id fijo = producto + correo, así que si la
+   misma persona lo pide dos veces no se duplica (solo se actualiza la fecha).
+   Los clientes SOLO pueden crear/renovar su aviso; leerlos es del admin.
+   ============================================================ */
+function _idAvisoStock(productoId, correo) {
+  return (String(productoId) + '__' + correo).replace(/[^a-z0-9@._-]/gi, '_').slice(0, 200);
+}
+async function guardarAvisoStock(producto, correo, talla, color) {
+  const mail = String(correo || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail) || mail.length > 160) return { ok: false, msg: 'Escribe un correo válido.' };
+  const doc = { producto_id: String(producto.id), correo: mail, fecha: Date.now(), notificado: false };
+  if (talla) doc.talla = String(talla).slice(0, 20);
+  if (color) doc.color = String(color).slice(0, 20);
+  try {
+    await fbDb.collection('avisos_stock').doc(_idAvisoStock(producto.id, mail)).set(doc);
+    try { if (typeof track === 'function') track('notify_me', { item_id: String(producto.id), item_name: String(producto.nombre || '') }); } catch (e) {}
+    return { ok: true };
+  } catch (e) {
+    console.error('Error guardando el aviso de stock:', e);
+    return { ok: false, msg: 'No pudimos guardar tu aviso. Revisa tu conexión e inténtalo de nuevo.' };
+  }
+}
+/** (Panel admin) Todos los avisos, los más recientes primero. */
+async function listarAvisosStock() {
+  const snap = await fbDb.collection('avisos_stock').get();
+  return snap.docs.map(d => ({ _id: d.id, ...d.data() })).sort((a, b) => (Number(b.fecha) || 0) - (Number(a.fecha) || 0));
+}
+/** (Panel admin) Marca avisos como ya notificados (o los vuelve a pendiente). */
+async function marcarAvisosStock(ids, notificado) {
+  const lote = fbDb.batch();
+  ids.forEach(id => lote.update(fbDb.collection('avisos_stock').doc(id), { notificado: !!notificado, notificado_fecha: notificado ? Date.now() : null }));
+  await lote.commit();
+}
+async function borrarAvisoStock(id) { await fbDb.collection('avisos_stock').doc(id).delete(); }

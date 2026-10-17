@@ -14,12 +14,13 @@ CALIDAD Y CONFIANZA — qué se agregó y cómo mantenerlo
    ajeno, el navegador lo bloquea. También: sin <object>, sin <base> externo, formularios solo a este sitio.
 
    Sitios permitidos (todos los que el sitio usa hoy):
-     scripts : gstatic.com (Firebase), unpkg.com (Leaflet), cdn.jsdelivr.net (EmailJS),
-               google.com / apis.google.com (reCAPTCHA del SMS)
+     scripts : gstatic.com (Firebase), googletagmanager.com (Google Analytics), unpkg.com (Leaflet),
+               cdn.jsdelivr.net (EmailJS), google.com / apis.google.com (reCAPTCHA del SMS)
      estilos : fonts.googleapis.com, unpkg.com     fuentes: fonts.gstatic.com
      conexión: *.googleapis.com, *.firebaseio.com, *.firebaseapp.com (Firebase),
                script.google.com / script.googleusercontent.com (Apps Script),
-               nominatim.openstreetmap.org (mapa), api.emailjs.com
+               nominatim.openstreetmap.org (mapa), api.emailjs.com,
+               googletagmanager.com / *.google-analytics.com / *.analytics.google.com (Analytics)
      imágenes: este sitio, data:, blob: y cualquier https (mosaicos del mapa, fotos)
 
    LÍMITE IMPORTANTE: el sitio usa scripts y estilos "en línea" (dentro del propio HTML), por eso
