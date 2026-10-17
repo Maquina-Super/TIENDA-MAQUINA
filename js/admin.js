@@ -1933,7 +1933,9 @@ document.getElementById('btnConfirmarBorrarPedido').addEventListener('click', as
   btn.disabled = false;
   if (!res.ok) { showToast(res.msg, true); return; }
   modalBorrarPedido.classList.remove('open');
-  if (res.hoja === 'borrada') showToast('Pedido eliminado (también de la hoja)');
+  if (res.stockDevuelto > 0) showToast(`Pedido eliminado. ${res.stockDevuelto} prenda(s) volvieron al inventario ✓`);
+  else if (res.entregado) showToast('Pedido eliminado. Como ya estaba «Entregado», NO se devolvió stock.');
+  else if (res.hoja === 'borrada') showToast('Pedido eliminado (también de la hoja)');
   else if (res.hoja === 'sin_fila') showToast('Pedido eliminado (no tenía fila en la hoja)');
   else if (res.hoja === 'fallo') showToast('Pedido eliminado, pero la hoja no borró la fila: ' + (res.detalle || 'revisa la pestaña Errores_Pedidos') + '.', true);
   else showToast('Pedido eliminado. Revisa la hoja en unos segundos; si la fila sigue, mira la pestaña Errores_Pedidos.');

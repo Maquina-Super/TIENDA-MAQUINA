@@ -1200,14 +1200,57 @@ async function sincronizarPedidosConHoja(pedidos, alProgreso) {
     tuvo que confirmar su propia contraseña antes (ver admin.html),
     así que aquí solo se hace el borrado. */
 async function eliminarPedidoAdmin(id) {
+  /* Al eliminar el pedido, las prendas VUELVEN al inventario (al comprar se
+     habían descontado). Todo en una sola transacción: o se devuelve el stock
+     y se borra el pedido, o no pasa nada. Excepción: si el pedido ya está
+     «entregado», la ropa salió de verdad y NO se devuelve. */
+  const res = { ok: true, hoja: 'desconocido', stockDevuelto: 0 };
+  const refPedido = fbDb.collection('pedidos').doc(id);
   try {
-    await fbDb.collection('pedidos').doc(id).delete();
+    await fbDb.runTransaction(async (tx) => {
+      const snap = await tx.get(refPedido);
+      if (!snap.exists) return;                       // ya no existe: nada que devolver
+      const ped = snap.data();
+      const items = Array.isArray(ped.items) ? ped.items : [];
+      const entregado = ped.estado === 'entregado';
+      // Lecturas primero (Firestore exige leer todo antes de escribir)
+      const aDevolver = entregado ? {} : _agruparNecesidadesStock(items);
+      const productos = {};
+      for (const k of Object.keys(aDevolver)) {
+        const pid = String(aDevolver[k].id);
+        if (!(pid in productos)) {
+          const ps = await tx.get(fbDb.collection('productos').doc(pid));
+          productos[pid] = ps.exists ? ps.data() : null;   // null = el producto ya se borró del catálogo
+        }
+      }
+      // Escrituras: suma el stock de vuelta en la misma variante que se descontó
+      let devueltas = 0;
+      Object.values(aDevolver).forEach(n => {
+        const data = productos[String(n.id)];
+        if (!data) return;
+        const cambios = {};
+        if (data.stockColores && Object.prototype.hasOwnProperty.call(data.stockColores, n.color)) {
+          cambios[`stockColores.${n.color}`] = firebase.firestore.FieldValue.increment(n.cantidad);
+        }
+        if (data.stockTallas && Object.prototype.hasOwnProperty.call(data.stockTallas, n.talla)) {
+          cambios[`stockTallas.${n.talla}`] = firebase.firestore.FieldValue.increment(n.cantidad);
+        }
+        cambios.stock = firebase.firestore.FieldValue.increment(n.cantidad);
+        tx.update(fbDb.collection('productos').doc(String(n.id)), cambios);
+        devueltas += n.cantidad;
+      });
+      tx.delete(refPedido);
+      res.stockDevuelto = devueltas;
+      res.entregado = entregado;
+    });
   } catch (e) {
+    console.error('Error eliminando el pedido / devolviendo stock:', e);
     return { ok: false, msg: 'No se pudo eliminar el pedido (revisa tu conexión y tus permisos).' };
   }
+  // Refresca el catálogo en memoria para que el panel y la tienda muestren el stock ya devuelto
+  try { await cargarCatalogo(); } catch (e) { /* no crítico */ }
   // El pedido YA se borró de Firestore. Ahora se le pide al Apps Script quitar la fila de la hoja:
   // solo lo hace si el aviso trae el token de un admin y el pedido ya no existe en Firestore.
-  const res = { ok: true, hoja: 'desconocido' };
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT") return res;
   const idToken = await tokenAdminParaAviso();
   const cuerpo = JSON.stringify({ tipo: 'pedido_eliminado', id, idToken });
