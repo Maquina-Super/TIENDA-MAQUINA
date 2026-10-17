@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Recuperar contraseña — MAQUINA</title>
+<meta name="description" content="Recupera el acceso a tu cuenta MAQUINA.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Recuperar contraseña — MAQUINA">
+<meta property="og:description" content="Recupera el acceso a tu cuenta MAQUINA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/recuperar.html">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=rev4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=9">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
+<style>
+/* ---- personaje estático (sin animación) ---- */
+.auth-figure svg{ overflow:visible; }
+</style>
+</head>
+<body>
+
+<div class="auth-page">
+
+  <div class="auth-visual">
+    <div class="auth-visual-blur"></div>
+    <div class="auth-visual-sharp"></div>
+    <a href="index.html" class="nav-logo">
+      <span class="logo-mark">⚡</span><span class="logo-text display">MA<em>QUINA</em></span>
+    </a>
+    <div class="auth-copy">
+      <div class="auth-eyebrow">Tu cuenta</div>
+      <h1>Recupera tu <em>contraseña</em>.</h1>
+      <p>Te mandamos un enlace para que pongas una contraseña nueva.</p>
+    </div>
+    <div class="auth-stamp stamp-font">underground<br>drip co.</div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-card" id="authCard">
+
+      <a href="index.html" class="auth-brand">
+        <span class="logo-mark">⚡</span><span class="display">MA<em>QUINA</em></span>
+      </a>
+
+      <h2>Recuperar contraseña</h2>
+      <p class="auth-sub">Elige con qué te registraste.</p>
+
+      <div class="method-toggle" id="methodToggle">
+        <div class="method-option active" data-method="correo" role="button" tabindex="0"><span class="m-ic">📧</span> Correo</div>
+        <div class="method-option" data-method="telefono" role="button" tabindex="0"><span class="m-ic">📱</span> Teléfono</div>
+      </div>
+
+      <div id="authMsg" role="status"></div>
+
+      <form id="formCorreo">
+        <div class="auth-field">
+          <input type="email" id="correoInput" placeholder="tu@correo.com" autocomplete="email" required>
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="btnCorreo">Enviar enlace</button>
+      </form>
+
+      <form id="formTelefono" style="display:none;">
+        <div class="auth-field">
+          <input type="tel" id="telefonoInput" placeholder="+57 300 1234567" autocomplete="tel">
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="btnTelefono">Enviar código por SMS</button>
+      </form>
+
+      <form id="formCodigo" style="display:none;">
+        <div class="auth-field">
+          <input type="text" id="codigoInput" inputmode="numeric" maxlength="6" placeholder="Código de 6 dígitos" autocomplete="one-time-code" required>
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="btnCodigo">Confirmar código</button>
+      </form>
+
+      <div class="auth-divider">o</div>
+      <a href="registro.html" class="btn btn-ghost auth-signup">Crear cuenta</a>
+      <p class="auth-footnote"><a href="index.html">← Volver a la tienda</a></p>
+
+      <div id="recaptcha-container"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/store.js?v=9"></script>
+<script>
+/* Recuperar contraseña de CLIENTES. Usa las funciones de store.js:
+   enviarRecuperacionCorreo, enviarCodigoRecuperacionTelefono y
+   confirmarCodigoRecuperacionTelefono. */
+const $ = (id) => document.getElementById(id);
+const authMsg = $('authMsg'), formCorreo = $('formCorreo'), formTelefono = $('formTelefono'), formCodigo = $('formCodigo');
+let confirmationResult = null, recaptchaVerifier = null, telefonoActual = '';
+
+function aviso(tipo, texto) {
+  authMsg.innerHTML = '';
+  const d = document.createElement('div');
+  d.className = tipo === 'ok' ? 'auth-ok' : 'auth-error';
+  d.textContent = texto;
+  authMsg.appendChild(d);
+}
+function mostrar(form) {
+  [formCorreo, formTelefono, formCodigo].forEach(f => { f.style.display = f === form ? '' : 'none'; });
+}
+
+$('methodToggle').addEventListener('click', (e) => {
+  const opt = e.target.closest('.method-option');
+  if (!opt) return;
+  document.querySelectorAll('.method-option').forEach(o => o.classList.toggle('active', o === opt));
+  authMsg.innerHTML = '';
+  mostrar(opt.dataset.method === 'telefono' ? formTelefono : formCorreo);
+});
+document.querySelectorAll('.method-option').forEach(o => o.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); o.click(); }
+}));
+
+formCorreo.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const correo = $('correoInput').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return aviso('error', 'Escribe un correo válido.');
+  const btn = $('btnCorreo'); btn.disabled = true; btn.textContent = 'Enviando...';
+  const res = await enviarRecuperacionCorreo(correo);
+  btn.disabled = false; btn.textContent = 'Enviar enlace';
+  if (!res.ok) return aviso('error', res.msg);
+  // Firebase no revela si el correo existe: mismo mensaje siempre.
+  aviso('ok', 'Si ese correo tiene una cuenta, en unos minutos le llega un enlace para poner una contraseña nueva. Revisa también Spam.');
+});
+
+formTelefono.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const tel = $('telefonoInput').value.trim().replace(/(?!^)\+/g, '').replace(/[^\d+]/g, '');
+  if (!/^\+?\d{8,15}$/.test(tel)) return aviso('error', 'Escribe tu número con indicativo del país, ej: +57 300 1234567.');
+  const btn = $('btnTelefono'); btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    if (!recaptchaVerifier) recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+    const res = await enviarCodigoRecuperacionTelefono(tel, recaptchaVerifier);
+    if (!res.ok) {
+      try { recaptchaVerifier.clear(); } catch (_) {} recaptchaVerifier = null;
+      return aviso('error', res.msg);
+    }
+    confirmationResult = res.confirmationResult; telefonoActual = tel;
+    aviso('ok', 'Te enviamos un código por SMS. Escríbelo aquí abajo.');
+    mostrar(formCodigo); $('codigoInput').focus();
+  } finally { btn.disabled = false; btn.textContent = 'Enviar código por SMS'; }
+});
+
+formCodigo.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const codigo = $('codigoInput').value.trim();
+  if (!/^\d{6}$/.test(codigo)) return aviso('error', 'El código tiene 6 números.');
+  const btn = $('btnCodigo'); btn.disabled = true; btn.textContent = 'Confirmando...';
+  const res = await confirmarCodigoRecuperacionTelefono(confirmationResult, codigo, telefonoActual);
+  btn.disabled = false; btn.textContent = 'Confirmar código';
+  if (!res.ok) return aviso('error', res.msg);
+  aviso('ok', 'Listo. Te mandamos el enlace para cambiar tu contraseña al correo ' + res.correoTapado + '.');
+  mostrar(null);
+});
+</script>
+</body>
+</html>

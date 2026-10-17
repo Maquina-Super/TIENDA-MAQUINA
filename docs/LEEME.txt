@@ -1,0 +1,47 @@
+============================================================
+ ARCHIVOS ACTUALIZADOS - MAQUINA
+============================================================
+
+QUÉ HACER CON CADA ARCHIVO
+------------------------------------------------------------
+1. carrito.html
+   -> Reemplaza tu carrito.html actual por este.
+   -> ANTES de subirlo, abre este archivo y busca (Ctrl+F):
+        nequiNumeroTxt
+      y cambia "300 000 0000" por tu número real de Nequi.
+      Justo debajo busca:
+        nequiTitularTxt
+      y cambia "MAQUINA" por el nombre real del titular de esa
+      cuenta Nequi (el nombre que le sale a la gente al pagar).
+
+2. css/estilos.css
+   -> Reemplaza tu css/estilos.css actual por este.
+
+3. js/store.js
+   -> Reemplaza tu js/store.js actual por este.
+   -> Ya tiene puesta la URL nueva de Apps Script (la de la
+      última implementación). No necesitas tocar nada aquí.
+
+4. APPS_SCRIPT_pegar_en_script.google.com.txt
+   -> Este NO es un archivo de tu sitio web (no lo subas a
+      GitHub). Ábrelo, copia TODO el contenido, y pégalo
+      reemplazando TODO el código en tu proyecto de
+      script.google.com (el archivo ASDRIP avisos.gs).
+   -> Después: guardar -> Implementar -> Administrar
+      implementaciones -> lápiz -> Nueva versión -> Implementar.
+   -> Ya tiene tu SHEET_ID y el nombre de tu pestaña "Pedidos"
+      configurados. No necesitas tocar nada aquí tampoco.
+
+------------------------------------------------------------
+ORDEN RECOMENDADO
+------------------------------------------------------------
+1. Pon tu número de Nequi real en carrito.html (paso 1).
+2. Sube los 3 archivos del sitio (carrito.html, estilos.css,
+   store.js) a tu repositorio / hosting.
+3. Pega el contenido de APPS_SCRIPT_...txt en Apps Script y
+   publica una Nueva versión.
+4. Haz un pedido de prueba (contraentrega y otro por Nequi) y
+   revisa que:
+   - Te llegue el correo correcto según el método de pago.
+   - La fila aparezca bien en tu hoja "Pedidos".
+   - El panel de Nequi muestre bien el número y el valor.

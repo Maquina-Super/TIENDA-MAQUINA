@@ -1,0 +1,17 @@
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+
+# Python / Node (solo para las pruebas)
+__pycache__/
+*.pyc
+node_modules/
+package-lock.json
+
+# Capturas generadas por las pruebas visuales (se regeneran)
+tests-visual/capturas/

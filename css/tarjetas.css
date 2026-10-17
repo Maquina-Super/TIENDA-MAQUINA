@@ -1,0 +1,114 @@
+/* ============================================================
+   MAQUINA — TARJETAS DE PRODUCTO (diseño + sistema de fotos)
+   ------------------------------------------------------------
+   ÚNICO lugar donde se define cómo se ve una tarjeta y su foto.
+   Se carga al final en: index, productos, catalogo, categorias,
+   favoritos y producto (productos relacionados).
+   La lógica que decide contain/cover vive en js/catalog-render.js.
+   ============================================================ */
+
+/* ---------- cuadrícula: más columnas = tarjetas más pequeñas (la portada usa .pg-inicio .grid) ---------- */
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,196px),1fr));gap:clamp(10px,1.2vw,16px);}
+@media (max-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px;}}
+
+/* ---------- tarjeta COMPACTA: carbón, borde sutil, sin inclinación ---------- */
+.card,.card:nth-child(n){
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:none;transform:none;
+  transition:border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+.card:hover,.card:nth-child(n):hover{transform:translateY(-3px);border-color:#3a3a3a;box-shadow:0 14px 30px rgba(0,0,0,.45);z-index:2;}
+.card-body{flex:1;display:flex;flex-direction:column;gap:7px;padding:10px 12px 12px;border-top:1px solid var(--line);}
+.card-bottom{margin-top:auto;padding-top:2px;align-items:center;flex-wrap:wrap;gap:6px 8px;}
+
+/* ---------- textos: jerarquía limpia y pequeña ---------- */
+.card-cat{background:transparent !important;color:var(--gray) !important;padding:0 !important;border:0 !important;
+  font-size:9.5px;letter-spacing:.12em;line-height:1;}
+.card-cat::before{display:none;}
+.card-name{font-size:14.5px;line-height:1.15;text-transform:none;letter-spacing:.01em;}
+.card-price{background:transparent !important;border:0 !important;padding:0 !important;box-shadow:none !important;
+  font-size:14px;font-weight:700;color:var(--ink);line-height:1.1;}
+.card-price .old{display:block;font-size:11px;margin:0;color:var(--gray);}
+.chip-descuento{font-size:10px;padding:2px 6px;}
+.stock-note{font-size:9.5px;line-height:1;}
+.yd-rating{margin-top:0;font-size:11px;}
+
+/* colores y tallas pequeños */
+.swatches{gap:8px;}
+.swatch{width:18px;height:18px;border-width:1.5px;box-shadow:none;}
+.swatch:hover{transform:scale(1.15);}
+.swatch.active::after{inset:-4px;border-width:1.5px;}
+.sizes{gap:5px;}
+.size-chip{min-width:28px;height:25px;padding:0 6px;font-size:10.5px;border-width:1px;border-radius:7px;}
+.size-chip:hover{transform:none;background:transparent;}
+.size-chip.active{transform:none;}
+
+/* botón "Lo quiero" */
+.add-btn{padding:8px 12px;font-size:11.5px;border-radius:9px;white-space:nowrap;}
+.add-btn:hover{box-shadow:none;transform:none;}
+
+/* ---------- zona de la foto: SIEMPRE cuadrada (1:1), oscura y uniforme ---------- */
+.card-media{
+  position:relative;overflow:hidden;aspect-ratio:1/1;height:auto;
+  background:var(--fondo-foto,#141414);   /* la foto puede fundir el fondo con --fondo-foto */
+  transition:background .3s ease;
+}
+.card-fotos{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+
+/* foto de producto: entera, centrada, sin deformar (contain) */
+.card-photo{
+  position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;padding:4%;
+  object-fit:contain;object-position:center;
+  transition:transform .6s cubic-bezier(.22,1,.36,1), opacity .3s ease;
+}
+/* fotos editoriales / de modelo: llenan el espacio (lo decide catalog-render.js) */
+.card-photo[data-fit="cover"]{padding:0;object-fit:cover;}
+
+/* espalda: vive encima; al pasar el mouse por la foto (o al tocarla en celular) reemplaza al frente */
+.card-photo-trasera{opacity:0;pointer-events:none;}
+.card.card-trasera-activa .card-photo-trasera{opacity:1;}
+.card.card-trasera-activa .card-fotos .card-photo:not(.card-photo-trasera){opacity:0;}
+@media (hover:hover){
+  .card:hover .card-photo{transform:scale(1.03);}           /* zoom suave */
+  .card-media:hover .card-photo-trasera{opacity:1;}
+  .card-media:hover .card-fotos:has(.card-photo-trasera) .card-photo:not(.card-photo-trasera){opacity:0;}
+}
+
+/* puntitos 1/2: avisan que hay otra foto (se toca la foto para cambiar) */
+.card-dots{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);display:flex;gap:6px;z-index:3;pointer-events:none;}
+.card-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.3);transition:background .2s ease,transform .2s ease;}
+.card-dots i:first-child{background:#fff;}
+.card.card-trasera-activa .card-dots i:first-child{background:rgba(255,255,255,.3);}
+.card.card-trasera-activa .card-dots i:last-child{background:#fff;}
+@media (hover:hover){
+  .card-media:hover .card-dots i:first-child{background:rgba(255,255,255,.3);}
+  .card-media:hover .card-dots i:last-child{background:#fff;}
+}
+
+/* sin foto (o foto que no cargó): dibujo discreto + mensaje; no rompe la tarjeta */
+.card-fotos [data-icon]{width:46%;display:grid;place-items:center;}
+.card-fotos [data-icon] svg{width:100%;height:auto;opacity:.8;}
+.card-sin-foto{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gray);}
+
+/* capas sobre la foto */
+.badge{position:absolute;top:12px;left:12px;z-index:3;transform:none !important;animation:none !important;box-shadow:none !important;}
+.card.sin-stock .card-media{filter:grayscale(.75);opacity:.6;}
+
+/* ---------- celular: aún más compacta, botón a todo el ancho ---------- */
+@media (max-width:640px){
+  .card-body{padding:9px 9px 10px;gap:6px;}
+  .card-name{font-size:13px;}
+  .card-price{font-size:13px;}
+  .card-bottom{flex-direction:column;align-items:stretch;gap:7px;}
+  .add-btn{width:100%;padding:9px 10px;}
+  .badge{font-size:9px;padding:3px 7px;top:8px;left:8px;max-width:calc(100% - 56px);white-space:nowrap;}
+  .card-dots{bottom:40px;}
+  .yd-quick{bottom:6px;padding:5px 10px;font-size:10px;white-space:nowrap;gap:5px;}
+  .yd-quick svg{width:12px;height:12px;}
+  .size-chip{min-width:26px;height:24px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .card,.card-photo,.card-media{transition:none;}
+  .card:hover,.card:nth-child(n):hover,.card:hover .card-photo{transform:none;}
+}

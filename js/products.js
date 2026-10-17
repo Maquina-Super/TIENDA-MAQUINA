@@ -1,0 +1,187 @@
+/* ============================================================
+   CATÁLOGO DE PRODUCTOS
+   Esto reemplaza a la tabla "productos" de la base de datos.
+   Para agregar, quitar o editar un producto, edita este arreglo.
+
+   colores: lista de códigos HEX
+   tallas : lista de tallas disponibles
+   icono  : hoodie | tee | cap | pants | jacket | shorts
+   badge  : "nuevo" | "pocas" | "vendido" | null
+   foto   : foto general del producto (opcional)
+   fotos  : foto específica por color, ej: { "#151512": "img/negra.jpg" }
+            se sube desde admin.html, columna "Fotos por color".
+            Si el cliente hace clic en un color que tiene foto propia,
+            la imagen del producto cambia a esa foto.
+   fotosTrasera : foto de espaldas por color (se ve al pasar el mouse / tocar la foto).
+   ajusteFoto   : (opcional) 'contain' = prenda completa (por defecto) | 'cover' = la
+            foto llena el cuadro (útil en fotos de modelo). Si no se pone, la tienda
+            lo decide sola mirando el fondo de la foto (ver js/catalog-render.js).
+   posicionFoto : (opcional) dónde anclar la foto, ej: 'center top' (object-position).
+   ============================================================ */
+
+const PRODUCTS = [
+  { id: 1, nombre: "Buso Volt",        categoria: "Busos",       genero: ["hombre","mujer"], precio: 189900, precio_anterior: 229900, icono: "hoodie", colores: ["#dfe8da", "#151512", "#e7d9ee"], tallas: ["S","M","L","XL"],    badge: "pocas",  stock: 6,  activo: true },
+  { id: 2, nombre: "Buso Static",      categoria: "Busos",       genero: ["hombre","mujer"], precio: 179900, precio_anterior: null,   icono: "hoodie", colores: ["#151512", "#faf9f5", "#eceae3"], tallas: ["S","M","L","XL"],    badge: "nuevo",  stock: 20, activo: true },
+  { id: 3, nombre: "Buso Amp",         categoria: "Busos",       genero: ["hombre","mujer"], precio: 194900, precio_anterior: null,   icono: "hoodie", colores: ["#e7d9ee", "#151512"],             tallas: ["S","M","L","XL"],    badge: null,     stock: 10, activo: true },
+  { id: 4, nombre: "Camiseta Bolt",    categoria: "Camisetas",   genero: ["hombre","mujer"], precio: 79900,  precio_anterior: null,   icono: "tee",    colores: ["#faf9f5", "#151512", "#f3e0da"], tallas: ["S","M","L","XL"],    badge: "nuevo",  stock: 30, activo: true },
+  { id: 5, nombre: "Gorra Static",     categoria: "Gorras",      genero: ["hombre","mujer"], precio: 69900,  precio_anterior: null,   icono: "cap",    colores: ["#151512", "#e7d9ee"],             tallas: ["Única"],              badge: null,     stock: 25, activo: true },
+  { id: 6, nombre: "Cargo Circuit",    categoria: "Pantalones",  genero: ["hombre"],         precio: 159900, precio_anterior: null,   icono: "pants",  colores: ["#151512", "#eceae3"],             tallas: ["28","30","32","34"], badge: "pocas",  stock: 6,  activo: true },
+  { id: 7, nombre: "Chaqueta Voltage", categoria: "Chaquetas",   genero: ["hombre","mujer"], precio: 249900, precio_anterior: 299900, icono: "jacket", colores: ["#151512", "#dfe8da"],             tallas: ["S","M","L","XL"],    badge: "pocas",  stock: 5,  activo: true },
+  { id: 8, nombre: "Shorts Drip",      categoria: "Shorts",      genero: ["hombre","mujer"], precio: 99900,  precio_anterior: null,   icono: "shorts", colores: ["#151512", "#f5ecd6"],             tallas: ["S","M","L","XL"],    badge: null,     stock: 18, activo: true },
+];
+
+/** Bajo qué "sección" del menú (Ropa / Accesorios) cae cada categoría.
+    Se usa para armar el menú desplegable de Hombre/Mujer/Niño/Niña,
+    tipo el de las tiendas grandes: cada género tiene sus columnas de
+    Ropa y Accesorios con las categorías que sí tienen productos. */
+const GRUPOS_CATEGORIA = {
+  "Ropa": ["Busos", "Camisetas", "Pantalones", "Chaquetas", "Shorts"],
+  "Accesorios": ["Gorras"],
+};
+
+/** Los 4 géneros que aparecen en el menú de arriba del sitio. */
+const GENEROS_MENU = [
+  { id: "hombre", etiqueta: "Hombre" },
+  { id: "mujer",  etiqueta: "Mujer" },
+  { id: "nino",   etiqueta: "Niño" },
+  { id: "nina",   etiqueta: "Niña" },
+];
+
+/** Productos activos que pertenecen a un género dado ("hombre", "mujer", "nino", "nina") */
+function productosPorGenero(genero) {
+  return productosActivos().filter(p => Array.isArray(p.genero) && p.genero.includes(genero));
+}
+
+
+/** Un producto marcado "Ocultar hasta el drop" (p.ocultoHastaDrop)
+    queda invisible en toda la tienda pública (catálogo, buscador,
+    favoritos, ficha del producto, etc.) SOLO mientras la cuenta
+    regresiva del "Próximo drop" (panel admin, pestaña Drop) siga
+    corriendo. En la sección de "Próximo drop" de index.html sí se
+    ve, pero borrosa (ver pintarProductosDrop en index.html). En
+    cuanto la fecha/hora configurada se cumple, esta función deja
+    de ocultarlo — sin que nadie tenga que tocar nada — y el
+    producto aparece nítido y comprable en toda la tienda.
+    Si todavía no hay fecha configurada, se sigue ocultando (no
+    hay drop "que ya llegó" todavía). */
+function estaOcultoPorDrop(p) {
+  if (!p) return false;
+  const config = typeof getConfigDrop === 'function' ? getConfigDrop() : null;
+  // además del check manual, las prendas del Drop PUBLICADO tampoco se ven
+  // nítidas en la tienda antes de la fecha de inicio
+  const enDropPublicado = !!(config && config.publicado === true && config.fecha &&
+    Array.isArray(config.productos) && config.productos.some(id => id == p.id));
+  if (!p.ocultoHastaDrop && !enDropPublicado) return false;
+  if (!config || !config.fecha) return !!p.ocultoHastaDrop;
+  return new Date(config.fecha).getTime() > Date.now();
+}
+
+/** Devuelve solo los productos activos, leyendo el catálogo editable
+    (maquina_catalogo en localStorage) que el admin puede modificar
+    desde admin.html. Si por algún motivo esa función no existe
+    todavía, cae de vuelta al catálogo de fábrica PRODUCTS. También
+    quita los productos que están "ocultos hasta el drop" mientras
+    su cuenta regresiva no haya llegado a cero (ver
+    estaOcultoPorDrop arriba). */
+function productosActivos() {
+  const lista = typeof getCatalogo === 'function' ? getCatalogo() : PRODUCTS;
+  return lista.filter(p => p.activo && !estaOcultoPorDrop(p));
+}
+
+/** Busca un producto por id (los ids vienen como string desde el DOM, por eso == ) */
+function buscarProducto(id) {
+  const lista = typeof getCatalogo === 'function' ? getCatalogo() : PRODUCTS;
+  return lista.find(p => p.id == id) || null;
+}
+
+/** Lista de categorías presentes en el catálogo, ordenadas alfabéticamente */
+function categoriasDisponibles() {
+  const set = new Set(productosActivos().map(p => p.categoria));
+  return Array.from(set).sort();
+}
+
+/* ============================================================
+   ZONAS DE ENVÍO
+   Costo de envío según dónde queda el municipio/zona del
+   cliente. Estos son los valores DE FÁBRICA: se usan mientras
+   no haya nada guardado todavía en Firestore, y sirven para
+   "sembrar" el panel admin la primera vez. Para cambiar los
+   costos día a día, hazlo desde el panel (pestaña Resumen →
+   "🚚 Costos de envío") en vez de editar esto — así el cambio
+   se ve igual para todos los que entren a la tienda, sin tener
+   que volver a publicar el sitio.
+   ============================================================ */
+const ZONAS_ENVIO_POR_DEFECTO = [
+  { id: "medellin",     nombre: "Medellín (zona urbana)",                    costo: 8000  },
+  { id: "metro",        nombre: "Área metropolitana (Bello, Itagüí, Envigado, Sabaneta, La Estrella, Copacabana)", costo: 10000 },
+  { id: "oriente",      nombre: "Oriente antioqueño (Rionegro, Marinilla, La Ceja, El Retiro)",  costo: 15000 },
+  { id: "otro_antioquia", nombre: "Otro municipio de Antioquia",             costo: 18000 },
+  { id: "vereda",       nombre: "Vereda / zona rural",                       costo: 20000 },
+  { id: "otra_ciudad",  nombre: "Otra ciudad de Colombia",                   costo: 25000 },
+];
+
+/** Caché en memoria de las zonas de envío que de verdad están en
+    uso: arranca con los valores de fábrica de arriba, y se
+    reemplaza por lo que haya guardado en Firestore en cuanto
+    cargarConfigEnvio() (js/store.js) responde. */
+let _zonasEnvioCache = ZONAS_ENVIO_POR_DEFECTO;
+
+/** Devuelve la lista completa de zonas de envío disponibles (con
+    los costos ya actualizados, si el panel los cambió). */
+function zonasEnvio() {
+  return _zonasEnvioCache;
+}
+
+/** Reemplaza la caché de zonas de envío. Lo usa cargarConfigEnvio()
+    al leer Firestore, y guardarConfigEnvioAdmin() al guardar desde
+    el panel. Ignora listas vacías/inválidas para no dejar el
+    carrito sin ninguna zona por un dato mal guardado. */
+function setZonasEnvioCache(zonas) {
+  if (Array.isArray(zonas) && zonas.length) _zonasEnvioCache = zonas;
+}
+
+/* ============================================================
+   MUNICIPIOS DE ANTIOQUIA (los 125) -> zona de envío
+   Sirve para el buscador "ciudad o municipio" del carrito: el
+   cliente escribe su municipio y el sistema ya sabe qué zona
+   (y qué costo de envío) le corresponde.
+   Para cambiar el costo de un municipio, muévelo de lista:
+   cada lista apunta a una zona de ZONAS_ENVIO de arriba.
+   ============================================================ */
+const _MUNICIPIOS_METRO   = ["Bello", "Itagüí", "Envigado", "Sabaneta", "La Estrella", "Copacabana"];
+const _MUNICIPIOS_ORIENTE = ["Rionegro", "Marinilla", "La Ceja", "El Retiro"];
+const _MUNICIPIOS_ANTIOQUIA = [
+  "Abejorral", "Abriaquí", "Alejandría", "Amagá", "Amalfi", "Andes", "Angelópolis", "Angostura", "Anorí", "Anzá",
+  "Apartadó", "Arboletes", "Argelia", "Armenia", "Barbosa", "Bello", "Belmira", "Betania", "Betulia", "Briceño",
+  "Buriticá", "Cáceres", "Caicedo", "Caldas", "Campamento", "Cañasgordas", "Caracolí", "Caramanta", "Carepa",
+  "Carolina del Príncipe", "Caucasia", "Chigorodó", "Cisneros", "Ciudad Bolívar", "Cocorná", "Concepción",
+  "Concordia", "Copacabana", "Dabeiba", "Donmatías", "Ebéjico", "El Bagre", "El Carmen de Viboral", "El Peñol",
+  "El Retiro", "El Santuario", "Entrerríos", "Envigado", "Fredonia", "Frontino", "Giraldo", "Girardota",
+  "Gómez Plata", "Granada", "Guadalupe", "Guarne", "Guatapé", "Heliconia", "Hispania", "Itagüí", "Ituango",
+  "Jardín", "Jericó", "La Ceja", "La Estrella", "La Pintada", "La Unión", "Liborina", "Maceo", "Marinilla",
+  "Medellín", "Montebello", "Murindó", "Mutatá", "Nariño", "Nechí", "Necoclí", "Olaya", "Peque", "Pueblorrico",
+  "Puerto Berrío", "Puerto Nare", "Puerto Triunfo", "Remedios", "Rionegro", "Sabanalarga", "Sabaneta", "Salgar",
+  "San Andrés de Cuerquia", "San Carlos", "San Francisco", "San Jerónimo", "San José de la Montaña",
+  "San Juan de Urabá", "San Luis", "San Pedro de los Milagros", "San Pedro de Urabá", "San Rafael", "San Roque",
+  "San Vicente Ferrer", "Santa Bárbara", "Santa Fe de Antioquia", "Santa Rosa de Osos", "Santo Domingo",
+  "Segovia", "Sonsón", "Sopetrán", "Támesis", "Tarazá", "Tarso", "Titiribí", "Toledo", "Turbo", "Uramita",
+  "Urrao", "Valdivia", "Valparaíso", "Vegachí", "Venecia", "Vigía del Fuerte", "Yalí", "Yarumal", "Yolombó",
+  "Yondó", "Zaragoza",
+];
+
+/** Devuelve los municipios de Antioquia como [{ nombre, zona, costo }] */
+function municipiosAntioquia() {
+  return _MUNICIPIOS_ANTIOQUIA.map(nombre => {
+    let zona = "otro_antioquia";
+    if (nombre === "Medellín") zona = "medellin";
+    else if (_MUNICIPIOS_METRO.includes(nombre)) zona = "metro";
+    else if (_MUNICIPIOS_ORIENTE.includes(nombre)) zona = "oriente";
+    return { nombre, zona, costo: costoEnvio(zona) };
+  });
+}
+
+/** Devuelve el costo de envío de una zona por su id (0 si no existe) */
+function costoEnvio(zonaId) {
+  const zona = zonasEnvio().find(z => z.id === zonaId);
+  return zona ? zona.costo : 0;
+}

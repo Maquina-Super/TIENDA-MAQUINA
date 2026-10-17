@@ -1,0 +1,40 @@
+ESTADO DEL PEDIDO EN GOOGLE SHEETS  (revisión de la integración pedidos <-> hoja)
+=================================================================================
+
+QUÉ HACE AHORA
+- Cuando cambias el estado de un pedido en el panel, la hoja "Pedidos" muestra ese
+  estado en una columna extra llamada "Estado del pedido".
+- Esa columna se crea sola, DESPUÉS de la última columna que ya uses (A-M no se tocan).
+  Si ya tienes columnas propias después de M, la de estado queda a continuación de ellas.
+- Solo se escribe UNA celda por cambio. No se insertan ni borran filas; Subtotal, Envío y
+  Total (J, K, L) y las filas anteriores no se modifican.
+- El script NO se fía del estado que manda el navegador: lo lee de Firestore (el real).
+  Por eso repetir un aviso, un doble clic o avisos desordenados dejan siempre el estado correcto.
+- Pedidos nuevos: la fila nace con "Pendiente" en esa columna.
+- Pedidos viejos: su celda de estado queda vacía hasta que cambie su estado (vacío = Pendiente).
+
+CÓMO PUBLICAR (una sola vez)
+1) script.google.com -> tu proyecto -> reemplaza TODO el código por el de
+   APPS_SCRIPT_pegar_en_script.google.com.txt.
+2) Implementar -> Administrar implementaciones -> editar (lápiz) -> Versión: "Nueva versión" -> Implementar.
+   (la URL /exec NO cambia, no hay que tocar js/store.js)
+3) Pedirá un permiso nuevo ("conectarse a un servicio externo"): es para leer el estado en Firestore.
+   Acéptalo.
+4) Abre la URL /exec en el navegador: debe decir "versión 2026-10-11 pedidos-estado-sync".
+
+CÓMO VER LOS ERRORES
+- Pestaña "Errores_Pedidos" de la hoja (se crea sola al primer fallo): fecha, tipo de aviso,
+  código del pedido y motivo. Sin datos personales. Si no existe o está vacía, no ha fallado nada.
+- También en Apps Script -> Ejecuciones.
+- Motivos típicos: "no está en la hoja" (el pedido nunca se escribió), "aparece en 2 filas",
+  "Firestore respondió 403/500".
+
+PRUEBA SEGURA (sin tocar pedidos reales)
+A) En tu computador, sin red ni credenciales (simula hoja, correo y Firestore):
+     node tests-hoja/test-hoja-simulada.js
+     node tests-hoja/test-cliente-simulado.js
+B) En la hoja real, sin usar pedidos de clientes:
+   1. Haz una COPIA del archivo de Sheets (Archivo -> Hacer una copia).
+   2. En el script, cambia SHEET_ID por el de la copia y crea una implementación de PRUEBA.
+   3. Crea un pedido de prueba tuyo (contraentrega), cámbialo de estado en el panel y mira la copia.
+   4. Borra el pedido de prueba desde el panel, y vuelve a poner el SHEET_ID real.

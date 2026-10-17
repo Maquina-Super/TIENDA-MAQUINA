@@ -1,0 +1,210 @@
+/* ============================================================
+   MAQUINA — CHECKOUT v3 (pasos, campos, resumen y estados)
+   ------------------------------------------------------------
+   Se carga DESPUÉS de carrito-v2.css. Todo cuelga de .carrito-page.
+   Para volver al formulario anterior hay que restaurar carrito.html
+   (este archivo solo da estilo a lo nuevo).
+   ============================================================ */
+.carrito-page{--ck-ok:#8af04e;--ck-warn:#ffd600;--ck-err:#ff5d6c;--ck-ease:cubic-bezier(.22,.8,.3,1);}
+.carrito-page.ck-lock{overflow:hidden;}
+
+/* ---------- cabecera del paso ---------- */
+.carrito-page .ck-box{scroll-margin-top:90px;transition:opacity .25s;}
+.carrito-page .ck-box.is-busy{opacity:.7;pointer-events:none;}
+.ck-head{margin-bottom:18px;}
+.ck-head h2{outline:none;}
+.ck-sub{margin:6px 0 0;color:var(--c-gray);font-size:14px;line-height:1.45;}
+.ck-alert{
+  margin:0 0 14px;padding:11px 14px;border-radius:12px;font-size:13.5px;line-height:1.4;
+  background:rgba(255,93,108,.09);border:1px solid rgba(255,93,108,.45);color:#ffc2c8;
+  animation:ckIn .3s var(--ck-ease) both;
+}
+
+/* ---------- paneles (uno por paso) ---------- */
+.ck-panel{display:none;}
+.ck-panel.is-active{display:block;animation:ckIn .35s var(--ck-ease) both;}
+.ck-panel[hidden]{display:none !important;}
+@keyframes ckIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+
+/* ---------- campos ---------- */
+.ck-field{margin-bottom:16px;min-width:0;position:relative;}
+.ck-field label{display:block;margin:0 0 7px;font-size:13px;font-weight:600;color:var(--c-ink);letter-spacing:.01em;}
+.ck-field label em{font-style:normal;font-weight:400;color:var(--c-gray);}
+.ck-field input,.ck-field select,.ck-field textarea{width:100%;margin:0;box-sizing:border-box;}
+.ck-field textarea{resize:vertical;min-height:70px;}
+.ck-hint{display:block;margin-top:6px;font-size:12px;line-height:1.4;color:var(--c-gray);}
+.ck-field .campo-error-msg{margin-top:6px;}
+.ck-field input.campo-error,.ck-field select.campo-error{border-color:var(--ck-err) !important;box-shadow:0 0 0 3px rgba(255,93,108,.14);}
+.carrito-page .campo-error-msg.mostrar{display:flex;gap:6px;align-items:flex-start;animation:ckIn .25s var(--ck-ease) both;}
+.carrito-page .campo-error-msg.mostrar::before{content:"!";flex:none;width:16px;height:16px;border-radius:50%;background:var(--ck-err);color:#0a0a0a;font-size:11px;font-weight:800;display:grid;place-items:center;margin-top:1px;}
+.ck-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.ck-prefijo{display:flex;align-items:stretch;}
+.ck-prefijo-tag{
+  display:grid;place-items:center;padding:0 14px;border:1px solid var(--c-line-2);border-right:0;border-radius:10px 0 0 10px;
+  background:var(--c-surface);color:var(--c-gray-2);font-size:14px;font-weight:600;
+}
+.ck-prefijo input{border-radius:0 10px 10px 0 !important;}
+.ck-sugerencia{
+  margin-top:8px;padding:8px 12px;border-radius:9px;border:1px dashed var(--ck-warn);background:rgba(255,214,0,.07);
+  color:#f1e3a3;font-size:13px;cursor:pointer;text-align:left;
+}
+.ck-sugerencia:hover{background:rgba(255,214,0,.14);}
+.ck-zona{
+  display:flex;align-items:center;gap:10px;margin:-4px 0 14px;padding:10px 14px;border-radius:12px;font-size:13.5px;
+  background:rgba(138,240,78,.07);border:1px solid rgba(138,240,78,.3);color:var(--c-gray-2);animation:ckIn .3s var(--ck-ease) both;
+}
+.ck-zona svg{width:20px;height:20px;flex:none;color:var(--ck-ok);}
+.ck-zona b{color:var(--c-ink);}
+.ck-zona[hidden]{display:none;}
+
+/* casillas */
+.ck-check{display:flex;align-items:flex-start;gap:11px;margin:4px 0 14px;font-size:13.5px;line-height:1.45;color:var(--c-gray-2);cursor:pointer;}
+.ck-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--ck-ok);cursor:pointer;}
+.ck-check a{color:var(--ck-ok);text-decoration:underline;text-underline-offset:2px;}
+.ck-check[hidden]{display:none;}
+.ck-terminos{margin-top:18px;}
+.ck-terminos input.campo-error{outline:2px solid var(--ck-err);outline-offset:2px;}
+
+/* municipio / autocompletar: que quede sobre lo demás y con alto limitado */
+.carrito-page .municipio-autocomplete{position:relative;}
+.carrito-page .municipio-sugerencias{max-height:260px;overflow:auto;z-index:30;}
+.carrito-page .municipio-sug{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:11px 14px;min-height:44px;}
+.carrito-page .municipio-sug.is-active{background:rgba(138,240,78,.1);}
+.carrito-page .municipio-sug-costo{color:var(--c-gray-2);font-size:13px;white-space:nowrap;}
+
+/* ---------- tarjetas de revisión (paso 3) ---------- */
+.ck-card{margin:0 0 14px;padding:16px;border-radius:14px;background:var(--c-surface-2);border:1px solid var(--c-line);min-width:0;}
+.ck-card header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.ck-card h3{margin:0;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-accent);font-weight:700;}
+.ck-edit{
+  background:none;border:0;padding:6px 8px;margin:-6px -8px;border-radius:8px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--ck-ok);text-decoration:underline;text-underline-offset:3px;
+}
+.ck-edit:hover{background:rgba(138,240,78,.1);}
+.ck-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.ck-two > .ck-card,.ck-stack > .ck-card{margin-bottom:0;}
+.ck-stack{display:grid;gap:14px;align-content:start;}
+.ck-two{margin-bottom:6px;}
+.ck-rev-text{display:grid;gap:3px;font-size:14px;line-height:1.45;color:var(--c-gray-2);word-break:break-word;}
+.ck-rev-text b{color:var(--c-ink);font-weight:600;}
+.ck-ref{font-style:italic;color:var(--c-gray);}
+.ck-sec-title{margin:22px 0 12px;font-size:15px;font-weight:700;color:var(--c-ink);}
+
+.ck-items{display:grid;gap:12px;}
+.ck-item{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;}
+.ck-item-img{position:relative;width:56px;height:56px;border-radius:10px;background:var(--c-surface);border:1px solid var(--c-line);overflow:visible;}
+.ck-item-img img{width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;}
+.ck-item-img svg{width:100%;height:100%;padding:6px;box-sizing:border-box;border-radius:10px;}
+.ck-item-q{position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--ck-ok);color:#0a0a0a;font-size:11px;font-weight:800;display:grid;place-items:center;}
+.ck-item-info{min-width:0;display:grid;gap:2px;}
+.ck-item-info b{font-size:14px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ck-item-info small{font-size:12.5px;color:var(--c-gray);}
+.ck-item-precio{font-weight:700;font-size:14px;color:var(--c-ink);white-space:nowrap;}
+
+.ck-totals{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--c-line);display:grid;gap:8px;}
+.ck-t-row{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--c-gray-2);}
+.ck-t-row dt,.ck-t-row dd{margin:0;}
+.ck-t-row dd{color:var(--c-ink);font-weight:600;}
+.ck-t-row.is-discount dd{color:var(--ck-ok);}
+.ck-t-row.is-total{margin-top:4px;padding-top:12px;border-top:1px solid var(--c-line);font-size:17px;color:var(--c-ink);font-weight:700;}
+.ck-t-row.is-total dd{color:var(--ck-ok);font-size:21px;}
+.ck-t-row[hidden]{display:none;}
+
+/* En los pasos 1 y 2 el botón principal vive en el formulario; el del resumen solo aparece en el paso 3 */
+.carrito-page .resumen-acciones:not(.visible) #btnFinalizar,
+.carrito-page .resumen-acciones:not(.visible) #finalizarHint,
+.carrito-page .resumen-acciones:not(.visible) #cartBloqueoMsg{display:none;}
+
+/* ---------- botones ---------- */
+.ck-actions{display:flex;gap:12px;margin-top:22px;}
+.ck-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:50px;padding:0 22px;border-radius:12px;
+  font:inherit;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;cursor:pointer;
+  border:1px solid transparent;transition:transform .2s var(--ck-ease),background .2s,border-color .2s,box-shadow .2s,opacity .2s;
+}
+.ck-btn svg{width:18px;height:18px;flex:none;transition:transform .2s var(--ck-ease);}
+.ck-btn-primary{flex:1;background:var(--ck-ok);color:#0a0a0a;}
+.ck-btn-primary:hover{background:#b6ff3c;box-shadow:0 8px 22px rgba(138,240,78,.25);transform:translateY(-1px);}
+.ck-btn-primary:hover svg:last-of-type{transform:translateX(3px);}
+.ck-btn-primary:active{transform:none;}
+.ck-btn-ghost{background:transparent;color:var(--c-ink);border-color:var(--c-line-2);}
+.ck-btn-ghost:hover{border-color:var(--c-gray);background:rgba(255,255,255,.05);}
+.ck-btn-ghost[hidden]{display:none;}
+.ck-btn:disabled,.ck-btn[aria-disabled="true"]{cursor:progress;}
+.ck-btn:disabled{opacity:.65;transform:none;box-shadow:none;}
+.ck-btn:focus-visible{outline:2px solid var(--ck-ok);outline-offset:3px;}
+.ck-btn.is-loading svg:last-of-type{display:none;}
+.ck-btn.is-loading > .btn-spinner{display:inline-block;}
+.carrito-page .stepper-step[data-volver]{cursor:pointer;}
+.carrito-page .stepper-step[data-volver]:hover .stepper-label{color:var(--ck-ok);}
+.carrito-page .stepper-step:focus-visible{outline:2px solid var(--ck-ok);outline-offset:4px;border-radius:10px;}
+
+/* método de pago: paneles */
+.carrito-page .campos-pse .ck-field{margin-bottom:12px;}
+.carrito-page .campos-tarjeta.open{margin-top:12px;}
+.carrito-page .campos-pse.open{max-height:520px;}
+
+/* ---------- overlay: procesando / error ---------- */
+.ck-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);animation:ckFade .25s ease both;}
+.ck-overlay[hidden]{display:none;}
+@keyframes ckFade{from{opacity:0;}to{opacity:1;}}
+.ck-ov-card{width:min(420px,100%);padding:30px 26px 26px;border-radius:20px;text-align:center;background:var(--c-surface);border:1px solid var(--c-line-2);box-shadow:0 30px 80px rgba(0,0,0,.6);outline:none;animation:ckIn .35s var(--ck-ease) both;}
+.ck-ov-icon{width:64px;height:64px;margin:0 auto 16px;display:grid;place-items:center;border-radius:50%;}
+.ck-ov-icon svg{width:34px;height:34px;}
+.ck-overlay[data-estado="error"] .ck-ov-icon{background:rgba(255,93,108,.12);color:var(--ck-err);}
+.ck-spin{width:46px;height:46px;border-radius:50%;border:4px solid rgba(255,255,255,.14);border-top-color:var(--ck-ok);animation:cvSpin .8s linear infinite;}
+.ck-ov-card h3{margin:0 0 8px;font-size:20px;color:var(--c-ink);}
+.ck-ov-card p{margin:0;font-size:14px;line-height:1.5;color:var(--c-gray-2);}
+.ck-ov-barra{height:4px;margin-top:20px;border-radius:2px;background:var(--c-line);overflow:hidden;}
+.ck-ov-barra i{display:block;width:40%;height:100%;border-radius:2px;background:var(--ck-ok);animation:ckBarra 1.3s ease-in-out infinite;}
+@keyframes ckBarra{0%{transform:translateX(-100%);}100%{transform:translateX(260%);}}
+.ck-ov-barra[hidden],.ck-ov-actions[hidden]{display:none;}
+.ck-ov-actions{display:grid;gap:10px;margin-top:22px;}
+.ck-ov-actions .ck-btn{width:100%;}
+.ck-ov-actions .ck-btn[hidden]{display:none;}
+
+/* ---------- confirmación (paso 4) ---------- */
+.ck-confirm{max-width:900px;margin:8px auto 0;animation:ckIn .45s var(--ck-ease) both;}
+.ck-confirm-head{text-align:center;padding:10px 0 26px;display:grid;justify-items:center;gap:10px;}
+.ck-confirm-head h2{margin:6px 0 0;font-size:clamp(26px,4vw,36px);text-transform:uppercase;color:var(--c-ink);outline:none;}
+.ck-confirm-sub{margin:0;max-width:520px;font-size:15px;line-height:1.5;color:var(--c-gray-2);}
+.ck-check-anim{width:76px;height:76px;}
+.ck-check-anim svg{width:100%;height:100%;fill:none;stroke:var(--ck-ok);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+.ck-check-anim circle{stroke-dasharray:151;stroke-dashoffset:151;animation:ckDraw .7s .05s var(--ck-ease) forwards;}
+.ck-check-anim path{stroke-dasharray:40;stroke-dashoffset:40;animation:ckDraw .45s .55s var(--ck-ease) forwards;}
+@keyframes ckDraw{to{stroke-dashoffset:0;}}
+.ck-codigo{display:inline-flex;align-items:center;gap:10px;margin-top:6px;padding:8px 8px 8px 16px;border-radius:12px;background:var(--c-surface-2);border:1px solid var(--c-line-2);}
+.ck-codigo span{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-gray);}
+.ck-codigo b{font-size:18px;letter-spacing:.06em;color:var(--c-ink);font-family:ui-monospace,Menlo,Consolas,monospace;}
+.ck-copiar{border:1px solid var(--c-line-2);background:transparent;color:var(--c-ink);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;}
+.ck-copiar:hover{border-color:var(--ck-ok);color:var(--ck-ok);}
+.ck-estado-pago{display:inline-flex;align-items:center;gap:8px;margin:0;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;background:rgba(255,214,0,.09);border:1px solid rgba(255,214,0,.35);color:#f1e3a3;}
+.ck-estado-pago i{width:8px;height:8px;border-radius:50%;background:var(--ck-warn);}
+.ck-confirm-correo{margin:0;font-size:13.5px;color:var(--c-gray);}
+.ck-confirm-correo b{color:var(--c-gray-2);}
+.ck-btn-pse{margin-top:6px;flex:none;min-width:260px;}
+.ck-confirm-grid{align-items:start;}
+.ck-confirm-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:24px 0 8px;}
+.ck-confirm-actions .ck-btn{flex:0 1 auto;}
+
+/* ---------- responsivo ---------- */
+@media (max-width:760px){
+  .ck-two,.ck-row{grid-template-columns:minmax(0,1fr);}
+  .ck-row{gap:0;}
+  .ck-two{gap:12px;}
+  .ck-actions{flex-direction:column-reverse;}
+  .ck-btn{width:100%;min-height:52px;}
+  .ck-card{padding:14px;}
+  .ck-confirm-actions{flex-direction:column;}
+  .ck-confirm-actions .ck-btn{width:100%;}
+  .ck-btn-pse{min-width:0;width:100%;}
+  .ck-field input,.ck-field select,.ck-field textarea{font-size:16px;}   /* iOS no hace zoom al enfocar */
+}
+@media (min-width:761px) and (max-width:1100px){
+  .ck-item{grid-template-columns:52px minmax(0,1fr) auto;}
+}
+@media (prefers-reduced-motion:reduce){
+  .ck-panel.is-active,.ck-alert,.ck-zona,.ck-confirm,.ck-ov-card,.carrito-page .campo-error-msg.mostrar{animation:none;}
+  .ck-check-anim circle,.ck-check-anim path{animation:none;stroke-dashoffset:0;}
+  .ck-spin{animation-duration:1.6s;}
+}

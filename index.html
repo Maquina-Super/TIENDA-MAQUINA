@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>MAQUINA — Ropa urbana de edición limitada</title>
+<meta name="description" content="Busos, camisetas y accesorios urbanos de edición limitada. Envíos a toda Colombia, paga contra entrega.">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="MAQUINA — Ropa urbana de edición limitada">
+<meta property="og:description" content="Busos, camisetas y accesorios urbanos de edición limitada. Envíos a toda Colombia, paga contra entrega.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/index.html">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=rev4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=11">
+<link rel="stylesheet" href="css/extras-cliente.css?v=2">
+<link rel="stylesheet" href="css/inicio.css?v=4b">
+<link rel="stylesheet" href="css/drop-hero.css?v=2">
+<link rel="stylesheet" href="css/tarjetas.css?v=2">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
+</head>
+<body class="pg-inicio">
+
+<div id="site-header"></div>
+
+<!-- ========== BANNER PRINCIPAL ========== -->
+<section class="yd-hero" id="ydHero" aria-label="Novedades de MAQUINA"></section>
+
+<!-- ========== BENEFICIOS (franja bajo el banner) ========== -->
+<div class="yd-info" id="ydInfo"></div>
+
+<!-- ========== PRODUCTOS DESTACADOS ========== -->
+<section class="yd-sec" id="destacados">
+  <div class="yd-sec-head">
+    <h2>Productos destacados</h2>
+    <div class="yd-tabs" id="ydTabs"></div>
+  </div>
+  <div class="grid" id="gridDestacados"></div>
+  <div class="yd-more">
+    <a href="productos.html" class="btn btn-ghost">Ver toda la colección</a>
+  </div>
+</section>
+
+<!-- ========== CATEGORÍAS ========== -->
+<section class="yd-sec yd-sec--flush">
+  <div class="yd-sec-head"><h2>Categorías</h2></div>
+  <div class="yd-cats" id="ydCats"></div>
+</section>
+
+<!-- ========== BANNER PROMOCIONAL ========== -->
+<section class="yd-sec yd-sec--flush">
+  <div class="yd-promo">
+    <div class="yd-promo-in">
+      <h3>Estilo urbano<br><span>sin límites</span></h3>
+      <p>La verdadera actitud no se compra, se viste. Cada drop se hace una sola vez y en cantidades cortas.</p>
+      <a href="productos.html" class="yd-hero-btn">Ver más</a>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PRÓXIMO DROP ========== -->
+<!-- Todo el contenido (fecha, nombre, productos) se lee de la config del
+     panel (Firestore: config/drop). Estilos en css/drop-hero.css -->
+<section class="dh" id="dropCountdown" data-estado="cargando" aria-labelledby="dhTitulo">
+  <svg class="dh-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <!-- bordes irregulares de pincel seco para el título -->
+      <filter id="dhRough" x="-8%" y="-30%" width="116%" height="160%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.03 0.55" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="dh-lights" aria-hidden="true">
+    <span class="dh-light dh-light--1"></span>
+    <span class="dh-light dh-light--2"></span>
+    <span class="dh-light dh-light--3"></span>
+    <span class="dh-light dh-light--4"></span>
+  </div>
+
+  <!-- prendas reales del drop (se llena desde el script) -->
+  <div class="dh-cover" id="dhCover" aria-hidden="true"></div>
+  <div class="dh-stage" id="dropLiveGrid"></div>
+
+  <div class="dh-veil2" aria-hidden="true"></div>
+  <div class="dh-veil" aria-hidden="true"></div>
+  <div class="dh-smoke dh-smoke--l" aria-hidden="true"></div>
+  <div class="dh-smoke dh-smoke--r" aria-hidden="true"></div>
+  <div class="dh-smoke dh-smoke--b" aria-hidden="true"></div>
+  <div class="dh-grain" aria-hidden="true"></div>
+
+  <div class="dh-crown" aria-hidden="true">
+    <img src="img/logo-crown.png" alt="" width="34" height="34" loading="lazy">
+    <span>Más que ropa,<br>es actitud</span>
+    <svg viewBox="0 0 120 10" preserveAspectRatio="none"><path d="M2 7 Q 30 1 60 5 T 118 3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+  </div>
+
+  <div class="dh-content">
+    <p class="dh-eyebrow"><i></i><span id="dropLabel">Próximo drop</span></p>
+    <h2 class="dh-title" id="dhTitulo"><span class="dh-t1" id="dhT1">Próximo</span><span class="dh-t2" id="dhT2">Drop</span></h2>
+    <p class="dh-tag">Nueva colección · Misma esencia</p>
+    <p class="dh-pill" id="dhPill" hidden></p>
+    <p class="dh-desc" id="dhDesc" hidden></p>
+    <p class="dh-sub" id="dropSub" hidden></p>
+    <div class="dh-timer" id="dropTimer" role="timer" aria-label="Tiempo restante">
+      <div class="dh-unit"><span id="dtDias">--</span><small>Días</small></div>
+      <div class="dh-unit"><span id="dtHoras">--</span><small>Horas</small></div>
+      <div class="dh-unit"><span id="dtMin">--</span><small>Min</small></div>
+      <div class="dh-unit"><span id="dtSeg">--</span><small>Seg</small></div>
+    </div>
+    <a href="#club" class="dh-cta" id="dropCta">
+      <svg class="dh-bell" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 22a2.4 2.4 0 0 0 2.35-1.9h-4.7A2.4 2.4 0 0 0 12 22Zm7-5.6-1.6-1.7V10a5.4 5.4 0 0 0-4.2-5.3V3.8a1.2 1.2 0 1 0-2.4 0v.9A5.4 5.4 0 0 0 6.6 10v4.7L5 16.4V18h14v-1.6Z"/></svg>
+      <span id="dropCtaTxt">Avísenme primero</span>
+      <svg class="dh-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+    </a>
+  </div>
+
+  <div class="dh-brand" aria-hidden="true">
+    <span class="dh-barcode"></span>
+    <span>Maquina supply<br>Streetwear</span>
+  </div>
+
+  <div class="dh-seal" aria-hidden="true">
+    <svg class="dh-seal-ring" viewBox="0 0 120 120">
+      <defs><path id="dhCirculo" d="M60 60 m-47 0 a47 47 0 1 1 94 0 a47 47 0 1 1 -94 0"/></defs>
+      <text><textPath href="#dhCirculo" startOffset="0" textLength="293" lengthAdjust="spacing">MAQUINA STREETWEAR · MAQUINA ·</textPath></text>
+    </svg>
+    <svg class="dh-seal-bolt" viewBox="0 0 24 32" fill="#52ff28"><path d="M14 0 2 18h8l-3 14 15-20h-9L14 0Z"/></svg>
+  </div>
+</section>
+
+<!-- ========== LO MÁS PEDIDO ========== -->
+<section class="yd-sec" id="masPedido">
+  <div class="yd-sec-head">
+    <h2>Más de MAQUINA</h2>
+    <a href="productos.html" class="yd-clear">Ver todo</a>
+  </div>
+  <div class="grid" id="gridMasPedido"></div>
+</section>
+
+<!-- ========== RESEÑAS REALES (se oculta si no hay) ========== -->
+<section class="yd-sec" id="ydComunidad" hidden>
+  <div class="yd-sec-head"><h2>Lo que dicen de MAQUINA</h2></div>
+  <div class="yd-com-grid" id="ydComunidadGrid"></div>
+</section>
+
+<!-- ========== VOLTAGE CLUB ========== -->
+<section class="club reveal-scale" id="club">
+  <h2>Únete al Voltage Club</h2>
+  <p>Acceso anticipado a cada drop, antes de que se agote.</p>
+  <form class="club-form" id="clubForm">
+    <input type="email" name="email" id="clubEmail" placeholder="tu@correo.com" required>
+    <button class="btn btn-primary" type="submit">Quiero entrar</button>
+  </form>
+  <div class="club-msg" id="clubMsg"></div>
+</section>
+
+<div id="site-footer"></div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"><span class="dot"></span><span id="toastText">Aviso</span></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=6"></script>
+<script src="js/store.js?v=9"></script>
+<script src="js/catalog-render.js?v=5"></script>
+<script src="js/layout.js?v=7"></script>
+<script src="js/maquina-ui.js?v=4b"></script>
+<script src="js/extras-cliente.js?v=1"></script>
+<script>
+renderHeader('inicio');
+renderFooter();
+
+/* La franja de beneficios ahora va justo bajo el banner.
+   El banner no depende del catálogo: se pinta de una.
+   */
+ydRenderHero('ydHero');
+ydRenderBeneficios('ydInfo');
+
+/* ============================================================
+   PRÓXIMO DROP
+   Todo sale de la config del panel (pestaña "Drop" de admin.html →
+   Firestore config/drop): fecha de lanzamiento, fecha de fin,
+   nombre y productos. No hay fechas de respaldo: si no hay un
+   lanzamiento programado, no se muestra contador.
+   Estados: teaser (falta tiempo / sin fecha) · live · terminado.
+   ============================================================ */
+const dhRoot = document.getElementById('dropCountdown');
+let dhListo = false;      // ya llegó la config + catálogo
+let dhClave = null;       // huella de lo pintado en el escenario
+let dhEstadoPrevio = null;
+
+function dhEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+/** Fecha válida o null. Las fechas se guardan en ISO/UTC desde el panel,
+    así que new Date() las interpreta igual en cualquier zona horaria. */
+function dhFecha(v) {
+  if (!v) return null;
+  const d = (typeof v.toDate === 'function') ? v.toDate() : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+function dhFoto(p) {
+  const c0 = p.colores && p.colores[0];
+  return (p.fotos && c0 && p.fotos[c0]) || p.foto || (p.fotos && Object.values(p.fotos)[0]) || null;
+}
+
+/** TEASER: de la foto real solo se conserva un dibujo diminuto (48×60 px)
+    en un <canvas>; el CSS lo agranda y lo desenfoca. En la página nunca
+    hay una foto nítida de la prenda antes del lanzamiento. */
+function dhDibujarBorroso(canvas, src) {
+  const img = new Image();
+  img.decoding = 'async';
+  img.onload = () => {
+    const cw = canvas.width, ch = canvas.height;
+    const r = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    const sw = cw / r, sh = ch / r;
+    const sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) * 0.25;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    canvas.classList.add('is-ready');
+  };
+  img.src = src;
+}
+
+function dhPintarEscenario(estado, lista) {
+  const stage = document.getElementById('dropLiveGrid');
+  const abierto = estado !== 'teaser';
+  const items = lista.map(p => ({ p, foto: dhFoto(p) })).filter(x => x.foto).slice(0, abierto ? 6 : 4);
+  const clave = estado + '|' + items.map(x =>
+    x.p.id + '@' + x.foto.length + ':' + x.foto.slice(-24) + (estado === 'live' ? '#' + stockTotalProducto(x.p) : '')).join(',');
+  if (clave === dhClave) return;       // nada cambió: no se vuelve a pintar cada segundo
+  dhClave = clave;
+
+  if (estado === 'teaser') {
+    stage.innerHTML = items.map(() =>
+      '<div class="dh-tile" aria-hidden="true"><div class="dh-media"><canvas width="48" height="60"></canvas></div></div>').join('');
+    stage.querySelectorAll('canvas').forEach((cv, i) => dhDibujarBorroso(cv, items[i].foto));
+    return;
+  }
+
+  // live / terminado: foto real; al lanzar se le quita el desenfoque poco a poco
+  const revelar = estado === 'live';
+  stage.innerHTML = items.map(({ p, foto }) => {
+    const img = `<img class="dh-img${revelar ? ' is-hidden' : ''}" src="${dhEsc(foto)}" alt="${dhEsc(p.nombre)}" decoding="async">`;
+    let cap = `<span class="dh-cap"><b>${dhEsc(p.nombre)}</b>`;
+    if (revelar) {
+      const q = stockTotalProducto(p);
+      cap += q > 0
+        ? `<span class="dh-pill-stock${q <= STOCK_BAJO_UMBRAL ? ' is-bajo' : ''}">${q <= STOCK_BAJO_UMBRAL ? '¡Quedan solo ' + q + '!' : 'Quedan ' + q}</span>`
+        : '<span class="dh-pill-stock is-agotado">Agotado</span>';
+    }
+    cap += '</span>';
+    const cuerpo = `<span class="dh-media">${img}</span>${cap}`;
+    return revelar
+      ? `<a class="dh-tile" href="producto.html?id=${encodeURIComponent(p.id)}">${cuerpo}</a>`
+      : `<div class="dh-tile">${cuerpo}</div>`;
+  }).join('');
+
+  stage.querySelectorAll('.dh-img.is-hidden').forEach(img => {
+    const quitar = () => requestAnimationFrame(() => requestAnimationFrame(() => img.classList.remove('is-hidden')));
+    if (img.complete && img.naturalWidth) quitar();
+    else { img.addEventListener('load', quitar, { once: true }); img.addEventListener('error', quitar, { once: true }); }
+  });
+}
+
+function dhPintarTimer(diff) {
+  const d = Math.max(0, diff);
+  const v = {
+    dtDias:  Math.floor(d / 86400000),
+    dtHoras: Math.floor((d % 86400000) / 3600000),
+    dtMin:   Math.floor((d % 3600000) / 60000),
+    dtSeg:   Math.floor((d % 60000) / 1000)
+  };
+  for (const id in v) document.getElementById(id).textContent = String(v[id]).padStart(2, '0');
+}
+
+function actualizarCountdown() {
+  if (!dhListo || !dhRoot) return;
+  const config = getConfigDrop();
+  const inicio = dhFecha(config.fecha);
+  const fin = dhFecha(config.fechaFin);
+  const ahora = Date.now();
+
+  const catalogo = getCatalogo();
+  const destacados = (config.productos || []).map(id => catalogo.find(p => p.id == id)).filter(Boolean);
+
+  let estado;                                   // lo que se ve
+  if (!inicio || inicio - ahora > 0) estado = 'teaser';
+  else if (fin && fin - ahora <= 0) estado = 'terminado';
+  else estado = 'live';
+
+  const $ = id => document.getElementById(id);
+  const label = $('dropLabel'), t1 = $('dhT1'), t2 = $('dhT2'), pill = $('dhPill');
+  const timer = $('dropTimer'), sub = $('dropSub'), cta = $('dropCta'), ctaTxt = $('dropCtaTxt');
+
+  if (estado !== dhEstadoPrevio) {
+    dhEstadoPrevio = estado;
+    dhRoot.dataset.estado = estado;
+    if (estado === 'teaser') {
+      label.textContent = 'Próximo drop'; t1.textContent = 'Próximo'; t2.textContent = 'Drop';
+      ctaTxt.textContent = 'Avísenme primero'; cta.href = '#club';
+    } else if (estado === 'live') {
+      label.textContent = 'Ya disponible'; t1.textContent = 'Drop'; t2.textContent = 'Disponible';
+      ctaTxt.textContent = 'Ver drop';
+      cta.href = destacados.length === 1 ? 'producto.html?id=' + encodeURIComponent(destacados[0].id) : 'productos.html';
+    } else {
+      label.textContent = 'Drop cerrado'; t1.textContent = 'Drop'; t2.textContent = 'Finalizado';
+      ctaTxt.textContent = 'Ver colección'; cta.href = 'productos.html';
+    }
+  }
+
+  // nombre del lanzamiento (viene del panel; si no hay, no se muestra)
+  const nombre = (config.titulo || '').trim();
+  pill.hidden = !nombre;
+  if (nombre && pill.textContent !== nombre) pill.textContent = nombre;
+
+  // contador
+  if (estado === 'teaser' && inicio) {
+    timer.hidden = false; sub.hidden = true;
+    dhPintarTimer(inicio - ahora);
+  } else if (estado === 'live' && fin) {
+    timer.hidden = false; sub.hidden = false; sub.textContent = 'Este drop termina en';
+    dhPintarTimer(fin - ahora);
+  } else {
+    timer.hidden = true;
+    sub.hidden = estado !== 'teaser';
+    if (estado === 'teaser') sub.textContent = 'Pronto anunciaremos la fecha';
+  }
+
+  // descripción del lanzamiento (viene del panel)
+  const desc = $('dhDesc'), txt = (config.descripcion || '').trim();
+  desc.hidden = !txt;
+  if (txt && desc.textContent !== txt) desc.textContent = txt;
+
+  dhPintarPortada(estado, config.portada);
+  dhPintarEscenario(estado, destacados);
+}
+
+/** Portada del drop. Antes del lanzamiento solo existe un dibujo diminuto
+    en un <canvas> (ampliado y desenfocado por CSS); nítida solo cuando ya lanzó. */
+let dhPortadaClave = null;
+function dhPintarPortada(estado, src) {
+  const cont = document.getElementById('dhCover');
+  if (!cont) return;
+  const clave = estado + '|' + (src ? src.length + src.slice(-24) : '');
+  if (clave === dhPortadaClave) return;
+  dhPortadaClave = clave;
+  if (!src) { cont.innerHTML = ''; return; }
+  if (estado === 'teaser') {
+    cont.innerHTML = '<canvas width="64" height="36"></canvas>';
+    const cv = cont.firstChild, img = new Image();
+    img.onload = () => {
+      const r = Math.max(cv.width / img.naturalWidth, cv.height / img.naturalHeight), sw = cv.width / r, sh = cv.height / r;
+      cv.getContext('2d').drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, 0, 0, cv.width, cv.height);
+      cv.classList.add('is-ready');
+    };
+    img.src = src;
+    return;
+  }
+  cont.innerHTML = '<img class="dh-cover-img' + (estado === 'live' ? ' is-hidden' : '') + '" alt="" decoding="async">';
+  const im = cont.firstChild;
+  im.src = src;
+  if (estado === 'live') {
+    const q = () => requestAnimationFrame(() => requestAnimationFrame(() => im.classList.remove('is-hidden')));
+    if (im.complete && im.naturalWidth) q(); else { im.addEventListener('load', q, { once: true }); im.addEventListener('error', q, { once: true }); }
+  }
+}
+
+// "Avísenme primero" lleva al registro del Voltage Club (el aviso real que ya existe)
+document.getElementById('dropCta').addEventListener('click', function (e) {
+  if (this.getAttribute('href') !== '#club') return;
+  e.preventDefault();
+  const club = document.getElementById('club');
+  if (!club) return;
+  club.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => { const i = document.getElementById('clubEmail'); if (i) i.focus({ preventScroll: true }); }, 600);
+});
+setInterval(actualizarCountdown, 1000);
+
+(async function () {
+const gridDest = document.getElementById('gridDestacados');
+const gridTop  = document.getElementById('gridMasPedido');
+gridDest.innerHTML = construirSkeletonHtml(4);
+gridTop.innerHTML  = construirSkeletonHtml(4);
+
+await Promise.all([cargarCatalogo(), cargarConfigDrop()]);
+dhListo = true;
+actualizarCountdown();
+
+// la portada se actualiza sola cuando se cambia el Drop desde el panel
+suscribirConfigDrop(async (cfg) => {
+  const cat = getCatalogo();
+  if ((cfg.productos || []).some(id => !cat.find(p => p.id == id))) { try { await cargarCatalogo(); } catch (e) {} }
+  dhClave = null;
+  actualizarCountdown();
+});
+
+const activos = productosActivos();
+
+/* ---------- pestañas de categoría ---------- */
+const categorias = Array.from(new Set(activos.map(p => p.categoria))).sort();
+const tabsEl = document.getElementById('ydTabs');
+tabsEl.innerHTML = '<button class="yd-tab is-active" data-cat="todos">Todos</button>' +
+  categorias.map(c => `<button class="yd-tab" data-cat="${c}">${c}</button>`).join('');
+
+function pintarDestacados(cat) {
+  const lista = (cat === 'todos' ? activos : activos.filter(p => p.categoria === cat)).slice(0, 8);
+  gridDest.innerHTML = lista.length
+    ? construirTarjetasHtml(lista)
+    : '<div class="yd-empty"><b>Todavía no hay nada aquí</b>Pronto cae algo en esta categoría.</div>';
+  initScrollReveal();
+  activarInteraccionGrid(gridDest);
+}
+pintarDestacados('todos');
+
+tabsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.yd-tab');
+  if (!btn) return;
+  [...tabsEl.children].forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  pintarDestacados(btn.dataset.cat);
+});
+
+/* ---------- categorías ---------- */
+const iconoPorCategoria = { Busos:'hoodie', Camisetas:'tee', Gorras:'cap', Pantalones:'pants', Chaquetas:'jacket', Shorts:'shorts' };
+document.getElementById('ydCats').innerHTML = categorias.slice(0, 8).map(cat => {
+  const dela = activos.filter(p => p.categoria === cat);
+  const conFoto = dela.find(p => p.foto || (p.fotos && Object.keys(p.fotos).length));
+  const foto = conFoto ? (conFoto.foto || conFoto.fotos[Object.keys(conFoto.fotos)[0]]) : null;
+  const arte = foto
+    ? `<img src="${foto}" alt="${cat}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`
+    : iconoProducto(iconoPorCategoria[cat] || 'tee', '#8af04e');
+  return `
+    <a class="yd-cat" href="productos.html?cat=${encodeURIComponent(cat)}">
+      <div class="yd-cat-art">${arte}</div>
+      <div class="yd-cat-label"><b>${cat}</b><span class="yd-cat-go">${YD_ICONOS.der}</span></div>
+    </a>`;
+}).join('');
+
+/* ---------- más de MAQUINA (no se basa en ventas) ----------
+   Se priorizan las piezas marcadas como "quedan pocas" (son las
+   que más salen) y se completa con el resto del catálogo. */
+const masPedido = [...activos.filter(p => p.badge === 'pocas'), ...activos.filter(p => p.badge !== 'pocas')].slice(0, 4);
+gridTop.innerHTML = masPedido.length
+  ? construirTarjetasHtml(masPedido)
+  : '<div class="yd-empty"><b>El próximo drop está por caer</b>Vuelve pronto.</div>';
+initScrollReveal();
+activarInteraccionGrid(gridTop);
+
+/* ---------- Voltage Club ---------- */
+document.getElementById('clubEmail').value = correoClubGuardado();
+document.getElementById('clubForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const email = document.getElementById('clubEmail').value.trim();
+  const msgEl = document.getElementById('clubMsg');
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (emailValido) {
+    guardarCorreoClub(email);
+    const res = await suscribirVoltageClub(email);
+    msgEl.textContent = res.ok
+      ? `Listo, ${email} ya está en el Voltage Club.`
+      : res.msg;
+  } else {
+    msgEl.textContent = 'Ingresa un correo válido.';
+  }
+});
+
+})();
+</script>
+
+<script>
+(async function () {
+  const sec = document.getElementById('ydComunidad'), grid = document.getElementById('ydComunidadGrid');
+  if (!sec || typeof fbDb === 'undefined') return;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  try {
+    const snap = await fbDb.collection('resenas').orderBy('fecha', 'desc').limit(30).get();
+    const lista = snap.docs.map(d => d.data())
+      .filter(r => r.aprobada !== false && Number(r.estrellas) >= 4 && String(r.comentario || '').trim().length >= 10)
+      .slice(0, 6);
+    if (!lista.length) return;
+    grid.innerHTML = lista.map(r => {
+      const n = Math.min(5, Math.max(0, Math.round(Number(r.estrellas) || 0)));
+      let prod = null;
+      try { prod = typeof buscarProducto === 'function' ? buscarProducto(r.productoId) : null; } catch (e) {}
+      return `<figure class="yd-com-card">
+        <div class="yd-com-estr" aria-label="${n} de 5 estrellas">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</div>
+        <blockquote>${esc(r.comentario)}</blockquote>
+        <figcaption><b>${esc(r.nombre)}</b>${prod ? ` · <a href="producto.html?id=${encodeURIComponent(prod.id)}">${esc(prod.nombre)}</a>` : ''}</figcaption>
+      </figure>`;
+    }).join('');
+    sec.hidden = false;
+  } catch (e) { /* sin permiso o sin conexión: la sección queda oculta */ }
+})();
+</script>
+</body>
+</html>

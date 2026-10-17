@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Tu carrito — MAQUINA</title>
+<meta name="description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega o con PSE.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Tu carrito — MAQUINA">
+<meta property="og:description" content="Revisa tu carrito y completa tu pedido en MAQUINA. Envíos a toda Colombia, paga contra entrega o con PSE.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/carrito.html">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/estilos.css?v=rev4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=9">
+<link rel="stylesheet" href="css/inicio.css?v=2b">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/carrito.css?v=rev1">
+<link rel="stylesheet" href="css/carrito-pro.css?v=rev1">
+<link rel="stylesheet" href="css/carrito-v2.css?v=rev1">
+<link rel="stylesheet" href="css/checkout-v3.css?v=rev1">
+<link rel="stylesheet" href="css/confirmacion-pedido.css?v=1">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
+</head>
+<body class="carrito-page">
+
+<div id="site-header"></div>
+
+<main class="cart-page">
+  <header class="cart-hero">
+    <h1 id="carritoTituloPagina">Carrito de compras</h1>
+    <p id="carritoSubPagina">Revisa tus productos antes de continuar.</p>
+  </header>
+
+  <div class="carrito-wrap" id="carritoWrap">
+    <!-- se rellena con JS -->
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"><span class="dot"></span><span id="toastText">Aviso</span></div>
+
+<div id="ck-overlay" class="ck-overlay" hidden data-estado="">
+  <div class="ck-ov-card" role="alertdialog" aria-modal="true" aria-labelledby="ckOvTitulo" aria-describedby="ckOvMsg" tabindex="-1">
+    <div class="ck-ov-icon" id="ckOvIcon" aria-hidden="true"></div>
+    <h3 id="ckOvTitulo"></h3>
+    <p id="ckOvMsg" aria-live="assertive"></p>
+    <div class="ck-ov-barra" id="ckOvBarra" aria-hidden="true"><i></i></div>
+    <div class="ck-ov-actions" id="ckOvAcciones" hidden>
+      <button type="button" class="ck-btn ck-btn-primary" id="ckOvPrimario"></button>
+      <button type="button" class="ck-btn ck-btn-ghost" id="ckOvSecundario"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/products.js"></script>
+<script src="js/envio-municipios.js?v=1"></script>
+<script src="js/store.js?v=9"></script>
+<script src="js/carrito-core.js"></script>
+<script src="js/layout.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+renderHeader('carrito');
+renderFooter();
+
+/* =====================================================   AJUSTES DEL CARRITO
+   ENVIO_GRATIS_DESDE: subtotal (en pesos) desde el cual el envío
+   es gratis. 0 = desactivado (se cobra siempre el envío de la
+   zona). Ejemplo: 250000 -> envío gratis desde $250.000.
+   ============================================================ */
+const ENVIO_GRATIS_DESDE = 0;
+
+/* ============================================================
+   MÉTODOS DE PAGO DISPONIBLES
+   Solo se muestran los que de verdad funcionan:
+   · Contraentrega: siempre activo (el pedido se registra y se paga al recibir).
+   · Tarjeta: está APAGADA. El formulario que existe es una simulación
+     (no hay pasarela ni banco conectados) y no debe aparentar cobrar.
+     Ponla en true únicamente cuando integres una pasarela real.
+   · Nequi: se activa solo si completas NEQUI_NUMERO y NEQUI_TITULAR con
+     los datos reales de tu cuenta. (Antes decía "300 000 0000": un marcador.)
+   · PayPal: apagado, no hay integración.
+   ============================================================ */
+const PAGO_TARJETA_ACTIVO = false;
+const PAGO_PAYPAL_ACTIVO  = false;
+/* PSE: el cliente elige banco y tipo de persona y el pedido queda
+   PENDIENTE de pago (no se cobra nada desde esta página: no hay pasarela
+   conectada). Para cobrar de verdad, crea un enlace/botón de pago PSE en
+   tu pasarela (Wompi, ePayco, PayU, Mercado Pago…) y pégalo en PSE_URL_PAGO:
+   al confirmar el pedido se le mostrará al cliente el botón "Ir a pagar con PSE".
+   Si lo dejas vacío, el pedido se registra y tú le envías el enlace de pago. */
+const PAGO_PSE_ACTIVO = true;
+const PSE_URL_PAGO = '';   // ej: 'https://checkout.wompi.co/l/XXXXXX'
+const BANCOS_PSE = [
+  'Bancolombia','Banco de Bogotá','Davivienda','BBVA Colombia','Banco de Occidente',
+  'Banco Popular','Banco AV Villas','Banco Caja Social','Scotiabank Colpatria','Itaú',
+  'Banco Agrario','Banco Falabella','Banco Pichincha','Banco W','Bancoomeva','Banco Santander',
+  'GNB Sudameris','Banco Serfinanza','Lulo Bank','Nu Colombia','Nequi','Daviplata','Movii','Dale!'
+];
+const DEPARTAMENTOS_CO = [
+  'Amazonas','Antioquia','Arauca','Atlántico','Bogotá D.C.','Bolívar','Boyacá','Caldas','Caquetá','Casanare','Cauca','Cesar',
+  'Chocó','Córdoba','Cundinamarca','Guainía','Guaviare','Huila','La Guajira','Magdalena','Meta','Nariño','Norte de Santander',
+  'Putumayo','Quindío','Risaralda','San Andrés y Providencia','Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada'
+];
+/* Borrador del formulario (sessionStorage) y marca de "pedido ya confirmado" */
+const CLAVE_BORRADOR = 'maquina_checkout_borrador';
+let pedidoConfirmado = false;
+const NEQUI_NUMERO  = '';   // ej: '3001234567'
+const NEQUI_TITULAR = '';   // ej: 'MAQUINA S.A.S.'
+const PAGO_NEQUI_ACTIVO = !!(NEQUI_NUMERO.trim() && NEQUI_TITULAR.trim());
+
+/* El catálogo se carga en segundo plano: lo necesita el botón "+"
+   (para revisar stock) y el menú del encabezado. */
+const catalogoListo = cargarCatalogo().then(() => renderHeader('carrito')).catch(e => console.error('Catálogo:', e));
+
+/* Los costos de envío por zona también se cargan en segundo plano
+   (pueden haber cambiado desde el panel). Si ya llegaron antes de
+   que el cliente empiece a llenar el formulario, se repinta el
+   carrito para que el desplegable de zona salga con el costo al
+   día; si el cliente ya escribió algo, se deja tal cual para no
+   perderle lo que ya llenó (el precio elegido en su momento sigue
+   siendo válido para ESE pedido). */
+function _checkoutTieneAlgoEscrito() {
+  const ids = ['nombreCliente', 'emailCliente', 'telefonoCliente', 'direccionCliente'];
+  if (ids.some(id => (document.getElementById(id)?.value || '').trim())) return true;
+  if (document.getElementById('municipioEnvio')?.value) return true;
+  return false;
+}
+const envioConfigListo = cargarConfigEnvio()
+  .then(() => {
+    if (typeof pintarCarrito === 'function' && !_checkoutTieneAlgoEscrito()) pintarCarrito();
+    else if (window.__actualizarZonaEnvio) window.__actualizarZonaEnvio();   // ya eligió ciudad: se refresca con la tarifa vigente
+  })
+  .catch(e => console.error('Envío:', e));
+
+/* ---------- helpers ---------- */
+function fmtDinero(n) {
+  return '$' + Number(n || 0).toLocaleString('es-CO');
+}
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function animarClase(el, clase) {
+  if (!el) return;
+  el.classList.remove(clase);
+  void el.offsetWidth;            // reinicia la animación
+  el.classList.add(clase);
+}
+const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Muestra un valor en pesos y, si cambió, lo "cuenta" hasta el nuevo número. */
+function setDinero(el, valor) {
+  if (!el) return;
+  const desde = typeof el._valor === 'number' ? el._valor : valor;
+  el._valor = valor;
+  cancelAnimationFrame(el._raf);
+  if (desde === valor || reducirMovimiento) { el.textContent = fmtDinero(valor); return; }
+  const t0 = performance.now(), dur = 380;
+  (function paso(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const suave = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmtDinero(Math.round(desde + (valor - desde) * suave));
+    if (p < 1) el._raf = requestAnimationFrame(paso);
+  })(t0);
+  animarClase(el, 'tick');
+}
+
+/** Nombre aproximado del color a partir de su HEX (el catálogo solo guarda el código). */
+const PALETA_COLORES = [
+  ['Negro', '#151512'], ['Gris oscuro', '#3a3a36'], ['Gris', '#83807a'], ['Blanco', '#faf9f5'],
+  ['Hueso', '#eceae3'], ['Crema', '#f5ecd6'], ['Beige', '#d8c3a5'], ['Café', '#6b4423'],
+  ['Verde menta', '#dfe8da'], ['Verde', '#2f6b4a'], ['Verde oscuro', '#1b4332'], ['Lila', '#e7d9ee'],
+  ['Morado', '#6a3d9a'], ['Rosado', '#f3e0da'], ['Fucsia', '#d63384'], ['Rojo', '#c0392b'],
+  ['Naranja', '#e67e22'], ['Amarillo', '#ffd600'], ['Azul claro', '#9ec5e8'], ['Azul', '#2d4a8a'],
+];
+function nombreColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return '';
+  const rgb = h => [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [r, g, b] = rgb(m[1]);
+  let mejor = '', dMin = Infinity;
+  PALETA_COLORES.forEach(([nombre, h]) => {
+    const [r2, g2, b2] = rgb(h.slice(1));
+    const d = (r - r2) ** 2 + (g - g2) ** 2 + (b - b2) ** 2;
+    if (d < dMin) { dMin = d; mejor = nombre; }
+  });
+  return mejor;
+}
+
+/* iconos minimalistas (trazo, heredan el color del texto) */
+function svgCandado() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
+}
+function svgCamion() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.5h11v9h-11z"/><path d="M13.5 9.5h4l3 3.2v2.8h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>';
+}
+function svgBolsa() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>';
+}
+/* iconos de los métodos de pago (mismo trazo que los de arriba, para que
+   los tres se vean consistentes y sin emojis) */
+function svgIconoTarjeta() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.3" y="5.3" width="19.4" height="13.4" rx="2.6"/><path d="M2.3 9.6h19.4"/><path d="M6 14.4h4.2"/></svg>';
+}
+function svgIconoBanco() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 12 4l9 5.5"/><path d="M4.5 20.5h15"/><path d="M6 11v6.5M10 11v6.5M14 11v6.5M18 11v6.5"/></svg>';
+}
+function svgIconoNequi() {
+  /* Sin el logo oficial de Nequi disponible en el proyecto, usamos un
+     icono genérico de celular con "pago confirmado" — mismo estilo que
+     los otros dos, para no mezclar iconografías. */
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.6" y="2.3" width="10.8" height="19.4" rx="2.4"/><path d="M10 19h4"/><path d="M9.2 12.1l1.9 1.9 3.7-4"/></svg>';
+}
+
+/* Agrupa items idénticos (mismo id + color + talla) en uno solo con cantidad */
+function agruparCarrito(carrito) {
+  const grupos = [];
+  carrito.forEach(item => {
+    const existente = grupos.find(g => g.id == item.id && g.color === item.color && g.talla === item.talla);
+    if (existente) { existente.cantidad++; existente.subtotal += Number(item.precio); }
+    else grupos.push({ ...item, cantidad: 1, subtotal: Number(item.precio) });
+  });
+  return grupos;
+}
+
+/* ---------- iconos extra del carrito (trazo, heredan color) ---------- */
+const _svg = (d, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.9}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const svgMas      = () => _svg('<path d="M12 5v14M5 12h14"/>', 2.2);
+const svgMenos    = () => _svg('<path d="M5 12h14"/>', 2.2);
+const svgBasura   = () => _svg('<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12.2a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8L18 7"/><path d="M9 7V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V7"/>');
+const svgAlerta   = () => _svg('<path d="M12 3.5 2.8 19.5h18.4L12 3.5Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>');
+const svgInfo     = () => _svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/>');
+const svgFlechaIz = () => _svg('<path d="M19 12H5M11 6l-6 6 6 6"/>');
+const svgFlechaDe = () => _svg('<path d="M5 12h14M13 6l6 6-6 6"/>');
+const svgCorazon  = () => _svg('<path d="M12 20.5s-7.6-4.6-10-9.3C.5 7.8 2.3 4.5 5.6 4c2-.3 3.9.7 5 2.3.1.15.3.15.4 0 1.1-1.6 3-2.6 5-2.3 3.3.5 5.1 3.8 3.6 7.2-2.4 4.7-10 9.3-10 9.3z"/>', 1.7);
+const svgEscudo   = () => _svg('<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8 7.5 9.5 4.4-1.5 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/>');
+
+/* ---------- estado vacío ---------- */
+function htmlChipsCategorias() {
+  let cats = [];
+  try { cats = (typeof categoriasDisponibles === 'function' ? categoriasDisponibles() : []).slice(0, 6); } catch (e) { cats = []; }
+  return cats.map(c => `<a class="cart-chip" href="productos.html?cat=${encodeURIComponent(c)}">${esc(c)}</a>`).join('');
+}
+function htmlVacio() {
+  const favs = typeof totalFavoritosCount === 'function' ? totalFavoritosCount() : 0;
+  return `
+    <div class="cart-empty">
+      <div class="cart-empty-art" aria-hidden="true">
+        <span class="spark s1"></span><span class="spark s2"></span><span class="spark s3"></span>
+        <div class="cart-empty-bag">${svgBolsa()}</div>
+      </div>
+      <h2>Tu carrito está vacío</h2>
+      <p>Todavía no has agregado nada. Explora la colección y arma tu fit.</p>
+      <div class="cart-empty-actions">
+        <a href="productos.html" class="btn-finalizar btn-inline">Ir a la tienda ${svgFlechaDe()}</a>
+        ${favs > 0 ? `<a href="favoritos.html" class="btn-ghost">${svgCorazon()}<span>Ver mis favoritos (${favs})</span></a>` : ''}
+      </div>
+      <div class="cart-empty-chips" id="cartEmptyChips">${htmlChipsCategorias()}</div>
+    </div>`;
+}
+
+/* ---------- una línea del carrito ---------- */
+let _primeraPintura = true;
+function htmlFilaInterior(g) {
+  const i = g.info;
+  const colorTxt = nombreColor(g.color);
+  const noVendible = i.estado === 'no_disponible' || i.estado === 'agotado';
+  const verificado = CarritoCore.estado.validacion === 'ok';
+  const masPosibles = verificado && i.producto ? CarritoCore.cuantasMasSePuede(i.producto, g.color, g.talla, CarritoCore.leer()) : 1;
+  const plusBloq = noVendible || (verificado && masPosibles <= 0);
+  const enlace = i.producto && !noVendible ? `producto.html?id=${encodeURIComponent(g.id)}` : '';
+  const nombre = enlace ? `<a href="${enlace}">${esc(g.nombre)}</a>` : esc(g.nombre);
+  const pr = i.producto || {};
+  const estiloFoto = `object-fit:${pr.ajusteFoto === 'contain' ? 'contain' : 'cover'};${pr.posicionFoto ? `object-position:${esc(pr.posicionFoto)};` : ''}`;
+  const foto = g.foto ? `<img src="${esc(g.foto)}" alt="${esc(g.nombre)}" style="${estiloFoto}" loading="lazy" decoding="async">` : iconoProducto(g.icono, g.color || '#dfe8da');
+  const conPrecioUnit = g.cantidad > 1 || i.ahorroUnidad > 0;
+
+  let aviso = '';
+  if (i.estado === 'no_disponible' || i.estado === 'agotado') {
+    aviso = `<div class="cart-item-alert is-error" role="alert">${svgAlerta()}<div><b>${i.estado === 'agotado' ? 'Agotado' : 'No disponible'}</b><span>${esc(i.mensaje)} No se suma al total.</span></div><button type="button" class="alert-act" data-act="quitar">Quitar</button></div>`;
+  } else if (i.estado === 'parcial') {
+    aviso = `<div class="cart-item-alert is-warn" role="alert">${svgAlerta()}<div><b>Stock insuficiente</b><span>${esc(i.mensaje)}</span></div><button type="button" class="alert-act" data-act="ajustar" data-n="${i.disponible}">Ajustar a ${i.disponible}</button></div>`;
+  } else if (i.pocoStock) {
+    aviso = `<div class="cart-item-low">${svgInfo()}<span>${i.pocoStock === 1 ? '¡Última unidad!' : `¡Quedan solo ${i.pocoStock}!`}</span></div>`;
+  }
+
+  return `
+    <a class="cart-item-media" ${enlace ? `href="${enlace}" aria-label="Ver ${esc(g.nombre)}"` : 'aria-hidden="true" tabindex="-1"'}>${foto}${i.descuentoPct > 0 && !noVendible ? `<span class="cart-item-badge">-${i.descuentoPct}%</span>` : ''}</a>
+    <div class="cart-item-info">
+      <div class="cart-item-top">
+        <div class="cart-item-heading">
+          <h3 class="cart-item-name">${nombre}</h3>
+          <p class="cart-item-meta">
+            <span class="cart-swatch" style="background:${esc(g.color || '#dfe8da')}"></span>
+            ${colorTxt ? `<span>${esc(colorTxt)}</span><span class="sep">·</span>` : ''}
+            <span>Talla ${esc(g.talla || '—')}</span>
+          </p>
+        </div>
+        <button type="button" class="btn-eliminar" aria-label="Quitar ${esc(g.nombre)} del carrito" title="Quitar">${svgBasura()}</button>
+      </div>
+      ${aviso}
+      <div class="cart-item-bottom">
+        <div class="qty-stepper" role="group" aria-label="Cantidad de ${esc(g.nombre)}">
+          <button type="button" class="qty-btn qty-minus" aria-label="Quitar una unidad">${svgMenos()}</button>
+          <span class="qty-value" aria-live="polite">${g.cantidad}</span>
+          <button type="button" class="qty-btn qty-plus${plusBloq ? ' is-disabled' : ''}" aria-label="Agregar una unidad"${plusBloq ? ' aria-disabled="true"' : ''}>${svgMas()}</button>
+        </div>
+        <div class="cart-item-prices">
+          <span class="cart-item-line">${fmtDinero(g.subtotal)}</span>
+          <span class="cart-item-unit"${conPrecioUnit ? '' : ' hidden'}>${g.cantidad > 1
+            ? `${i.ahorroUnidad > 0 ? `<s>${fmtDinero(i.base)}</s> ` : ''}${fmtDinero(g.precio)} c/u`
+            : (i.ahorroUnidad > 0 ? `<s>${fmtDinero(i.base)}</s>` : '')}</span>
+        </div>
+      </div>
+    </div>`;
+}
+function htmlFila(g, n) {
+  const i = g.info;
+  const cls = ['cart-item'];
+  if (i.estado === 'no_disponible' || i.estado === 'agotado') cls.push('is-unavailable');
+  else if (i.estado === 'parcial') cls.push('is-warning');
+  return `<article class="${cls.join(' ')}" style="--i:${n || 0}" data-id="${esc(g.id)}" data-color="${esc(g.color)}" data-talla="${esc(g.talla)}">${htmlFilaInterior(g)}</article>`;
+}
+
+/* ---------- avisos sobre la lista (precios, stock, verificación) ---------- */
+function htmlAvisos(a) {
+  const est = CarritoCore.estado;
+  let h = '';
+  if (est.validacion === 'pendiente') {
+    h += `<div class="cart-notice is-loading"><span class="spinner" aria-hidden="true"></span><span>Verificando precios y disponibilidad…</span></div>`;
+  } else if (est.validacion === 'sin_verificar') {
+    h += `<div class="cart-notice is-info">${svgInfo()}<span>No pudimos verificar precios y disponibilidad ahora mismo.</span><button type="button" class="notice-act" data-notice="reintentar">Reintentar</button></div>`;
+  }
+  est.avisosPrecio.forEach((av, k) => {
+    const sube = av.ahora > av.antes;
+    h += `<div class="cart-notice ${sube ? 'is-warn' : 'is-good'}" role="status">${svgInfo()}<span>El precio de <b>${esc(av.nombre)}</b>${av.talla ? ` (talla ${esc(av.talla)})` : ''} ${sube ? 'subió' : 'bajó'}: antes ${fmtDinero(av.antes)}, ahora <b>${fmtDinero(av.ahora)}</b>.</span><button type="button" class="notice-x" data-notice="cerrar" data-k="${k}" aria-label="Cerrar aviso">×</button></div>`;
+  });
+  if (a.verificado && a.problemas > 0) {
+    const hayQuitar = a.grupos.some(g => g.info.estado === 'no_disponible' || g.info.estado === 'agotado');
+    h += `<div class="cart-notice is-error" role="alert">${svgAlerta()}<span>${a.problemas === 1 ? 'Hay 1 producto que' : `Hay ${a.problemas} productos que`} necesita${a.problemas === 1 ? '' : 'n'} tu atención antes de pagar.</span>${hayQuitar ? '<button type="button" class="notice-act" data-notice="quitar-malos">Quitar no disponibles</button>' : ''}</div>`;
+  }
+  return h;
+}
+
+function pintarCarrito() {
+  if (pedidoConfirmado) return;     // ya se confirmó: la pantalla de confirmación no se redibuja
+  if (window.__ck && window.__ck.flush) window.__ck.flush();   // guarda lo escrito antes de redibujar
+  const carrito = CarritoCore.leer();
+  const wrap = document.getElementById('carritoWrap');
+
+  if (carrito.length === 0) {
+    wrap.innerHTML = htmlVacio();
+    if (typeof actualizarBarraMovil === 'function') actualizarBarraMovil(null);
+    return;
+  }
+
+  const analisisInicial = CarritoCore.analizar(carrito);
+  const totalUnidades = analisisInicial.unidades;
+  const itemsHtml = analisisInicial.grupos.map((g, n) => htmlFila(g, n)).join('');
+  const subtotalInicial = analisisInicial.subtotal;
+  const html = `
+    ${htmlStepper(1)}
+    <div class="carrito-layout">
+      <section class="carrito-items" aria-label="Productos de tu carrito">
+        <div class="cart-notices" id="cartNotices" aria-live="polite">${htmlAvisos(analisisInicial)}</div>
+        <div class="cart-list-head">
+          <a href="productos.html" class="cart-back">${svgFlechaIz()}<span>Seguir comprando</span></a>
+          <span class="cart-list-count"><b id="cartListCount">${totalUnidades}</b> <span id="cartListWord">${totalUnidades === 1 ? 'producto' : 'productos'}</span></span>
+          <button type="button" class="btn-limpiar" id="btnLimpiar">Vaciar carrito</button>
+        </div>
+        <div class="cart-list${_primeraPintura ? ' is-first' : ''}" id="cartList">
+          ${itemsHtml}
+        </div>
+      </section>
+
+        <div class="pagar-box pagar-box-abajo ck-box" id="ckBox">
+          <div class="ck-head">
+            <span class="pagar-box-eyebrow" id="ckEyebrow">Paso 1 de 4</span>
+            <h2 id="ckTitulo" tabindex="-1">Tus datos</h2>
+            <p class="ck-sub" id="ckSub">Los usamos solo para confirmar y entregar tu pedido.</p>
+          </div>
+          <form id="form-pago" novalidate autocomplete="on">
+
+            <div class="aviso-offline" id="avisoOffline">📡 Sin conexión a internet — reconéctate para poder continuar.</div>
+            <div class="ck-alert" id="ckAlert" role="alert" hidden></div>
+
+            <!-- ===== PASO 1 · Tus datos ===== -->
+            <div class="ck-panel is-active" data-step="1" role="group" aria-labelledby="ckTitulo">
+              <div class="ck-field">
+                <label for="nombreCliente">Nombre completo</label>
+                <input type="text" name="nombre_cliente" id="nombreCliente" placeholder="Ej: María Fernanda Gómez" autocomplete="name" autocapitalize="words" maxlength="120" required aria-describedby="errNombreCliente hintNombre">
+                <small class="ck-hint" id="hintNombre">Nombre y apellido, como aparecen en tu documento.</small>
+                <div class="campo-error-msg" id="errNombreCliente"></div>
+              </div>
+              <div class="ck-field">
+                <label for="emailCliente">Correo electrónico</label>
+                <input type="email" name="email_cliente" id="emailCliente" placeholder="Ej: maria@correo.com" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="120" required aria-describedby="errEmailCliente hintEmail">
+                <small class="ck-hint" id="hintEmail">Aquí te enviamos la confirmación y el seguimiento.</small>
+                <div class="campo-error-msg" id="errEmailCliente"></div>
+                <button type="button" class="ck-sugerencia" id="ckEmailSug" hidden></button>
+              </div>
+              <div class="ck-field">
+                <label for="telefonoCliente">Teléfono / WhatsApp</label>
+                <div class="ck-prefijo">
+                  <span class="ck-prefijo-tag" aria-hidden="true">+57</span>
+                  <input type="tel" name="telefono_cliente" id="telefonoCliente" placeholder="300 123 4567" autocomplete="tel-national" inputmode="tel" maxlength="14" required aria-describedby="errTelefonoCliente hintTel">
+                </div>
+                <small class="ck-hint" id="hintTel">Celular de 10 dígitos. Lo usa el repartidor para coordinar la entrega.</small>
+                <div class="campo-error-msg" id="errTelefonoCliente"></div>
+              </div>
+            </div>
+
+            <!-- ===== PASO 2 · Dirección y entrega ===== -->
+            <div class="ck-panel" data-step="2" role="group" aria-labelledby="ckTitulo" hidden>
+              <div class="ck-row">
+                <div class="ck-field">
+                  <label for="departamentoEnvio">Departamento</label>
+                  <select id="departamentoEnvio" name="departamento" autocomplete="address-level1" aria-describedby="errDepartamentoEnvio">
+                    ${DEPARTAMENTOS_CO.map(d => `<option value="${esc(d)}"${d === 'Antioquia' ? ' selected' : ''}>${esc(d)}</option>`).join('')}
+                  </select>
+                  <div class="campo-error-msg" id="errDepartamentoEnvio"></div>
+                </div>
+                <div class="ck-field">
+                  <label for="municipioInput">Ciudad o municipio</label>
+                  <div class="municipio-autocomplete" id="municipioAutocomplete">
+                    <input type="text" id="municipioInput" class="municipio-input" placeholder="Ej: Medellín" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="municipioSugerencias" aria-autocomplete="list" aria-describedby="errMunicipioEnvio" maxlength="80">
+                    <div class="municipio-sugerencias" id="municipioSugerencias" role="listbox"></div>
+                  </div>
+                  <select id="municipioEnvio" required style="display:none;" tabindex="-1" aria-hidden="true">
+                    <option value="" disabled selected>Selecciona municipio / zona</option>
+                    ${zonasEnvio().map(z => `<option value="${esc(z.id)}" data-costo="${Number(z.costo) || 0}">${esc(z.nombre)} — $${(Number(z.costo) || 0).toLocaleString('es-CO')}</option>`).join('')}
+                  </select>
+                  <div class="campo-error-msg" id="errMunicipioEnvio"></div>
+                </div>
+              </div>
+              <p class="ck-zona" id="ckZonaInfo" hidden></p>
+              <label class="ck-check ck-rural" id="ckRuralWrap" hidden>
+                <input type="checkbox" id="ckRural">
+                <span>Vivo en el campo (vereda o zona rural)</span>
+              </label>
+
+              <div class="ck-field">
+                <label for="direccionCliente">Dirección</label>
+                <input type="text" id="direccionCliente" name="direccion" placeholder="Ej: Calle 45 # 30-12" autocomplete="address-line1" maxlength="160" required aria-describedby="errDireccionCliente hintDir">
+                <small class="ck-hint" id="hintDir">Calle o carrera con número. Si no sabes cuál es, ubícala en el mapa.</small>
+                <div class="campo-error-msg" id="errDireccionCliente"></div>
+              </div>
+              <div class="ck-row">
+                <div class="ck-field" id="ckBarrioWrap">
+                  <label for="barrioCliente">Barrio <em>(opcional)</em></label>
+                  <input type="text" id="barrioCliente" placeholder="Ej: Laureles" autocomplete="address-level3" maxlength="80">
+                </div>
+                <div class="ck-field" id="ckVeredaWrap" hidden>
+                  <label for="veredaCliente">Vereda</label>
+                  <input type="text" id="veredaCliente" placeholder="Ej: La Esperanza" maxlength="80" aria-describedby="errVeredaCliente">
+                  <div class="campo-error-msg" id="errVeredaCliente"></div>
+                </div>
+                <div class="ck-field">
+                  <label for="edificioCliente">Apto, torre o casa <em>(opcional)</em></label>
+                  <input type="text" id="edificioCliente" placeholder="Ej: Torre 2, apto 504" autocomplete="address-line2" maxlength="80">
+                </div>
+              </div>
+              <div class="ck-field">
+                <label for="referenciaCliente">Indicaciones para el repartidor <em>(opcional)</em></label>
+                <textarea id="referenciaCliente" placeholder="Ej: portón negro, tocar el timbre de abajo, dejar con portería" rows="2" maxlength="300"></textarea>
+              </div>
+
+              <button type="button" class="btn-mapa-toggle" id="btnMostrarMapa">📍 ¿No sabes bien tu dirección? Ubícala en el mapa</button>
+              <div class="mapa-wrap" id="mapaWrap">
+                <div class="mapa-caja">
+                  <div id="mapaEnvio" class="mapa-envio"></div>
+                  <button type="button" class="btn-mi-ubicacion" id="btnMiUbicacion">🎯 Usar mi ubicación actual</button>
+                </div>
+                <p class="mapa-hint" id="mapaHint">Toca el mapa justo donde vives — llenamos la dirección sola para que el pedido te llegue bien.</p>
+              </div>
+            </div>
+
+            <!-- ===== PASO 3 · Resumen y pago ===== -->
+            <div class="ck-panel" data-step="3" role="group" aria-labelledby="ckTitulo" hidden>
+              <section class="ck-card" aria-label="Productos del pedido">
+                <header><h3>Tu pedido</h3><a href="#cartList" class="ck-edit" id="ckEditarCarrito">Editar carrito</a></header>
+                <div class="ck-items" id="ckRevItems"></div>
+                <dl class="ck-totals" id="ckTotals">
+                  <div class="ck-t-row" id="ckLista" hidden><dt>Precio de lista</dt><dd id="ckListaV"></dd></div>
+                  <div class="ck-t-row is-discount" id="ckDesc" hidden><dt>Descuentos</dt><dd id="ckDescV"></dd></div>
+                  <div class="ck-t-row"><dt>Subtotal</dt><dd id="ckSubV"></dd></div>
+                  <div class="ck-t-row"><dt>Envío</dt><dd id="ckEnvioV"></dd></div>
+                  <div class="ck-t-row is-total"><dt>Total a pagar</dt><dd id="ckTotalV"></dd></div>
+                </dl>
+              </section>
+              <div class="ck-two">
+                <section class="ck-card" aria-label="Datos de contacto">
+                  <header><h3>Contacto</h3><button type="button" class="ck-edit" data-goto="1">Editar</button></header>
+                  <div class="ck-rev-text" id="ckRevContacto"></div>
+                </section>
+                <section class="ck-card" aria-label="Datos de entrega">
+                  <header><h3>Entrega</h3><button type="button" class="ck-edit" data-goto="2">Editar</button></header>
+                  <div class="ck-rev-text" id="ckRevEntrega"></div>
+                </section>
+              </div>
+
+              <h3 class="ck-sec-title">¿Cómo quieres pagar?</h3>
+              <div class="metodo-pago-grid" role="radiogroup" aria-label="Método de pago">
+                ${PAGO_TARJETA_ACTIVO ? `
+                <button type="button" class="metodo-card" data-metodo="tarjeta" role="radio" aria-checked="false">
+                  <span class="metodo-card-top">
+                    <span class="metodo-card-icono">${svgIconoTarjeta()}</span>
+                    <span class="metodo-radio" aria-hidden="true"></span>
+                  </span>
+                  <span class="metodo-card-nombre">Tarjeta</span>
+                  <span class="metodo-card-sub">Visa · Mastercard · Débito</span>
+                </button>
+                ` : ''}
+                <button type="button" class="metodo-card" data-metodo="contraentrega" role="radio" aria-checked="false">
+                  <span class="metodo-card-top">
+                    <span class="metodo-card-icono">${svgCamion()}</span>
+                    <span class="metodo-radio" aria-hidden="true"></span>
+                  </span>
+                  <span class="metodo-card-nombre">Pago contraentrega</span>
+                  <span class="metodo-card-sub">Paga cuando recibas tu pedido</span>
+                </button>
+                ${PAGO_PSE_ACTIVO ? `
+                <button type="button" class="metodo-card" data-metodo="pse" role="radio" aria-checked="false">
+                  <span class="metodo-card-top">
+                    <span class="metodo-card-icono">${svgIconoBanco()}</span>
+                    <span class="metodo-radio" aria-hidden="true"></span>
+                  </span>
+                  <span class="metodo-card-nombre">PSE</span>
+                  <span class="metodo-card-sub">Débito desde tu cuenta bancaria</span>
+                </button>
+                ` : ''}
+                ${PAGO_NEQUI_ACTIVO ? `
+                <button type="button" class="metodo-card" data-metodo="nequi" role="radio" aria-checked="false">
+                  <span class="metodo-card-top">
+                    <span class="metodo-card-icono">${svgIconoNequi()}</span>
+                    <span class="metodo-radio" aria-hidden="true"></span>
+                  </span>
+                  <span class="metodo-card-nombre">Nequi</span>
+                  <span class="metodo-card-sub">Transferencia a nuestro Nequi</span>
+                </button>
+                ` : ''}
+              </div>
+              <div class="campo-error-msg" id="errMetodoPago"></div>
+
+              ${PAGO_TARJETA_ACTIVO ? `
+              <div class="campos-tarjeta" id="camposTarjeta">
+                <div class="tarjeta-visual" id="tarjetaVisual">
+                  <div class="tarjeta-cara tarjeta-frente">
+                    <div class="tarjeta-top">
+                      <span class="tarjeta-chip">▮▮</span>
+                      <span class="tarjeta-marca" id="tarjetaMarca">⚡ MAQUINA PAY</span>
+                    </div>
+                    <div class="tarjeta-numero" id="tarjetaNumeroVista">•••• •••• •••• ••••</div>
+                    <div class="tarjeta-bottom">
+                      <div>
+                        <div class="tarjeta-mini-label">TITULAR</div>
+                        <div class="tarjeta-titular" id="tarjetaTitularVista">TU NOMBRE AQUÍ</div>
+                      </div>
+                      <div>
+                        <div class="tarjeta-mini-label">VENCE</div>
+                        <div class="tarjeta-venc" id="tarjetaVencVista">MM/AA</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tarjeta-cara tarjeta-reverso">
+                    <div class="tarjeta-banda"></div>
+                    <div class="tarjeta-cvv-box"><span id="tarjetaCvvVista">•••</span></div>
+                  </div>
+                </div>
+                <input type="text" id="tarjetaNumero" placeholder="Número de la tarjeta" inputmode="numeric" maxlength="19" autocomplete="cc-number">
+                <input type="text" id="tarjetaTitular" placeholder="Nombre igual que en la tarjeta" autocomplete="cc-name">
+                <div class="campo-fila">
+                  <input type="text" id="tarjetaVencimiento" placeholder="MM/AA" inputmode="numeric" maxlength="5" autocomplete="cc-exp">
+                  <input type="text" id="tarjetaCvv" placeholder="CVV" inputmode="numeric" maxlength="4" autocomplete="cc-csc">
+                </div>
+              </div>` : ''}
+
+              <div class="campos-tarjeta campos-pse" id="camposPse">
+                <div class="ck-field">
+                  <label for="pseBanco">Tu banco</label>
+                  <select id="pseBanco" aria-describedby="errPseBanco">
+                    <option value="" disabled selected>Selecciona tu banco</option>
+                    ${BANCOS_PSE.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('')}
+                  </select>
+                  <div class="campo-error-msg" id="errPseBanco"></div>
+                </div>
+                <div class="ck-field">
+                  <label for="psePersona">Tipo de persona</label>
+                  <select id="psePersona">
+                    <option value="natural" selected>Persona natural</option>
+                    <option value="juridica">Persona jurídica</option>
+                  </select>
+                </div>
+                <p class="tarjeta-nota">${PSE_URL_PAGO ? 'Al confirmar, registramos tu pedido y te llevamos a pagar por PSE. El pedido queda pendiente hasta que se confirme tu pago.' : 'Al confirmar, registramos tu pedido y te contactamos con el enlace de pago PSE (correo o WhatsApp). El pedido queda pendiente hasta que se confirme tu pago.'}</p>
+              </div>
+
+              ${PAGO_NEQUI_ACTIVO ? `
+              <div class="campos-tarjeta campos-nequi" id="camposNequi">
+                <div class="nequi-datos-box">
+                  <div class="nequi-datos-header">📲 Transfiere a este Nequi</div>
+                  <div class="nequi-dato-fila">
+                    <span class="nequi-dato-label">Número</span>
+                    <span class="nequi-dato-valor" id="nequiNumeroTxt">${esc(NEQUI_NUMERO)}</span>
+                    <button type="button" class="nequi-copiar" data-copiar="nequiNumeroTxt">Copiar</button>
+                  </div>
+                  <div class="nequi-dato-fila">
+                    <span class="nequi-dato-label">A nombre de</span>
+                    <span class="nequi-dato-valor" id="nequiTitularTxt">${esc(NEQUI_TITULAR)}</span>
+                  </div>
+                  <div class="nequi-dato-fila nequi-dato-total">
+                    <span class="nequi-dato-label">Valor exacto a enviar</span>
+                    <span class="nequi-dato-valor" id="nequiValorTxt">$0</span>
+                    <button type="button" class="nequi-copiar" data-copiar="nequiValorTxt">Copiar</button>
+                  </div>
+                </div>
+                <label class="nequi-check-fila">
+                  <input type="checkbox" id="nequiConfirmado">
+                  <span>Ya hice la transferencia por este valor exacto</span>
+                </label>
+                <div class="campo-error-msg" id="errNequi"></div>
+                <p class="tarjeta-nota">Cuando confirmes el pedido, revisamos la transferencia y lo alistamos para enviar. Tu pedido queda pendiente hasta que confirmemos la transferencia.</p>
+              </div>` : ''}
+
+              <label class="ck-check ck-terminos">
+                <input type="checkbox" id="aceptaTerminos" aria-describedby="errAceptaTerminos">
+                <span>Acepto los <a href="legal.html#terminos" target="_blank" rel="noopener">términos y condiciones</a> y el <a href="legal.html#datos-personales" target="_blank" rel="noopener">tratamiento de mis datos personales</a>.</span>
+              </label>
+              <div class="campo-error-msg" id="errAceptaTerminos"></div>
+            </div>
+
+            <!-- ===== Navegación del paso ===== -->
+            <div class="ck-actions">
+              <button type="button" class="ck-btn ck-btn-ghost" id="ckAtras" hidden>${svgFlechaIz()}<span>Atrás</span></button>
+              <button type="submit" class="ck-btn ck-btn-primary" id="ckSiguiente"><span id="ckSiguienteTxt">Continuar</span>${svgFlechaDe()}<i class="btn-spinner" aria-hidden="true"></i></button>
+            </div>
+          </form>
+        </div>
+
+      <aside class="carrito-summary-col" aria-label="Resumen del pedido">
+        <div class="carrito-summary-card">
+          <h2 class="summary-eyebrow">Resumen del pedido</h2>
+          <div class="summary-row" id="listaFila" hidden><span>Precio de lista</span><span id="listaValor">${fmtDinero(analisisInicial.lista)}</span></div>
+          <div class="summary-row is-discount" id="descFila" hidden><span>Descuentos</span><span id="descValor">−${fmtDinero(analisisInicial.descuentos)}</span></div>
+          <div class="summary-row"><span>Subtotal</span><span id="subtotalValor">${fmtDinero(subtotalInicial)}</span></div>
+          <div class="summary-row" id="envioFila"><span>Envío</span><span id="envioValor">Se calcula al elegir tu municipio</span></div>
+          ${ENVIO_GRATIS_DESDE > 0 ? `
+          <div class="ship-banner" id="shipBanner">
+            <div class="ship-line">${svgCamion()}<span id="shipBannerTxt"></span></div>
+            <div class="ship-progress"><i id="shipBar"></i></div>
+          </div>` : ''}
+          <div class="carrito-total">
+            <span>Total</span>
+            <span class="total-valor" id="totalValor">${fmtDinero(subtotalInicial)}</span>
+          </div>
+          <p class="cart-ahorro" id="ahorroTxt" hidden></p>
+          <div class="resumen-acciones" id="resumenAcciones">
+            <button type="button" class="btn-finalizar" id="btnFinalizar">${svgCandado()}<span id="btnFinalizarTxt">Continuar</span><i class="btn-spinner" aria-hidden="true"></i></button>
+            <p class="cart-bloqueo" id="cartBloqueoMsg" role="status" hidden></p>
+            <p class="finalizar-hint" id="finalizarHint"></p>
+            <a href="productos.html" class="btn-seguir">${svgFlechaIz()}<span>Seguir comprando</span></a>
+            ${PAGO_PAYPAL_ACTIVO ? `<button type="button" class="btn-paypal" id="btnPaypal"><span class="pp-mark" aria-hidden="true">P</span><span>Pagar con PayPal</span><span class="pp-soon">Pronto</span></button>` : ''}
+          </div>
+        </div>
+        <div class="carrito-info-card">
+          <div class="info-item">${svgBolsa()}<div><b>Cambios y devoluciones</b><span><a href="legal.html#cambios-devoluciones">Consulta las condiciones</a></span></div></div>
+        </div>
+      </aside>
+    </div>`;
+
+  wrap.innerHTML = html;
+
+  /* ---------- resumen: subtotal / descuentos / envío / total (se actualiza solo) ---------- */
+  const listEl = document.getElementById('cartList');
+  const selectMunicipio = document.getElementById('municipioEnvio');
+  const envioValorEl = document.getElementById('envioValor');
+  const totalValorEl = document.getElementById('totalValor');
+  let envioZona = 0;     // costo del envío según el municipio elegido
+  let envioActual = 0;   // costo que de verdad se cobra (0 si aplica envío gratis)
+  let pasoActual = 1, metodoPago = null, enviandoPedido = false;
+
+  /** ¿Qué impide pagar ahora mismo? ('' = nada) */
+  function motivoBloqueo(a) {
+    if (a.estadoValidacion === 'pendiente') return 'cargando';
+    if (a.verificado && a.problemas > 0) return 'problemas';
+    if (a.unidadesValidas === 0) return 'vacio';
+    if (a.unidades > MAX_UNIDADES_PEDIDO) return 'limite';
+    return '';
+  }
+
+  function recalcularResumen() {
+    const a = CarritoCore.analizar();
+    const subtotal = a.subtotal;
+    const gratis = ENVIO_GRATIS_DESDE > 0 && subtotal >= ENVIO_GRATIS_DESDE;
+    envioActual = gratis ? 0 : envioZona;
+
+    setDinero(document.getElementById('subtotalValor'), subtotal);
+    const conDesc = a.descuentos > 0;
+    const filaLista = document.getElementById('listaFila'), filaDesc = document.getElementById('descFila');
+    if (filaLista) { filaLista.hidden = !conDesc; setDinero(document.getElementById('listaValor'), a.lista); }
+    if (filaDesc) {
+      filaDesc.hidden = !conDesc;
+      const dv = document.getElementById('descValor');
+      if (dv) dv.textContent = '−' + fmtDinero(a.descuentos);
+    }
+    const ahorro = document.getElementById('ahorroTxt');
+    if (ahorro) { ahorro.hidden = !conDesc; if (conDesc) ahorro.textContent = `Estás ahorrando ${fmtDinero(a.descuentos)} en este pedido`; }
+
+    const filaEnvio = document.getElementById('envioFila');
+    if (filaEnvio) filaEnvio.classList.toggle('is-free', gratis);
+    if (gratis) envioValorEl.textContent = '¡Gratis!';
+    else envioValorEl.textContent = envioZona ? fmtDinero(envioZona) : (selectMunicipio && selectMunicipio.value ? '¡Gratis!' : 'Se calcula al elegir tu municipio');
+    setDinero(totalValorEl, subtotal + envioActual);
+
+    const banner = document.getElementById('shipBanner');
+    if (banner) {
+      const falta = Math.max(0, ENVIO_GRATIS_DESDE - subtotal);
+      banner.classList.toggle('is-done', gratis);
+      document.getElementById('shipBannerTxt').textContent = gratis
+        ? '¡Envío gratis!'
+        : `Te faltan ${fmtDinero(falta)} para el envío gratis`;
+      document.getElementById('shipBar').style.width = Math.min(100, Math.round(subtotal / ENVIO_GRATIS_DESDE * 100)) + '%';
+    }
+
+    if (typeof renderRevision === 'function') { if (pasoActual === 3) renderRevision(); else pintarTotalesRevision(a); }
+
+    // si ya eligió Nequi, el valor a transferir tiene que seguir al total
+    const chipActivo = wrap.querySelector('.metodo-card.active');
+    const nequiValor = document.getElementById('nequiValorTxt');
+    if (chipActivo && chipActivo.dataset.metodo === 'nequi' && nequiValor) nequiValor.textContent = totalValorEl.textContent;
+
+    // botón "Finalizar": bloqueado (sin deshabilitarlo) mientras haya algo por resolver
+    const motivo = motivoBloqueo(a);
+    const btn = document.getElementById('btnFinalizar'), msg = document.getElementById('cartBloqueoMsg');
+    if (btn) {
+      btn.classList.toggle('is-blocked', !!motivo && motivo !== 'cargando');
+      btn.classList.toggle('is-loading', motivo === 'cargando');
+      btn.setAttribute('aria-disabled', motivo ? 'true' : 'false');
+    }
+    if (msg) {
+      msg.hidden = !motivo;
+      msg.textContent = motivo === 'cargando' ? 'Verificando disponibilidad…'
+        : motivo === 'problemas' ? 'Resuelve los avisos de tus productos para poder pagar.'
+        : motivo === 'limite' ? `Un pedido admite hasta ${MAX_UNIDADES_PEDIDO} prendas. Quita algunas o divide tu compra en dos pedidos.`
+        : motivo === 'vacio' ? 'No hay productos disponibles para comprar.' : '';
+    }
+    if (typeof actualizarBarraMovil === 'function') actualizarBarraMovil(a, subtotal + envioActual, motivo);
+  }
+
+  function actualizarContadores() {
+    const n = totalCarritoCount();
+    const hdr = document.getElementById('cartCount');
+    if (hdr) { hdr.textContent = n; animarClase(hdr, 'bump'); }
+    const c = document.getElementById('cartListCount');
+    const w = document.getElementById('cartListWord');
+    if (c) c.textContent = n;
+    if (w) w.textContent = n === 1 ? 'producto' : 'productos';
+  }
+
+  /** Repinta lista, avisos y resumen SIN tocar el formulario (no se pierde lo escrito). */
+  function refrescar() {
+    const a = CarritoCore.analizar();
+    if (!a.grupos.length) { pintarCarrito(); return; }
+    if (!document.getElementById('cartList')) { pintarCarrito(); return; }
+    listEl.classList.remove('is-first');
+    listEl.innerHTML = a.grupos.map((g, n) => htmlFila(g, n)).join('');
+    document.getElementById('cartNotices').innerHTML = htmlAvisos(a);
+    recalcularResumen();
+    actualizarContadores();
+  }
+  window.__carrito = { refrescar, recalcularResumen };
+
+  /* ---------- filas: cambiar cantidad / quitar (sin repintar todo) ---------- */
+  function quitarFilaAnimada(fila) {
+    if (fila.dataset.saliendo) return;
+    fila.dataset.saliendo = '1';
+    fila.style.maxHeight = fila.offsetHeight + 'px';
+    void fila.offsetWidth;
+    fila.classList.add('is-leaving');
+    setTimeout(() => {
+      fila.remove();
+      if (!listEl.querySelector('.cart-item')) pintarCarrito();   // ya no queda nada: estado vacío
+    }, reducirMovimiento ? 0 : 340);
+  }
+
+  /** Rehace por dentro UNA fila con los datos actuales (conserva el foco del teclado). */
+  function refrescarFila(fila) {
+    const { id, color, talla } = fila.dataset;
+    const a = CarritoCore.analizar();
+    const g = a.grupos.find(x => x.id == id && x.color === color && x.talla === talla);
+    if (!g) { quitarFilaAnimada(fila); return; }
+    const activo = document.activeElement;
+    const claseFoco = fila.contains(activo) ? ['qty-plus', 'qty-minus', 'btn-eliminar'].find(c => activo.classList.contains(c)) : null;
+    const lineaPrev = fila.querySelector('.cart-item-line');
+    const prev = lineaPrev && typeof lineaPrev._valor === 'number' ? lineaPrev._valor : null;
+    fila.classList.toggle('is-unavailable', g.info.estado === 'no_disponible' || g.info.estado === 'agotado');
+    fila.classList.toggle('is-warning', g.info.estado === 'parcial');
+    fila.innerHTML = htmlFilaInterior(g);
+    const linea = fila.querySelector('.cart-item-line');
+    if (linea) { if (prev !== null) linea._valor = prev; setDinero(linea, g.subtotal); }
+    animarClase(fila.querySelector('.qty-value'), 'bump');
+    animarClase(fila, 'flash');
+    if (claseFoco) (fila.querySelector('.' + claseFoco) || fila.querySelector('.qty-minus'))?.focus({ preventScroll: true });
+  }
+
+  function despuesDeCambio(fila) {
+    refrescarFila(fila);
+    document.getElementById('cartNotices').innerHTML = htmlAvisos(CarritoCore.analizar());
+    recalcularResumen();
+    actualizarContadores();
+  }
+
+  function deshacerA(instantanea) {
+    return () => {
+      _guardar(LS_KEYS.carrito, instantanea);
+      if (document.getElementById('cartList')) window.__carrito.refrescar(); else pintarCarrito();
+      actualizarContadoresGlobal();
+    };
+  }
+
+  listEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.qty-plus, .qty-minus, .btn-eliminar, [data-act]');
+    if (!btn) return;
+    e.preventDefault();
+    const fila = btn.closest('.cart-item');
+    if (!fila || fila.dataset.saliendo) return;
+    const { id, color, talla } = fila.dataset;
+    const antes = CarritoCore.leer();
+    const cantidadAntes = antes.filter(it => it.id == id && it.color === color && it.talla === talla).length;
+    const nombreProd = (antes.find(it => it.id == id) || {}).nombre || 'producto';
+
+    if (btn.dataset.act === 'ajustar') {
+      CarritoCore.ajustarAlStock(id, color, talla, Number(btn.dataset.n) || 0);
+      despuesDeCambio(fila);
+      return;
+    }
+    if (btn.dataset.act === 'quitar' || btn.classList.contains('btn-eliminar') || (btn.classList.contains('qty-minus') && cantidadAntes <= 1)) {
+      eliminarGrupo(id, color, talla);
+      despuesDeCambio(fila);
+      mostrarSnack(`Quitaste «${nombreProd}»`, 'Deshacer', deshacerA(antes));
+      return;
+    }
+    if (btn.classList.contains('qty-plus')) {
+      if (btn.classList.contains('is-loading')) return;
+      if (CarritoCore.estado.validacion === 'pendiente') {       // necesitamos el catálogo para revisar el stock
+        btn.classList.add('is-loading');
+        await catalogoListo;
+        btn.classList.remove('is-loading');
+      }
+      const producto = buscarProducto(id);
+      if (!producto) { showToastCarrito('No pudimos revisar el stock de este producto ahora mismo. Intenta de nuevo.'); return; }
+      if (!CarritoCore.vendible(producto)) { showToastCarrito(`${producto.nombre} ya no está disponible.`); refrescar(); return; }
+      const mas = CarritoCore.cuantasMasSePuede(producto, color, talla, CarritoCore.leer());
+      if (mas <= 0) {
+        const tope = CarritoCore.topeVariante(producto, color, talla);
+        showToastCarrito(tope <= 0 ? `${producto.nombre} está agotado en esa combinación.` : `Ya tienes todas las unidades disponibles (${tope}) de ${producto.nombre} en ese color y talla.`);
+        animarClase(fila, 'shake');
+        return;
+      }
+      agregarAlCarrito(producto, color, talla);
+    } else if (btn.classList.contains('qty-minus')) {
+      quitarUnidad(id, color, talla);
+    }
+    despuesDeCambio(fila);
+  });
+
+  /* ---------- avisos sobre la lista ---------- */
+  document.getElementById('cartNotices').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-notice]');
+    if (!b) return;
+    const acc = b.dataset.notice;
+    if (acc === 'cerrar') { CarritoCore.estado.avisosPrecio.splice(Number(b.dataset.k), 1); refrescar(); }
+    else if (acc === 'reintentar') { b.classList.add('is-busy'); await revalidar(); }
+    else if (acc === 'quitar-malos') {
+      const antes = CarritoCore.leer();
+      CarritoCore.quitarNoDisponibles();
+      refrescar();
+      actualizarContadoresGlobal();
+      mostrarSnack('Quitamos los productos no disponibles', 'Deshacer', deshacerA(antes));
+    }
+  });
+
+  const btnLimpiar = document.getElementById('btnLimpiar');
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener('click', (e) => {
+      e.preventDefault();
+      const antes = CarritoCore.leer();
+      limpiarCarrito();
+      listEl.querySelectorAll('.cart-item').forEach((fila, i) => setTimeout(() => quitarFilaAnimada(fila), reducirMovimiento ? 0 : i * 70));
+      recalcularResumen();
+      actualizarContadores();
+      mostrarSnack('Vaciaste el carrito', 'Deshacer', deshacerA(antes));
+    });
+  }
+
+  /* =====================================================================
+     CHECKOUT POR PASOS: 1 Tus datos → 2 Entrega → 3 Resumen y pago → 4 Confirmación
+     · Cada paso es un panel del MISMO formulario: al retroceder, los campos
+       siguen ahí (no se borra nada). Además se guarda un borrador en
+       sessionStorage por si la página se recarga.
+     · Una sola puerta de entrada (accionPrincipal) y un solo candado
+       (enviandoPedido): no hay clics ni pedidos duplicados.
+     ===================================================================== */
+  const $ = (id) => document.getElementById(id);
+  const formPago = $('form-pago');
+  const paneles = [...wrap.querySelectorAll('.ck-panel')];
+  const PASOS = {
+    1: { eyebrow: 'Paso 1 de 4', titulo: 'Tus datos', sub: 'Los usamos solo para confirmar y entregar tu pedido.', cta: 'Continuar a entrega' },
+    2: { eyebrow: 'Paso 2 de 4', titulo: 'Dirección y entrega', sub: 'Dinos dónde recibirás tu pedido.', cta: 'Revisar mi pedido' },
+    3: { eyebrow: 'Paso 3 de 4', titulo: 'Resumen y pago', sub: 'Revisa todo y elige cómo pagar.', cta: 'Confirmar pedido' },
+  };
+  const textoAccion = (n) => (n === 3 ? 'Confirmar pedido' : 'Continuar');
+
+  /* ---- avisos cuando algo impide seguir ---- */
+  function avisarBloqueo(motivo) {
+    if (motivo === 'cargando') showToastCarrito('Estamos verificando la disponibilidad. Un momento…');
+    else if (motivo === 'problemas') { showToastCarrito('Resuelve los avisos de tu carrito antes de pagar.'); $('cartNotices').scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'center' }); }
+    else if (motivo === 'limite') showToastCarrito(`Un pedido admite hasta ${MAX_UNIDADES_PEDIDO} prendas. Quita algunas o divide tu compra en dos pedidos.`);
+    else showToastCarrito('Tu carrito no tiene productos disponibles para comprar.');
+  }
+  function mostrarAlerta(texto) {
+    const el = $('ckAlert');
+    if (!el) return;
+    el.textContent = texto || '';
+    el.hidden = !texto;
+  }
+
+  /* ---- stepper de arriba (clic en un paso ya hecho = volver ahí) ---- */
+  const stepperSteps = wrap.querySelectorAll('.stepper-step');
+  const stepperLines = wrap.querySelectorAll('.stepper-line');
+  function activarStepper(n) {
+    stepperSteps.forEach(s => {
+      const num = Number(s.dataset.stepper);
+      const circle = s.querySelector('.stepper-circle');
+      s.classList.remove('is-active', 'is-done');
+      s.removeAttribute('aria-current');
+      const hecho = num < n;
+      if (hecho) { s.classList.add('is-done'); circle.textContent = '✓'; }
+      else { circle.textContent = num; if (num === n) { s.classList.add('is-active'); s.setAttribute('aria-current', 'step'); } }
+      s.toggleAttribute('data-volver', hecho && num <= 3);
+      s.setAttribute('tabindex', hecho && num <= 3 ? '0' : '-1');
+      s.setAttribute('role', hecho && num <= 3 ? 'button' : 'presentation');
+    });
+    stepperLines.forEach(l => l.classList.toggle('is-done', Number(l.dataset.line) < n));
+  }
+  stepperSteps.forEach(s => {
+    const ir = () => { const num = Number(s.dataset.stepper); if (s.hasAttribute('data-volver') && !enviandoPedido && num < pasoActual) irAPaso(num); };
+    s.addEventListener('click', ir);
+    s.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } });
+  });
+
+  /* ---- navegación entre pasos ---- */
+  function irAPaso(n, opciones) {
+    const op = opciones || {};
+    pasoActual = n;
+    paneles.forEach(p => {
+      const activo = Number(p.dataset.step) === n;
+      p.hidden = !activo;
+      p.classList.toggle('is-active', activo);
+    });
+    const info = PASOS[n];
+    $('ckEyebrow').textContent = info.eyebrow;
+    $('ckTitulo').textContent = info.titulo;
+    $('ckSub').textContent = info.sub;
+    $('ckAtras').hidden = n === 1;
+    $('ckSiguienteTxt').textContent = info.cta;
+    const bf = $('btnFinalizarTxt'); if (bf) bf.textContent = textoAccion(n);
+    const mb = document.querySelector('#mbBtn span'); if (mb) mb.textContent = textoAccion(n);
+    activarStepper(n);
+    const acciones = $('resumenAcciones');
+    if (acciones) acciones.classList.toggle('visible', n === 3);
+    mostrarAlerta('');
+    if (n === 3) renderRevision();
+    guardarBorrador();
+    // el botón "Atrás" del navegador también retrocede de paso
+    if (!op.desdeHistorial) {
+      try { history[op.reemplazar ? 'replaceState' : 'pushState']({ ckPaso: n }, '', location.href); } catch (e) { /* sin historial */ }
+    }
+    if (op.desplazar !== false) $('ckBox').scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'start' });
+    if (op.enfocar !== false) {
+      setTimeout(() => {
+        const panel = paneles.find(p => Number(p.dataset.step) === n);
+        const primero = n === 3 ? $('ckTitulo') : panel.querySelector('input:not([type=checkbox]):not([type=hidden]), select:not([style*="display: none"])');
+        if (primero) primero.focus({ preventScroll: true });
+      }, 80);
+    }
+  }
+  if (window.__ckPop) window.removeEventListener('popstate', window.__ckPop);
+  window.__ckPop = (e) => {
+    if (enviandoPedido || pedidoConfirmado || !$('ckBox')) return;
+    const n = (e.state && e.state.ckPaso) || 1;
+    if (n !== pasoActual) irAPaso(Math.min(n, pasoActual), { desdeHistorial: true, enfocar: false });
+  };
+  window.addEventListener('popstate', window.__ckPop);
+
+  $('ckAtras').addEventListener('click', () => { if (!enviandoPedido && pasoActual > 1) irAPaso(pasoActual - 1); });
+  wrap.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => { if (!enviandoPedido) irAPaso(Number(b.dataset.goto)); }));
+  const editarCarrito = $('ckEditarCarrito');
+  if (editarCarrito) editarCarrito.addEventListener('click', (e) => { e.preventDefault(); $('cartList').scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'start' }); });
+
+  /* ---- punto único de entrada: botón del formulario, botón del resumen y barra del celular ---- */
+  async function accionPrincipal() {
+    if (enviandoPedido || pedidoConfirmado) return;
+    if (pasoActual === 1) { if (validarPaso1()) irAPaso(2); return; }
+    if (pasoActual === 2) { if (validarPaso2()) irAPaso(3); return; }
+    await confirmarPedido();
+  }
+  formPago.addEventListener('submit', (e) => { e.preventDefault(); accionPrincipal(); });
+  const btnFinalizar = $('btnFinalizar');
+  if (btnFinalizar) btnFinalizar.addEventListener('click', (e) => { e.preventDefault(); accionPrincipal(); });
+
+  /* ---- campos: errores se limpian al corregir, teléfono con formato, correo con sugerencia ---- */
+  wrap.querySelectorAll('.ck-panel input, .ck-panel select, .ck-panel textarea').forEach(el => {
+    el.addEventListener('input', () => { if (!wrap.querySelector('.ck-panel.is-active .campo-error:not(#' + el.id + ')')) mostrarAlerta(''); if (el.classList.contains('campo-error')) { el.classList.remove('campo-error'); el.removeAttribute('aria-invalid'); const err = $('err' + el.id.charAt(0).toUpperCase() + el.id.slice(1)); if (err) { err.textContent = ''; err.classList.remove('mostrar'); } } });
+    if (el.tagName === 'INPUT' && el.type !== 'checkbox') {
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id !== 'municipioInput') { e.preventDefault(); accionPrincipal(); } });
+    }
+  });
+  const inTel = $('telefonoCliente');
+  inTel.addEventListener('input', () => {
+    let d = inTel.value.replace(/\D/g, '');
+    if (d.length > 10 && d.startsWith('57')) d = d.slice(2);
+    d = d.slice(0, 10);
+    const f = d.replace(/^(\d{3})(\d{1,3})?(\d{1,4})?$/, (m, a, b, c) => [a, b, c].filter(Boolean).join(' '));
+    if (inTel.value !== f) inTel.value = f;
+  });
+  const DOMINIOS_TYPO = { 'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.co': 'gmail.com', 'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'hotmail.con': 'hotmail.com', 'outlok.com': 'outlook.com', 'outlook.con': 'outlook.com', 'yahooo.com': 'yahoo.com', 'yaho.com': 'yahoo.com' };
+  const inEmail = $('emailCliente'), sugEmail = $('ckEmailSug');
+  function revisarCorreoTypo() {
+    const v = inEmail.value.trim();
+    const dom = v.split('@')[1] ? v.split('@')[1].toLowerCase() : '';
+    const bueno = DOMINIOS_TYPO[dom];
+    if (bueno) { sugEmail.textContent = `¿Quisiste decir ${v.split('@')[0]}@${bueno}?`; sugEmail.dataset.valor = `${v.split('@')[0]}@${bueno}`; sugEmail.hidden = false; }
+    else sugEmail.hidden = true;
+  }
+  inEmail.addEventListener('blur', revisarCorreoTypo);
+  inEmail.addEventListener('input', () => { sugEmail.hidden = true; });
+  sugEmail.addEventListener('click', () => { inEmail.value = sugEmail.dataset.valor; sugEmail.hidden = true; limpiarErrorCampo('emailCliente', 'errEmailCliente'); guardarBorrador(); });
+
+  /* ---- envío dinámico según la zona elegida ---- */
+  if (selectMunicipio) {
+    selectMunicipio.addEventListener('change', () => {
+      const opt = selectMunicipio.selectedOptions[0];
+      envioZona = opt && opt.value ? Number(opt.dataset.costo || 0) : 0;
+      recalcularResumen();
+    });
+  }
+  recalcularResumen();
+
+  /* ---- departamento + ciudad ----
+     Antioquia: se busca entre sus 125 municipios (sin importar tildes) y la zona/costo sale solo.
+     Otro departamento: se escribe la ciudad y se aplica la tarifa "Otra ciudad de Colombia". */
+  const quitarTildes = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const munInput = $('municipioInput'), munSug = $('municipioSugerencias');
+  const selDepto = $('departamentoEnvio'), chkRural = $('ckRural');
+  const listaMun = () => municipiosDe(selDepto.value).map(m => ({ ...m, clave: quitarTildes(m.nombre) }));   // municipios del departamento elegido (con la tarifa del panel si la hay)
+  let municipioElegidoNombre = '';
+  let zonaElegida = '';
+  const esAntioquia = () => selDepto.value === 'Antioquia';
+
+  function zonaActual() {
+    if (!municipioElegidoNombre) return '';
+    const m = listaMun().find(x => x.nombre === municipioElegidoNombre);
+    if (esAntioquia() && chkRural.checked) return 'vereda';
+    if (m && m.personalizado) return m.id;          // tarifa propia de la ciudad (panel → Envíos)
+    if (!esAntioquia()) return 'otra_ciudad';
+    return m ? m.zona : '';
+  }
+  function actualizarZona() {
+    zonaElegida = zonaActual();
+    if (selectMunicipio) {
+      const mc = /^m\d{5}$/.test(zonaElegida) ? listaMun().find(x => x.id === zonaElegida) : null;
+      if (mc) {   // la tarifa por ciudad no está entre las zonas de siempre: se agrega su opción
+        let o = selectMunicipio.querySelector(`option[value="${zonaElegida}"]`);
+        if (!o) { o = document.createElement('option'); o.value = zonaElegida; selectMunicipio.appendChild(o); }
+        o.dataset.costo = mc.costo; o.textContent = `${mc.nombre} — ${fmtDinero(mc.costo)}`;
+      }
+      selectMunicipio.value = zonaElegida; selectMunicipio.dispatchEvent(new Event('change'));
+    }
+    const rural = esAntioquia() && chkRural.checked;
+    $('ckRuralWrap').hidden = !(esAntioquia() && municipioElegidoNombre);
+    $('ckVeredaWrap').hidden = !rural;
+    $('ckBarrioWrap').hidden = rural;
+    const info = $('ckZonaInfo');
+    if (zonaElegida && envioZona >= 0 && selectMunicipio.value) {
+      info.hidden = false;
+      info.innerHTML = `${svgCamion()}<span>Envío a <b>${esc(municipioElegidoNombre)}</b>: <b>${envioZona ? fmtDinero(envioZona) : '¡Gratis!'}</b></span>`;
+    } else info.hidden = true;
+  }
+  function elegirMunicipio(m) {
+    municipioElegidoNombre = m.nombre;
+    munInput.value = m.nombre;
+    limpiarErrorCampo('municipioInput', 'errMunicipioEnvio');
+    cerrarSugerencias();
+    actualizarZona();
+    guardarBorrador();
+  }
+  function cerrarSugerencias() { munSug.classList.remove('open'); munInput.setAttribute('aria-expanded', 'false'); }
+  let visibles = [], activo = -1;
+  function pintarSugerencias() {
+    const todos = listaMun();
+    const eligioLista = todos.some(m => m.nombre === municipioElegidoNombre);
+    const q = quitarTildes(eligioLista && munInput.value === municipioElegidoNombre ? '' : munInput.value);
+    let lista = q ? todos.filter(m => m.clave.includes(q)) : todos.slice();
+    if (q) lista.sort((a, b) => (b.clave.startsWith(q) - a.clave.startsWith(q)) || a.nombre.localeCompare(b.nombre, 'es'));
+    visibles = lista; activo = lista.length && q ? 0 : -1;
+    munSug.innerHTML = lista.length
+      ? lista.map((m, i) => `<button type="button" role="option" class="municipio-sug${i === activo ? ' is-active' : ''}" data-i="${i}"><span>${esc(m.nombre)}</span><span class="municipio-sug-costo">${m.gratis ? 'Gratis' : fmtDinero(m.costo)}</span></button>`).join('')
+      : `<div class="municipio-sug-vacio">No encontramos "${esc(munInput.value)}" en ${esc(selDepto.value)}. ${esAntioquia() ? 'Si vives en otro departamento, cámbialo arriba.' : 'Puedes escribir tu ciudad tal cual y se aplica la tarifa estándar.'}</div>`;
+    munSug.classList.add('open'); munInput.setAttribute('aria-expanded', 'true');
+  }
+  munSug.addEventListener('mousedown', (e) => e.preventDefault());   // no robar el foco al input
+  munSug.addEventListener('click', (e) => { const b = e.target.closest('.municipio-sug'); if (b) elegirMunicipio(visibles[Number(b.dataset.i)]); });
+  munInput.addEventListener('focus', () => { pintarSugerencias(); });
+  munInput.addEventListener('input', () => {
+    const v = munInput.value.trim();
+    if (esAntioquia()) {
+      if (munInput.value !== municipioElegidoNombre) municipioElegidoNombre = '';
+    } else {   // fuera de Antioquia: si coincide con una ciudad de la lista se usa su tarifa; si no, se acepta lo escrito
+      const ex = listaMun().find(m => m.clave === quitarTildes(v));
+      municipioElegidoNombre = ex ? ex.nombre : (v.length >= 3 ? v : '');
+    }
+    actualizarZona();
+    pintarSugerencias();
+  });
+  munInput.addEventListener('keydown', (e) => {
+    if (!munSug.classList.contains('open')) return;
+    const marcar = () => munSug.querySelectorAll('.municipio-sug').forEach((b, i) => { b.classList.toggle('is-active', i === activo); if (i === activo) b.scrollIntoView({ block: 'nearest' }); });
+    if (e.key === 'ArrowDown') { e.preventDefault(); activo = Math.min(visibles.length - 1, activo + 1); marcar(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activo = Math.max(0, activo - 1); marcar(); }
+    else if (e.key === 'Escape') { cerrarSugerencias(); }
+    else if (e.key === 'Enter') {
+      const exacto = listaMun().find(m => m.clave === quitarTildes(munInput.value));
+      const m = exacto || visibles[Math.max(activo, 0)];
+      e.preventDefault();
+      if (m && munInput.value.trim()) elegirMunicipio(m);
+    }
+  });
+  munInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      const exacto = listaMun().find(m => m.clave === quitarTildes(munInput.value));
+      if (exacto && (!municipioElegidoNombre || munInput.value !== exacto.nombre)) elegirMunicipio(exacto);
+      cerrarSugerencias();
+    }, 120);
+  });
+  if (window.__ckDocClick) document.removeEventListener('click', window.__ckDocClick);
+  window.__ckDocClick = (e) => { if (!e.target.closest('#municipioAutocomplete')) cerrarSugerencias(); };
+  document.addEventListener('click', window.__ckDocClick);
+  selDepto.addEventListener('change', () => {
+    municipioElegidoNombre = ''; munInput.value = ''; chkRural.checked = false;
+    munInput.placeholder = esAntioquia() ? 'Ej: Medellín' : 'Escribe tu ciudad o municipio';
+    limpiarErrorCampo('municipioInput', 'errMunicipioEnvio');
+    actualizarZona();
+    guardarBorrador();
+  });
+  chkRural.addEventListener('change', () => { actualizarZona(); });
+  window.__actualizarZonaEnvio = () => { if (municipioElegidoNombre) actualizarZona(); };
+
+  /* ---- mapa para ubicar la dirección (Leaflet + OpenStreetMap, sin API key) ---- */
+  const btnMostrarMapa = $('btnMostrarMapa');
+  const mapaWrap = $('mapaWrap');
+  const btnMiUbicacion = $('btnMiUbicacion');
+  const mapaHint = $('mapaHint');
+  let mapaLeaflet = null, marcadorLeaflet = null;
+
+  function inicializarMapa(lat, lng) {
+    if (typeof L === 'undefined') { mapaHint.textContent = 'No pudimos cargar el mapa ahora. Escribe tu dirección a mano, por favor.'; return; }
+    if (mapaLeaflet) { mapaLeaflet.invalidateSize(); return; }
+    mapaLeaflet = L.map('mapaEnvio').setView([lat, lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(mapaLeaflet);
+    marcadorLeaflet = L.marker([lat, lng], { draggable: true }).addTo(mapaLeaflet);
+
+    async function ubicarDesdePunto(latlng) {
+      marcadorLeaflet.setLatLng(latlng);
+      mapaHint.textContent = 'Buscando la dirección de ese punto...';
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`);
+        const data = await res.json();
+        const direccionTexto = data && data.display_name ? data.display_name.split(',').slice(0, 3).join(',') : '';
+        if (direccionTexto) {
+          $('direccionCliente').value = direccionTexto;
+          limpiarErrorCampo('direccionCliente', 'errDireccionCliente');
+          mapaHint.textContent = '📍 Dirección ubicada: ' + direccionTexto + '. Revísala y corrígela si hace falta.';
+        } else {
+          mapaHint.textContent = 'Ubicamos el punto en el mapa, pero escribe la dirección manualmente por si acaso.';
+        }
+      } catch (err) {
+        mapaHint.textContent = 'No pudimos leer la dirección automáticamente, pero el punto quedó marcado en el mapa.';
+      }
+    }
+    mapaLeaflet.on('click', (e) => ubicarDesdePunto(e.latlng));
+    marcadorLeaflet.on('dragend', () => ubicarDesdePunto(marcadorLeaflet.getLatLng()));
+  }
+  if (btnMostrarMapa) {
+    btnMostrarMapa.addEventListener('click', () => {
+      const yaAbierto = mapaWrap.classList.toggle('open');
+      btnMostrarMapa.textContent = yaAbierto ? '📍 Ocultar el mapa' : '📍 ¿No sabes bien tu dirección? Ubícala en el mapa';
+      if (yaAbierto) setTimeout(() => inicializarMapa(6.2442, -75.5812), 150); // centro por defecto: Medellín
+    });
+  }
+  if (btnMiUbicacion) {
+    btnMiUbicacion.addEventListener('click', () => {
+      if (!navigator.geolocation) { showToastCarrito('Tu navegador no permite compartir ubicación.'); return; }
+      mapaHint.textContent = 'Buscando tu ubicación...';
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (!mapaLeaflet) inicializarMapa(latitude, longitude);
+        if (!mapaLeaflet) return;
+        mapaLeaflet.setView([latitude, longitude], 16);
+        marcadorLeaflet.setLatLng([latitude, longitude]);
+        marcadorLeaflet.fire('dragend');
+      }, () => {
+        showToastCarrito('No pudimos acceder a tu ubicación. Actívala en el navegador o marca el punto en el mapa.');
+      });
+    });
+  }
+
+  /* ---- método de pago ---- */
+  const chips = wrap.querySelectorAll('.metodo-card');
+  const camposTarjeta = $('camposTarjeta');
+  const camposNequi = $('camposNequi');
+  const camposPse = $('camposPse');
+  function elegirMetodo(chip) {
+    chips.forEach(c => { c.classList.remove('active'); c.setAttribute('aria-checked', 'false'); });
+    chip.classList.add('active'); chip.setAttribute('aria-checked', 'true');
+    metodoPago = chip.dataset.metodo;
+    if (camposTarjeta) camposTarjeta.classList.toggle('open', metodoPago === 'tarjeta');
+    if (camposNequi) camposNequi.classList.toggle('open', metodoPago === 'nequi');
+    if (camposPse) camposPse.classList.toggle('open', metodoPago === 'pse');
+    if (metodoPago === 'nequi' && $('nequiValorTxt')) $('nequiValorTxt').textContent = totalValorEl.textContent;
+    const em = $('errMetodoPago'); if (em) { em.textContent = ''; em.classList.remove('mostrar'); }
+    guardarBorrador();
+  }
+  chips.forEach(chip => chip.addEventListener('click', () => elegirMetodo(chip)));
+  // Teclado (patrón "radiogroup"): flechas, Inicio y Fin mueven y eligen el método visible siguiente/anterior
+  chips.forEach(chip => chip.addEventListener('keydown', (e) => {
+    const teclas = ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'];
+    if (!teclas.includes(e.key)) return;
+    const visibles = Array.from(chips).filter(c => !c.hidden && c.offsetParent !== null);
+    if (visibles.length < 2) return;
+    e.preventDefault();
+    let i = visibles.indexOf(chip);
+    if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = visibles.length - 1;
+    else i = (i + (e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1) + visibles.length) % visibles.length;
+    visibles[i].focus();
+    elegirMetodo(visibles[i]);
+  }));
+  wrap.querySelectorAll('.nequi-copiar').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const texto = $(btn.dataset.copiar).textContent.trim();
+      navigator.clipboard?.writeText(texto);
+      showToastCarrito('Copiado: ' + texto);
+    });
+  });
+
+  /* ---- tarjeta animada (solo existe si PAGO_TARJETA_ACTIVO) ---- */
+  const inNumero = $('tarjetaNumero'), inTitular = $('tarjetaTitular'), inVenc = $('tarjetaVencimiento'), inCvv = $('tarjetaCvv');
+  if (inNumero) {
+    const tarjetaVisual = $('tarjetaVisual');
+    inNumero.addEventListener('input', () => {
+      const v = inNumero.value.replace(/\D/g, '').slice(0, 16);
+      inNumero.value = v.replace(/(.{4})/g, '$1 ').trim();
+      $('tarjetaNumeroVista').textContent = v ? v.padEnd(16, '•').replace(/(.{4})/g, '$1 ').trim() : '•••• •••• •••• ••••';
+    });
+    inTitular.addEventListener('input', () => { $('tarjetaTitularVista').textContent = inTitular.value.trim().toUpperCase() || 'TU NOMBRE AQUÍ'; });
+    inVenc.addEventListener('input', () => {
+      let v = inVenc.value.replace(/\D/g, '').slice(0, 4);
+      if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+      inVenc.value = v; $('tarjetaVencVista').textContent = v || 'MM/AA';
+    });
+    inCvv.addEventListener('input', () => { inCvv.value = inCvv.value.replace(/\D/g, '').slice(0, 4); $('tarjetaCvvVista').textContent = inCvv.value.padEnd(3, '•'); });
+    inCvv.addEventListener('focus', () => tarjetaVisual.classList.add('flip'));
+    inCvv.addEventListener('blur', () => tarjetaVisual.classList.remove('flip'));
+  }
+
+  /* ---- paso 3: revisión del pedido ---- */
+  function lineasEntrega() {
+    const v = (id) => ($(id).value || '').trim();
+    const rural = esAntioquia() && chkRural.checked;
+    const l1 = [v('direccionCliente'), v('edificioCliente')].filter(Boolean).join(' · ');
+    const l2 = rural ? (v('veredaCliente') ? 'Vereda ' + v('veredaCliente') : '') : v('barrioCliente');
+    const l3 = [municipioElegidoNombre, selDepto.value].filter(Boolean).join(', ');
+    return { l1, l2, l3, ref: v('referenciaCliente') };
+  }
+  function renderRevision() {
+    const a = CarritoCore.analizar();
+    $('ckRevItems').innerHTML = a.grupos.map(g => {
+      const c = nombreColor(g.color);
+      const foto = miniaturaProducto(g);
+      return `<div class="ck-item"><div class="ck-item-img">${foto}${g.cantidad > 1 ? `<span class="ck-item-q">×${g.cantidad}</span>` : ''}</div>
+        <div class="ck-item-info"><b>${esc(g.nombre)}</b><small>${c ? esc(c) + ' · ' : ''}Talla ${esc(g.talla || '—')}${g.cantidad > 1 ? ` · ${fmtDinero(g.precio)} c/u` : ''}</small></div>
+        <div class="ck-item-precio">${fmtDinero(g.subtotal)}</div></div>`;
+    }).join('');
+    const tel = ($('telefonoCliente').value || '').trim();
+    $('ckRevContacto').innerHTML = `<b>${esc($('nombreCliente').value.trim())}</b><span>${esc($('emailCliente').value.trim())}</span><span>+57 ${esc(tel)}</span>`;
+    const e = lineasEntrega();
+    $('ckRevEntrega').innerHTML = `<b>${esc(e.l1)}</b>${e.l2 ? `<span>${esc(e.l2)}</span>` : ''}<span>${esc(e.l3)}</span>${e.ref ? `<span class="ck-ref">“${esc(e.ref)}”</span>` : ''}`;
+    pintarTotalesRevision(a);
+  }
+  function pintarTotalesRevision(a) {
+    a = a || CarritoCore.analizar();
+    const set = (id, t) => { const el = $(id); if (el) el.textContent = t; };
+    const conDesc = a.descuentos > 0;
+    if ($('ckLista')) { $('ckLista').hidden = !conDesc; set('ckListaV', fmtDinero(a.lista)); }
+    if ($('ckDesc')) { $('ckDesc').hidden = !conDesc; set('ckDescV', '−' + fmtDinero(a.descuentos)); }
+    set('ckSubV', fmtDinero(a.subtotal));
+    set('ckEnvioV', !selectMunicipio || !selectMunicipio.value ? 'Elige tu ciudad' : (envioActual ? fmtDinero(envioActual) : '¡Gratis!'));
+    set('ckTotalV', fmtDinero(a.subtotal + envioActual));
+  }
+  window.__ckRevision = () => { if (pasoActual === 3) renderRevision(); };
+
+  /* ---- borrador del formulario (se conserva si se recarga la página) ---- */
+  const CAMPOS_BORRADOR = ['nombreCliente', 'emailCliente', 'telefonoCliente', 'direccionCliente', 'barrioCliente', 'veredaCliente', 'edificioCliente', 'referenciaCliente', 'pseBanco', 'psePersona'];
+  let _tBorrador = null;
+  function guardarBorradorYa() {
+    if (pedidoConfirmado) return;
+    clearTimeout(_tBorrador);
+    try {
+      const d = { depto: selDepto.value, municipio: municipioElegidoNombre, rural: chkRural.checked, metodo: metodoPago, paso: pasoActual };
+      CAMPOS_BORRADOR.forEach(id => { const el = $(id); if (el) d[id] = el.value; });
+      sessionStorage.setItem(CLAVE_BORRADOR, JSON.stringify(d));
+    } catch (e) { /* sin sessionStorage: no pasa nada */ }
+  }
+  function guardarBorrador() {
+    if (pedidoConfirmado) return;
+    clearTimeout(_tBorrador);
+    _tBorrador = setTimeout(guardarBorradorYa, 250);
+  }
+  function restaurarBorrador() {
+    let d = null;
+    try { d = JSON.parse(sessionStorage.getItem(CLAVE_BORRADOR) || 'null'); } catch (e) { d = null; }
+    if (!d) return 1;
+    CAMPOS_BORRADOR.forEach(id => { const el = $(id); if (el && typeof d[id] === 'string') el.value = d[id]; });
+    if (d.depto && [...selDepto.options].some(o => o.value === d.depto)) selDepto.value = d.depto;
+    munInput.placeholder = esAntioquia() ? 'Ej: Medellín' : 'Escribe tu ciudad o municipio';
+    if (d.municipio) { municipioElegidoNombre = d.municipio; munInput.value = d.municipio; }
+    chkRural.checked = !!d.rural && esAntioquia();
+    actualizarZona();
+    const chip = d.metodo && wrap.querySelector(`.metodo-card[data-metodo="${d.metodo}"]`);
+    if (chip) elegirMetodo(chip);
+    // vuelve al paso en el que iba, solo si los pasos anteriores siguen completos
+    const p = Number(d.paso) || 1;
+    if (p >= 2 && paso1Completo() && (p === 2 || paso2Completo())) return Math.min(p, 3);
+    return 1;
+  }
+  formPago.addEventListener('input', guardarBorrador);
+  formPago.addEventListener('change', guardarBorrador);
+
+  /* ---- pago: validación del paso 3 ---- */
+  function validarPago() {
+    let ok = true, primero = null;
+    const falla = (id, idErr, msg) => { marcarErrorCampo(id, idErr, msg); ok = false; if (!primero) primero = $(id); };
+    if (!metodoPago) {
+      const em = $('errMetodoPago'); em.textContent = 'Elige cómo quieres pagar.'; em.classList.add('mostrar'); ok = false;
+      primero = primero || wrap.querySelector('.metodo-card');
+    }
+    if (metodoPago === 'pse' && !$('pseBanco').value) falla('pseBanco', 'errPseBanco', 'Selecciona tu banco para pagar con PSE.');
+    if (metodoPago === 'nequi' && !$('nequiConfirmado').checked) { const en = $('errNequi'); en.textContent = 'Confirma que ya hiciste la transferencia por Nequi.'; en.classList.add('mostrar'); ok = false; primero = primero || $('nequiConfirmado'); }
+    if (metodoPago === 'tarjeta' && inNumero) {
+      const num = inNumero.value.replace(/\D/g, '');
+      if (num.length < 16 || !inTitular.value.trim() || inVenc.value.length < 5 || inCvv.value.length < 3) { showToastCarrito('Revisa los datos de tu tarjeta.'); ok = false; primero = primero || inNumero; }
+    }
+    if (!$('aceptaTerminos').checked) falla('aceptaTerminos', 'errAceptaTerminos', 'Para continuar, acepta los términos y el tratamiento de datos.');
+    if (!ok) { mostrarAlerta('Revisa lo marcado en rojo para poder confirmar.'); if (primero) { primero.scrollIntoView({ block: 'center', behavior: reducirMovimiento ? 'auto' : 'smooth' }); primero.focus({ preventScroll: true }); } }
+    else mostrarAlerta('');
+    return ok;
+  }
+
+  /* ---- candado de envío + overlay de estados ---- */
+  function ponerOcupado(si) {
+    enviandoPedido = si;
+    $('ckBox').classList.toggle('is-busy', si);
+    formPago.setAttribute('aria-busy', String(si));
+    ['ckSiguiente', 'ckAtras', 'btnFinalizar', 'mbBtn'].forEach(id => { const b = $(id); if (b) { b.classList.toggle('is-loading', si && id !== 'ckAtras'); b.setAttribute('aria-disabled', String(si)); if (id === 'ckSiguiente' || id === 'ckAtras') b.disabled = si; } });
+  }
+  const demora = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function confirmarPedido() {
+    // 1) ¿el carrito está listo para pagar?
+    const a0 = CarritoCore.analizar();
+    const motivo = motivoBloqueo(a0);
+    if (motivo) { avisarBloqueo(motivo); return; }
+    // 2) todos los datos, otra vez (por si saltó pasos con el stepper o el borrador)
+    if (!validarPaso1()) { irAPaso(1); return; }
+    if (!validarPaso2()) { irAPaso(2); return; }
+    if (!validarPago()) return;
+    if (!navigator.onLine) {
+      actualizarAvisoOffline();
+      mostrarAlerta('No tienes conexión a internet. Conéctate e intenta de nuevo.');
+      showToastCarrito('No tienes conexión a internet.');
+      return;
+    }
+
+    ponerOcupado(true);                    // candado: desde aquí ningún clic cuenta
+    abrirOverlay('procesando');
+    try {
+      // 3) datos viejos (>45 s): se vuelve a consultar el catálogo; si cambió el total, se avisa antes de cobrar
+      if (Date.now() - CarritoCore.estado.fecha > 45000) {
+        await revalidar();
+        const a1 = CarritoCore.analizar();
+        const m1 = motivoBloqueo(a1);
+        if (m1) throw Object.assign(new Error('bloqueo'), { code: 'BLOQUEO_LOCAL', motivo: m1 });
+        if (a1.subtotal !== a0.subtotal) throw Object.assign(new Error('Actualizamos los precios de tu carrito. Revisa el nuevo total y vuelve a confirmar.'), { code: 'PRECIO_CAMBIO' });
+      }
+      const e = lineasEntrega();
+      const envio = {
+        departamento: selDepto.value,
+        municipio: municipioElegidoNombre,
+        zona: zonaElegida,
+        costo: envioActual,
+        barrio: $('barrioCliente').value.trim(),
+        vereda: $('veredaCliente').value.trim(),
+        direccion: $('direccionCliente').value.trim(),
+        edificio: $('edificioCliente').value.trim(),
+        referencia: $('referenciaCliente').value.trim(),
+      };
+      const pse = metodoPago === 'pse' ? { banco: $('pseBanco').value, persona: $('psePersona').value } : null;
+      const tarjetaFinal = metodoPago === 'tarjeta' && inNumero ? inNumero.value.replace(/\D/g, '').slice(-4) : null;
+      const [pedido] = await Promise.all([
+        crearPedido({
+          nombre: $('nombreCliente').value, email: $('emailCliente').value, telefono: $('telefonoCliente').value,
+          metodoPago, tarjetaFinal, pse, envio, aceptaTerminos: $('aceptaTerminos').checked, envioGratisDesde: ENVIO_GRATIS_DESDE,
+        }),
+        demora(700),                       // que el estado "procesando" no parpadee
+      ]);
+      if (!pedido) throw Object.assign(new Error('Tu carrito quedó vacío.'), { code: 'CARRITO_VACIO' });
+      mostrarConfirmacion(pedido, metodoPago, e);
+    } catch (err) {
+      console.error('Error al confirmar el pedido:', err);
+      ponerOcupado(false);                 // se libera el candado solo si NO se creó el pedido
+      mostrarErrorPedido(err);
+    }
+  }
+
+  /* ---- arranque ---- */
+  const pasoInicial = restaurarBorrador();
+  const chipInicial = wrap.querySelector('.metodo-card[data-metodo="contraentrega"]') || chips[0];
+  if (chipInicial && !metodoPago) elegirMetodo(chipInicial);
+  window.__ck = { irAPaso, confirmar: confirmarPedido, avisarBloqueo, flush: guardarBorradorYa };
+  irAPaso(pasoInicial, { enfocar: false, desplazar: false, reemplazar: true });
+}
+
+/* ---------- validación real de campos del checkout ---------- */
+
+/** Correo con forma válida: algo@algo.algo (sin espacios). */
+function emailValido(valor) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor) && valor.length <= 120;
+}
+/** Teléfono colombiano razonable: 7 a 10 dígitos, dejando de lado
+    espacios, guiones y el +57 si lo escriben. */
+function telefonoValido(valor) {
+  return !!normalizarTelefonoCO(valor);
+}
+/** Nombre real: al menos nombre y apellido, solo letras, espacios, punto, apóstrofe o guion. */
+function nombreValido(valor) {
+  const v = valor.trim().replace(/\s+/g, ' ');
+  return v.length >= 3 && v.split(' ').length >= 2 && /^[\p{L}][\p{L}\s.'’-]*$/u.test(v);
+}
+
+/** Igual que validarPaso1/2, pero sin pintar nada en rojo — solo dicen si el
+    paso ya quedó completo (se usa para restaurar el borrador). */
+function paso1Completo() {
+  const val = (id) => (document.getElementById(id)?.value || '').trim();
+  return nombreValido(val('nombreCliente')) && emailValido(val('emailCliente')) && telefonoValido(val('telefonoCliente'));
+}
+function paso2Completo() {
+  const val = (id) => (document.getElementById(id)?.value || '').trim();
+  const zona = document.getElementById('municipioEnvio')?.value || '';
+  const rural = zona === 'vereda' && document.getElementById('departamentoEnvio')?.value === 'Antioquia';
+  return !!zona && val('direccionCliente').length >= 5 && (!rural || val('veredaCliente').length >= 2);
+}
+
+/** Pinta un input en rojo y muestra su mensaje de error debajo.
+    idInput = id del <input>/<select>, idError = id del div de mensaje. */
+function marcarErrorCampo(idInput, idError, mensaje) {
+  const input = document.getElementById(idInput);
+  const err = document.getElementById(idError);
+  if (input) { input.classList.add('campo-error'); input.setAttribute('aria-invalid', 'true'); }
+  if (err) { err.textContent = mensaje; err.classList.add('mostrar'); }
+}
+function limpiarErrorCampo(idInput, idError) {
+  const input = document.getElementById(idInput);
+  const err = document.getElementById(idError);
+  if (input) { input.classList.remove('campo-error'); input.removeAttribute('aria-invalid'); }
+  if (err) { err.textContent = ''; err.classList.remove('mostrar'); }
+}
+function _alertaPaso(texto) {
+  const el = document.getElementById('ckAlert');
+  if (el) { el.textContent = texto || ''; el.hidden = !texto; }
+}
+function _enfocarPrimerError(ids) {
+  const el = ids.map(id => document.getElementById(id)).find(e => e && e.classList.contains('campo-error'));
+  if (el) { el.scrollIntoView({ block: 'center', behavior: reducirMovimiento ? 'auto' : 'smooth' }); el.focus({ preventScroll: true }); }
+}
+
+/** Revisa nombre/correo/teléfono. Devuelve true si todo está bien;
+    si algo falla, marca el campo en rojo, lleva el foco ahí y devuelve false. */
+function validarPaso1() {
+  let ok = true;
+  const nombre = document.getElementById('nombreCliente').value.trim();
+  const email = document.getElementById('emailCliente').value.trim();
+  const telefono = document.getElementById('telefonoCliente').value.trim();
+
+  if (!nombre) { marcarErrorCampo('nombreCliente', 'errNombreCliente', 'Escribe tu nombre completo.'); ok = false; }
+  else if (!nombreValido(nombre)) { marcarErrorCampo('nombreCliente', 'errNombreCliente', 'Escribe tu nombre y apellido, solo con letras (ej: María Gómez).'); ok = false; }
+  else limpiarErrorCampo('nombreCliente', 'errNombreCliente');
+
+  if (!email) { marcarErrorCampo('emailCliente', 'errEmailCliente', 'Escribe tu correo electrónico.'); ok = false; }
+  else if (!emailValido(email)) { marcarErrorCampo('emailCliente', 'errEmailCliente', 'Ese correo no se ve válido: revisa que tenga "@" y un dominio (ej: nombre@correo.com).'); ok = false; }
+  else limpiarErrorCampo('emailCliente', 'errEmailCliente');
+
+  if (!telefono) { marcarErrorCampo('telefonoCliente', 'errTelefonoCliente', 'Escribe tu celular o WhatsApp.'); ok = false; }
+  else if (!telefonoValido(telefono)) { marcarErrorCampo('telefonoCliente', 'errTelefonoCliente', 'Ese número no se ve válido: debe tener 10 dígitos (ej: 300 123 4567).'); ok = false; }
+  else limpiarErrorCampo('telefonoCliente', 'errTelefonoCliente');
+
+  _alertaPaso(ok ? '' : 'Revisa los campos marcados en rojo para continuar.');
+  if (!ok) _enfocarPrimerError(['nombreCliente', 'emailCliente', 'telefonoCliente']);
+  return ok;
+}
+
+/** Revisa departamento, ciudad y dirección. Misma idea que validarPaso1. */
+function validarPaso2() {
+  let ok = true;
+  const sel = document.getElementById('municipioEnvio');
+  const depto = document.getElementById('departamentoEnvio').value;
+  const direccion = document.getElementById('direccionCliente').value.trim();
+  const rural = sel.value === 'vereda' && depto === 'Antioquia';
+
+  if (!depto) { marcarErrorCampo('departamentoEnvio', 'errDepartamentoEnvio', 'Elige tu departamento.'); ok = false; }
+  else limpiarErrorCampo('departamentoEnvio', 'errDepartamentoEnvio');
+
+  if (!sel.value) {
+    marcarErrorCampo('municipioInput', 'errMunicipioEnvio', depto === 'Antioquia'
+      ? 'Elige tu municipio de la lista: escribe las primeras letras y tócalo.'
+      : 'Escribe tu ciudad o municipio (mínimo 3 letras).');
+    ok = false;
+  } else limpiarErrorCampo('municipioInput', 'errMunicipioEnvio');
+
+  if (!direccion) { marcarErrorCampo('direccionCliente', 'errDireccionCliente', 'Escribe la dirección de entrega.'); ok = false; }
+  else if (direccion.length < 5) { marcarErrorCampo('direccionCliente', 'errDireccionCliente', 'Esa dirección se ve incompleta: agrega calle o carrera y número (ej: Calle 45 # 30-12).'); ok = false; }
+  else limpiarErrorCampo('direccionCliente', 'errDireccionCliente');
+
+  if (rural && document.getElementById('veredaCliente').value.trim().length < 2) { marcarErrorCampo('veredaCliente', 'errVeredaCliente', 'Escribe el nombre de tu vereda.'); ok = false; }
+  else limpiarErrorCampo('veredaCliente', 'errVeredaCliente');
+
+  _alertaPaso(ok ? '' : 'Revisa los campos marcados en rojo para continuar.');
+  if (!ok) _enfocarPrimerError(['departamentoEnvio', 'municipioInput', 'direccionCliente', 'veredaCliente']);
+  return ok;
+}
+
+/* ---------- aviso de sin conexión a internet ---------- */
+function actualizarAvisoOffline() {
+  const aviso = document.getElementById('avisoOffline');
+  if (!aviso) return;
+  aviso.classList.toggle('mostrar', !navigator.onLine);
+}
+window.addEventListener('online', actualizarAvisoOffline);
+window.addEventListener('offline', actualizarAvisoOffline);
+
+function showToastCarrito(texto) {
+  const toast = document.getElementById('toast');
+  if (!toast) { alert(texto); return; }
+  document.getElementById('toastText').textContent = texto;
+  toast.classList.add('error', 'show');
+  clearTimeout(window._toastTimerCarrito);
+  window._toastTimerCarrito = setTimeout(() => toast.classList.remove('show', 'error'), 2600);
+}
+
+/* ============================================================
+   ESTADOS DEL PEDIDO: procesando · error · confirmado
+   ============================================================ */
+const ICONO_ERROR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.8 19.5h18.4L12 3.5Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>';
+let _ovTimer = null;
+
+function abrirOverlay(estado) {
+  const ov = document.getElementById('ck-overlay');
+  const card = ov.querySelector('.ck-ov-card');
+  clearTimeout(_ovTimer);
+  ov.dataset.estado = estado;
+  ov.hidden = false;
+  document.body.classList.add('ck-lock');
+  document.getElementById('ckOvAcciones').hidden = true;
+  if (estado === 'procesando') {
+    document.getElementById('ckOvIcon').innerHTML = '<span class="ck-spin"></span>';
+    document.getElementById('ckOvTitulo').textContent = 'Registrando tu pedido';
+    document.getElementById('ckOvMsg').textContent = 'Estamos guardando tu pedido y reservando tus prendas. No cierres esta página.';
+    document.getElementById('ckOvBarra').hidden = false;
+    _ovTimer = setTimeout(() => {
+      document.getElementById('ckOvMsg').textContent = 'Está tardando más de lo normal. No cierres ni recargues: aunque reintentes, tu pedido no se duplicará.';
+    }, 9000);
+  }
+  card.focus({ preventScroll: true });
+}
+function cerrarOverlay() {
+  const ov = document.getElementById('ck-overlay');
+  if (!ov) return;
+  clearTimeout(_ovTimer);
+  ov.hidden = true;
+  ov.dataset.estado = '';
+  document.body.classList.remove('ck-lock');
+}
+function _mostrarErrorOverlay(titulo, msg, primario, secundario) {
+  clearTimeout(_ovTimer);
+  const ov = document.getElementById('ck-overlay');
+  ov.dataset.estado = 'error';
+  ov.hidden = false;
+  document.body.classList.add('ck-lock');
+  document.getElementById('ckOvIcon').innerHTML = ICONO_ERROR;
+  document.getElementById('ckOvTitulo').textContent = titulo;
+  document.getElementById('ckOvMsg').textContent = msg;
+  document.getElementById('ckOvBarra').hidden = true;
+  const bp = document.getElementById('ckOvPrimario'), bs = document.getElementById('ckOvSecundario');
+  bp.textContent = primario.txt; bp.onclick = primario.fn;
+  bs.hidden = !secundario;
+  if (secundario) { bs.textContent = secundario.txt; bs.onclick = secundario.fn; }
+  document.getElementById('ckOvAcciones').hidden = false;
+  bp.focus({ preventScroll: true });
+}
+document.addEventListener('keydown', (e) => {
+  const ov = document.getElementById('ck-overlay');
+  if (!ov || ov.hidden) return;
+  if (e.key === 'Escape' && ov.dataset.estado === 'error') { cerrarOverlay(); return; }
+  if (e.key === 'Tab') {                       // el foco se queda dentro del aviso
+    const bs = [...ov.querySelectorAll('button:not([hidden])')].filter(b => b.offsetParent);
+    if (!bs.length) { e.preventDefault(); return; }
+    const i = bs.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); bs[bs.length - 1].focus(); }
+    else if (!e.shiftKey && i === bs.length - 1) { e.preventDefault(); bs[0].focus(); }
+  }
+});
+
+function mostrarErrorPedido(err) {
+  const code = err && err.code;
+  const ck = window.__ck || {};
+  const volver = { txt: 'Volver al formulario', fn: cerrarOverlay };
+  const revisarCarrito = { txt: 'Revisar mi carrito', fn: async () => {
+    cerrarOverlay();
+    await revalidar();
+    const n = document.getElementById('cartNotices'); if (n) n.scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'center' });
+  } };
+  const reintentar = { txt: 'Reintentar', fn: () => { cerrarOverlay(); if (ck.confirmar) ck.confirmar(); } };
+  const sinRed = !navigator.onLine || ['unavailable', 'deadline-exceeded', 'cancelled'].includes(code) || /network|offline|failed to fetch/i.test(String(err && err.message));
+
+  if (code === 'BLOQUEO_LOCAL') { cerrarOverlay(); if (ck.avisarBloqueo) ck.avisarBloqueo(err.motivo); return; }
+  if (code === 'SIN_STOCK' || code === 'SIN_PRODUCTO') return _mostrarErrorOverlay('Un producto ya no está disponible', err.message, revisarCarrito, volver);
+  if (code === 'LIMITE_UNIDADES') return _mostrarErrorOverlay('Demasiadas prendas en un pedido', err.message, revisarCarrito, volver);
+  if (code === 'PRECIO_CAMBIO') return _mostrarErrorOverlay('Cambió un precio', err.message, revisarCarrito, volver);
+  if (code === 'ENVIO_CAMBIO') {
+    return _mostrarErrorOverlay('Cambió el costo de envío', err.message, { txt: 'Actualizar mi envío', fn: async () => {
+      cerrarOverlay();
+      if (ck.flush) ck.flush();
+      await cargarConfigEnvio();
+      pintarCarrito();
+    } }, volver);
+  }
+  if (code === 'DATOS_INVALIDOS') {
+    return _mostrarErrorOverlay('Revisa tus datos', err.message, { txt: 'Corregir mis datos', fn: () => {
+      cerrarOverlay();
+      if (ck.irAPaso) ck.irAPaso(paso1Completo() ? 2 : 1);
+      setTimeout(() => { validarPaso1() && validarPaso2(); }, 150);
+    } }, null);
+  }
+  if (code === 'CARRITO_VACIO') return _mostrarErrorOverlay('Tu carrito está vacío', 'Parece que tu carrito ya no tiene productos. Si ya habías confirmado el pedido, revisa tu correo.', { txt: 'Volver a la tienda', fn: () => { location.href = 'productos.html'; } }, null);
+  if (code === 'permission-denied') {
+    return _mostrarErrorOverlay('No pudimos validar tu pedido', 'El servidor no aceptó los datos del pedido: suele pasar cuando un precio o el costo de envío cambió. Actualizamos tu carrito; revisa el total y confirma otra vez.', revisarCarrito, volver);
+  }
+  if (sinRed) {
+    return _mostrarErrorOverlay('Sin conexión con el servidor', 'No pudimos enviar tu pedido. Revisa tu internet y reintenta: si el pedido ya se había guardado, no se duplica ni se cobra dos veces.', reintentar, volver);
+  }
+  return _mostrarErrorOverlay('No pudimos registrar tu pedido', 'Hubo un problema con el servidor. Puedes reintentar: tu pedido no se duplicará. Si sigue fallando, escríbenos por WhatsApp.', reintentar, volver);
+}
+
+/* ---------- pantalla de confirmación (paso 4) ---------- */
+/** Miniatura del producto: su foto, o el icono de su categoría si no tiene foto. */
+function miniaturaProducto(g) {
+  if (g.foto) return `<img src="${esc(g.foto)}" alt="" loading="lazy" decoding="async">`;
+  let icono = g.icono;
+  if (!icono && typeof buscarProducto === 'function') { const pr = buscarProducto(g.id); icono = pr && pr.icono; }
+  return icono && typeof iconoProducto === 'function' ? iconoProducto(icono, g.color || '#dfe8da') : '';
+}
+/** 3001234567 -> "300 123 4567" */
+function fmtTelCO(t) {
+  const d = String(t || '').replace(/\D/g, '');
+  return d.length === 10 ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : d;
+}
+
+function htmlStepper(n) {
+  const labels = ['Tus datos', 'Entrega', 'Resumen', 'Confirmación'];
+  let h = '<div class="checkout-stepper" id="checkoutStepper" aria-label="Progreso de la compra">';
+  labels.forEach((t, i) => {
+    const k = i + 1;
+    if (k > 1) h += `<div class="stepper-line${k - 1 < n ? ' is-done' : ''}" data-line="${k - 1}"></div>`;
+    h += `<div class="stepper-step${k < n ? ' is-done' : (k === n ? ' is-active' : '')}" data-stepper="${k}"><div class="stepper-circle">${k < n ? '✓' : k}</div><div class="stepper-label">${t}</div></div>`;
+  });
+  return h + '</div>';
+}
+
+function mostrarConfirmacion(pedido, metodo) {
+  pedidoConfirmado = true;
+  try { sessionStorage.removeItem(CLAVE_BORRADOR); } catch (e) { /* nada */ }
+  cerrarOverlay();
+  // Pantalla propia a pantalla completa (css/confirmacion-pedido.css): no usa el layout del carrito ni del pago.
+  const wrap = document.getElementById('carritoWrap');
+  if (wrap) wrap.innerHTML = '';
+  const ce = metodo === 'contraentrega', pse = metodo === 'pse', nq = metodo === 'nequi';
+  // "Pago confirmado" SOLO si el pedido ya figura como pagado (lo cambia el equipo desde el panel).
+  const pagado = pedido.estado_pago === 'pagado';
+  const total = fmtDinero(pedido.total);
+  const confirmado = ce || pagado;
+  const sub = ce ? 'Gracias por tu compra, ya estamos organizando tu pedido. Pagas ' + total + ' cuando lo recibas.'
+    : pagado ? 'Gracias por tu compra, tu pago fue confirmado y ya estamos procesando tu pedido.'
+    : pse ? (PSE_URL_PAGO ? 'Falta un paso: completa el pago por PSE para que podamos alistar tu pedido.' : 'Te contactaremos con el enlace de pago PSE (por correo o WhatsApp) para completar tu compra.')
+    : nq ? 'Revisaremos tu transferencia por Nequi y te confirmamos el pedido.'
+    : 'Estamos verificando tu pago y te confirmamos el pedido.';
+  const metodoTxt = ce ? 'Pago contraentrega' : pse ? 'PSE' + (pedido.pse_banco ? ' · ' + pedido.pse_banco : '') : nq ? 'Nequi' : 'Tarjeta';
+  const metodoDesc = ce ? 'El valor se cobrará al momento de recibir tu pedido.'
+    : pagado ? 'Tu pago ya fue verificado.' : 'Estamos verificando tu pago.';
+  const correoOk = typeof APPS_SCRIPT_URL !== 'undefined' && APPS_SCRIPT_URL && APPS_SCRIPT_URL !== 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
+  const ico = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const icoCamion = ico('<path d="M2 6h11v10H2z"/><path d="M13 9h4l3 3v4h-7z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/>');
+  const icoSobre = ico('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>');
+  const icoTarjeta = ico('<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6 15h4"/>');
+  const icoCheckPill = ico('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>');
+  const icoReloj = ico('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+  const grupos = agruparCarrito(pedido.items || []);
+  const itemsHtml = grupos.map(g => {
+    const c = nombreColor(g.color);
+    return `<div class="cf-item"><div class="cf-item-img">${miniaturaProducto(g)}${g.cantidad > 1 ? `<span class="cf-item-q">x${g.cantidad}</span>` : '<span class="cf-item-q">x1</span>'}</div>
+      <div><span class="cf-item-nom">${esc(g.nombre)}</span><span class="cf-item-det">${c ? esc(c) + ' / ' : ''}${esc(g.talla || '—')}</span><span class="cf-item-pre">${fmtDinero(g.subtotal)}</span></div></div>`;
+  }).join('');
+  const nArt = (pedido.items || []).length;
+  const dir = [pedido.envio_direccion, pedido.envio_edificio].filter(Boolean).join(', ');
+  const zona = [pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : pedido.envio_barrio, pedido.envio_municipio, pedido.envio_departamento].filter(Boolean).join(', ');
+  const seg = `seguimiento.html?pedido=${encodeURIComponent(pedido.id)}`;
+  const pastilla = ce ? `<p class="cf-pago amarillo">${icoTarjeta}<span>Pago contra entrega · Pagas al recibir</span></p>`
+    : pagado ? `<p class="cf-pago verde">${icoCheckPill}<span>Pago confirmado</span></p>`
+    : `<p class="cf-pago neutro">${icoReloj}<span>Pago por verificar · ${esc(metodoTxt)}</span></p>`;
+
+  const pantalla = document.createElement('div');
+  pantalla.className = 'cf-pantalla';
+  pantalla.id = 'pantallaConfirmacion';
+  pantalla.setAttribute('role', 'main');
+  pantalla.innerHTML = `
+    <div class="cf-wrap">
+      <div class="cf-top">
+        <div class="cf-lema"><i>///</i> Ropa urbana<br>para los que<br>no siguen la corriente</div>
+        <a class="cf-logo" href="index.html" aria-label="MAQUINA, inicio"><img src="img/logo-crown.png" alt=""><span>Maquina</span></a>
+        <div class="cf-lema der">Estilo<br>actitud<br>calle <i>///</i></div>
+      </div>
+      <div class="cf-marco"><div class="cf-dentro">
+        <section class="cf-head" aria-labelledby="cfTitulo">
+          <div class="cf-check" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l8 8 14-16"/></svg></div>
+          <h1 class="cf-titulo" id="cfTitulo" tabindex="-1">¡Pedido <em>${confirmado ? 'confirmado!' : 'recibido!'}</em></h1>
+          <p class="cf-sub">${esc(sub)}</p>
+          <div class="cf-num cf-caja"><div class="cf-dentro">
+            <div><small>Número de pedido</small><b id="cfCodigo">#${esc(pedido.codigo_pedido)}</b></div>
+            <button type="button" class="cf-copiar" id="cfCopiar" aria-label="Copiar número de pedido">${ico('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>')}<span>Copiar</span></button>
+          </div></div>
+          ${pastilla}
+          ${pse && PSE_URL_PAGO ? `<a class="cf-btn primario cf-btn-pse" href="${esc(PSE_URL_PAGO)}" target="_blank" rel="noopener"><span>Ir a pagar con PSE</span>${svgFlechaDe()}</a>` : ''}
+        </section>
+
+        <section class="cf-caja" aria-label="Tu pedido"><div class="cf-dentro cf-pedido">
+          <div class="cf-items">${itemsHtml}</div>
+          <div class="cf-tot">
+            <div class="cf-tot-fila"><span><b>Subtotal</b> <small>(${nArt} ${nArt === 1 ? 'artículo' : 'artículos'})</small></span><b>${fmtDinero(pedido.subtotal)}</b></div>
+            <div class="cf-tot-fila"><span>Envío</span><b>${pedido.costo_envio ? fmtDinero(pedido.costo_envio) : '¡Gratis!'}</b></div>
+            <div class="cf-tot-total"><span>Total</span><b>${total}</b></div>
+          </div>
+        </div></section>
+
+        <section class="cf-caja" aria-label="Datos de entrega y pago"><div class="cf-dentro cf-info">
+          <div><div class="cf-info-cab">${icoCamion}<h4>Dirección de envío</h4></div>
+            <div class="cf-info-txt"><b>${esc(pedido.nombre_cliente)}</b><br>${esc(dir)}${dir && zona ? '<br>' : ''}${esc(zona)}<br>Colombia</div></div>
+          <div><div class="cf-info-cab">${icoSobre}<h4>Te enviaremos</h4></div>
+            <div class="cf-info-txt">${correoOk ? `El detalle de tu pedido a tu correo electrónico.<br><b>${esc(pedido.email_cliente)}</b><small>Si no lo ves, revisa spam.</small>` : `Guarda tu número de pedido para consultarlo cuando quieras con «Rastrear pedido».`}</div></div>
+          <div><div class="cf-info-cab">${icoTarjeta}<h4>Método de pago</h4></div>
+            <div class="cf-info-txt"><b>${esc(metodoTxt)}</b><small>${esc(metodoDesc)}</small></div></div>
+        </div></section>
+
+        <div class="cf-acciones">
+          <a class="cf-btn primario" href="productos.html"><span>Seguir comprando</span>${svgFlechaDe()}</a>
+          <a class="cf-btn borde" href="${seg}"><span>Rastrear pedido</span>${svgFlechaDe()}</a>
+        </div>
+        <p class="cf-ayuda">¿Dudas con tu pedido? <a href="https://wa.me/573239523623" target="_blank" rel="noopener">Escríbenos por WhatsApp</a></p>
+      </div></div>
+
+      <div class="cf-pie">
+        <div>${ico('<path d="M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5L15.5 10"/>')}<span><b>Compra segura</b><small>Tus datos están protegidos.</small></span></div>
+        <div>${icoCamion}<span><b>Envíos a todo el país</b><small>Rápidos y confiables.</small></span></div>
+        <div>${icoTarjeta}<span><b>Múltiples formas de pago</b><small>Contraentrega, PSE, Nequi y tarjeta.</small></span></div>
+        <div class="cf-firma"><span>Maquina<small>La ropa habla</small></span></div>
+      </div>
+    </div>`;
+  document.body.appendChild(pantalla);
+  document.body.style.overflow = 'hidden';   // solo se desplaza la pantalla de confirmación
+  document.getElementById('cartCount').textContent = 0;
+  if (typeof actualizarBarraMovil === 'function') actualizarBarraMovil(null);   // oculta la barra fija del celular
+  const cp = document.getElementById('cfCopiar');
+  cp.addEventListener('click', () => {
+    const txt = '#' + pedido.codigo_pedido;
+    const ok = () => { cp.lastElementChild.textContent = '¡Copiado!'; setTimeout(() => { cp.lastElementChild.textContent = 'Copiar'; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, ok); else ok();
+  });
+  pantalla.scrollTop = 0;
+  const t = document.getElementById('cfTitulo'); if (t) t.focus({ preventScroll: true });
+}
+
+/* ============================================================
+   VALIDACIÓN CONTRA EL CATÁLOGO (Firestore) + EXTRAS DEL CARRITO
+   ============================================================ */
+/** Vuelve a leer el catálogo de Firestore y corrige precios / stock del carrito. */
+let _revalidando = null;
+function revalidar() {
+  if (_revalidando) return _revalidando;
+  _revalidando = (async () => {
+    try {
+      await cargarCatalogo();
+      CarritoCore.reconciliar(typeof catalogoDesdeNube === 'function' && catalogoDesdeNube());
+    } catch (e) {
+      CarritoCore.reconciliar(false);
+    } finally {
+      _revalidando = null;
+    }
+    if (window.__carrito) window.__carrito.refrescar();
+    actualizarContadoresGlobal();
+  })();
+  return _revalidando;
+}
+/* primera validación: en cuanto llega el catálogo */
+catalogoListo.then(() => {
+  CarritoCore.reconciliar(typeof catalogoDesdeNube === 'function' && catalogoDesdeNube());
+  if (window.__carrito) window.__carrito.refrescar();
+  const chips = document.getElementById('cartEmptyChips');     // estado vacío: ya se pueden mostrar categorías
+  if (chips) chips.innerHTML = htmlChipsCategorias();
+});
+/* al volver a la pestaña después de un rato, se revisa de nuevo (alguien pudo comprar lo último) */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && CarritoCore.estado.validacion !== 'pendiente' && Date.now() - CarritoCore.estado.fecha > 60000) revalidar();
+});
+
+function actualizarContadoresGlobal() {
+  const hdr = document.getElementById('cartCount');
+  if (hdr) hdr.textContent = totalCarritoCount();
+}
+
+/* ---------- el carrito se conserva: se sincroniza con otras pestañas y con "atrás" ---------- */
+window.addEventListener('storage', (e) => {
+  if (e.key !== LS_KEYS.carrito) return;
+  if (document.getElementById('cartList') && getCarrito().length) window.__carrito.refrescar();
+  else if (!pedidoConfirmado) pintarCarrito();
+  actualizarContadoresGlobal();
+});
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && document.getElementById('cartList')) { window.__carrito.refrescar(); actualizarContadoresGlobal(); }
+});
+
+/* ---------- mensaje inferior con "Deshacer" ---------- */
+function mostrarSnack(texto, accion, alAccionar) {
+  let el = document.getElementById('cartSnack');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'cartSnack'; el.className = 'cart-snack';
+    el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<span></span><button type="button"></button>`;
+  el.firstChild.textContent = texto;
+  const b = el.querySelector('button');
+  b.textContent = accion || '';
+  b.hidden = !accion;
+  b.onclick = () => { el.classList.remove('show'); if (alAccionar) alAccionar(); };
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 6000);
+}
+
+/* ---------- barra fija en celular: total + botón, mientras el resumen no se ve ---------- */
+let _barra = null, _barraObs = null, _barraEstado = { oculta: false, resumenVisible: false, enCampo: false };
+function actualizarBarraMovil(a, total, motivo) {
+  if (!_barra) {
+    _barra = document.createElement('div');
+    _barra.className = 'cart-mobilebar'; _barra.id = 'cartMobileBar'; _barra.hidden = true;
+    _barra.innerHTML = `<div class="mb-total"><small>Total</small><b id="mbTotal">$0</b></div><button type="button" class="mb-btn" id="mbBtn">${svgCandado()}<span>Finalizar compra</span><i class="btn-spinner" aria-hidden="true"></i></button>`;
+    document.body.appendChild(_barra);
+    _barra.querySelector('#mbBtn').addEventListener('click', () => { const b = document.getElementById('btnFinalizar'); if (b) b.click(); });
+    // si el teclado está abierto (escribiendo en el formulario), la barra estorba
+    document.addEventListener('focusin', (e) => { _barraEstado.enCampo = !!e.target.closest('input, textarea, select'); pintarEstadoBarra(); });
+    document.addEventListener('focusout', () => { _barraEstado.enCampo = false; pintarEstadoBarra(); });
+  }
+  if (!a) { _barraEstado.vacia = true; pintarEstadoBarra(); return; }
+  _barraEstado.vacia = false;
+  const mt = _barra.querySelector('#mbTotal');
+  if (mt) mt.textContent = fmtDinero(total);
+  _barra.classList.toggle('is-blocked', !!motivo && motivo !== 'cargando');
+  _barra.classList.toggle('is-loading', motivo === 'cargando');
+  // observar el bloque de acciones del resumen: si ya se ve, la barra sobra
+  const acciones = document.getElementById('resumenAcciones');
+  if (acciones && 'IntersectionObserver' in window && _barraObs && _barraObs._el !== acciones) { _barraObs.disconnect(); _barraObs = null; }
+  if (acciones && 'IntersectionObserver' in window && !_barraObs) {
+    _barraObs = new IntersectionObserver((en) => { _barraEstado.resumenVisible = en[0].isIntersecting; pintarEstadoBarra(); }, { threshold: 0.2 });
+    _barraObs._el = acciones; _barraObs.observe(acciones);
+  }
+  pintarEstadoBarra();
+}
+function pintarEstadoBarra() {
+  if (!_barra) return;
+  const oculta = _barraEstado.vacia || _barraEstado.resumenVisible || _barraEstado.enCampo;
+  _barra.hidden = !!_barraEstado.vacia;
+  _barra.classList.toggle('is-hidden', !!oculta);
+  document.body.classList.toggle('has-mobilebar', !_barraEstado.vacia);
+}
+
+pintarCarrito();
+_primeraPintura = false;
+</script>
+
+</body>
+</html>

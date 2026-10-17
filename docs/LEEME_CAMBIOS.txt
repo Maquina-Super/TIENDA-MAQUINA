@@ -1,0 +1,20 @@
+MAQUINA — CAMBIOS DE ESTA ENTREGA
+==================================
+
+Copia estos archivos sobre los de tu proyecto (mismas carpetas):
+
+  carrito.html                                -> carrito rediseñado (negro/amarillo)
+  css/carrito.css                             -> NUEVO: estilos del carrito
+  admin.html                                  -> "Código de desarrollador" ahora es campo de contraseña
+  APPS_SCRIPT_pegar_en_script.google.com.txt  -> ahora borra la fila de la Sheet al eliminar un pedido
+
+Después:
+  1) Sube carrito.html, css/carrito.css y admin.html a GitHub.
+  2) Apps Script: pega TODO el contenido del .txt en script.google.com, luego
+     Implementar > Administrar implementaciones > editar > Nueva versión
+     (así la URL /exec sigue siendo la misma).
+
+Ajustes dentro de carrito.html (script, arriba):
+  const ENVIO_GRATIS_DESDE = 0;   // 0 = apagado. Ej: 250000 = envío gratis desde $250.000
+
+Nota: el botón "Pagar con PayPal" es solo diseño (dice "Pronto"); todavía no hay pasarela conectada.

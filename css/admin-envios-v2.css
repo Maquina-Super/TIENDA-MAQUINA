@@ -1,0 +1,184 @@
+/* ============================================================
+   admin-envios-v2.css — Pestaña Envíos (tarifas por ciudad)
+   Negro + verde neón, usa las variables --adm-* / --ap-* del panel.
+   Solo estilos del bloque #tabEnvios; no toca el resto del panel.
+   ============================================================ */
+
+/* ---------- cabecera (el título y subtítulo los pone el panel) ---------- */
+#tabEnvios .ev-head{display:flex;justify-content:flex-start;margin:0 0 20px;}
+#tabEnvios .ev-info{
+  display:flex;align-items:center;gap:14px;max-width:520px;padding:14px 18px;border-radius:var(--ap-radius);
+  background:linear-gradient(135deg,rgba(138,240,78,.08),rgba(138,240,78,.02));border:1px solid rgba(138,240,78,.28);
+}
+#tabEnvios .ev-info p{margin:0;font-size:13.5px;line-height:1.45;color:var(--adm-text);}
+#tabEnvios .ev-info-ico{
+  display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:50%;
+  background:rgba(138,240,78,.1);color:var(--adm-lime);box-shadow:inset 0 0 0 1px rgba(138,240,78,.3);
+}
+#tabEnvios .ev-info-ico .ap-i{width:22px;height:22px;}
+
+/* ---------- rejilla ---------- */
+#tabEnvios .ev-grid{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(0,1.25fr);gap:20px;align-items:start;}
+#tabEnvios .ev-col{display:flex;flex-direction:column;gap:16px;min-width:0;}
+#tabEnvios .ev-card{margin:0;padding:22px;border-color:rgba(138,240,78,.22);}
+#tabEnvios .ev-h{
+  display:flex;align-items:center;gap:12px;margin:0 0 18px;font-family:var(--ap-font-display);font-weight:700;
+  font-size:22px;letter-spacing:.03em;text-transform:uppercase;line-height:1;
+}
+#tabEnvios .ev-num{
+  display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;
+  background:var(--adm-lime);color:var(--adm-lime-ink);font-size:18px;font-weight:800;
+  box-shadow:0 0 0 4px rgba(138,240,78,.14);
+}
+#tabEnvios .ev-num-pin .ap-i{width:18px;height:18px;}
+
+/* ---------- buscador ---------- */
+#tabEnvios .ev-buscador{position:relative;margin-bottom:16px;}
+#tabEnvios .ev-buscador .admin-buscar{width:100%;}
+#tabEnvios .ev-resultados{
+  position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;max-height:340px;overflow-y:auto;
+  background:var(--adm-surface-2);border:1px solid rgba(138,240,78,.4);border-radius:var(--ap-radius-sm);
+  box-shadow:0 18px 40px rgba(0,0,0,.55);padding:6px;scrollbar-width:thin;
+}
+#tabEnvios .ev-res{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;cursor:pointer;
+  padding:10px 12px;border:0;border-radius:8px;background:transparent;color:var(--adm-text);font:inherit;
+}
+#tabEnvios .ev-res span{display:flex;flex-direction:column;min-width:0;}
+#tabEnvios .ev-res b{font-weight:600;}
+#tabEnvios .ev-res small{font-size:12px;color:var(--adm-text-dim);}
+#tabEnvios .ev-res em{font-style:normal;font-family:var(--ap-font-mono);font-size:12px;color:var(--adm-lime);white-space:nowrap;}
+#tabEnvios .ev-res:hover,#tabEnvios .ev-res.is-active{background:rgba(138,240,78,.12);}
+#tabEnvios .ev-res-vacio{padding:14px;font-size:13px;color:var(--adm-text-dim);}
+
+#tabEnvios .ev-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+#tabEnvios .ev-campo{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:14px;color:var(--adm-text);}
+#tabEnvios .ev-campo .ap-select{width:100%;}
+
+/* ---------- paso 2: configurar tarifa ---------- */
+#tabEnvios .ev-sel,#tabEnvios .ev-cobertura{
+  display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--ap-radius-sm);
+  background:var(--adm-bg-2);border:1px solid var(--adm-line);
+}
+#tabEnvios .ev-sel.is-ok{border-color:rgba(138,240,78,.55);background:rgba(138,240,78,.06);}
+#tabEnvios .ev-sel b,#tabEnvios .ev-cobertura b{display:block;font-size:14px;font-weight:600;color:var(--adm-text);}
+#tabEnvios .ev-sel small,#tabEnvios .ev-cobertura small{display:block;margin-top:3px;font-size:12.5px;line-height:1.4;color:var(--adm-text-dim);}
+#tabEnvios .ev-pin{
+  display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:50%;
+  background:rgba(138,240,78,.1);color:var(--adm-lime);box-shadow:inset 0 0 0 1px rgba(138,240,78,.25);
+}
+#tabEnvios .ev-pin .ap-i{width:20px;height:20px;}
+#tabEnvios .ev-label{display:block;margin:20px 0 10px;font-size:14px;color:var(--adm-text);}
+#tabEnvios .ev-tipos{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+#tabEnvios .ev-tipo{
+  position:relative;display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;border-radius:var(--ap-radius-sm);
+  background:var(--adm-bg-2);border:1px solid var(--adm-line);transition:border-color .15s ease,background .15s ease;
+}
+#tabEnvios .ev-tipo input{position:absolute;opacity:0;pointer-events:none;}
+#tabEnvios .ev-tipo b{display:block;font-size:14px;font-weight:600;color:var(--adm-text);}
+#tabEnvios .ev-tipo small{display:block;margin-top:2px;font-size:11.5px;color:var(--adm-text-dim);}
+#tabEnvios .ev-tipo-ico{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:8px;color:var(--adm-lime);}
+#tabEnvios .ev-tipo-ico .ap-i{width:22px;height:22px;}
+#tabEnvios .ev-tipo:hover{border-color:rgba(138,240,78,.45);}
+#tabEnvios .ev-tipo.is-on{border-color:var(--adm-lime);background:rgba(138,240,78,.08);box-shadow:0 0 0 3px rgba(138,240,78,.12);}
+#tabEnvios .ev-tipo:focus-within{outline:2px solid var(--adm-lime);outline-offset:2px;}
+
+#tabEnvios .ev-valor{
+  display:flex;align-items:stretch;border-radius:var(--ap-radius-sm);overflow:hidden;
+  background:var(--adm-bg-2);border:1px solid var(--adm-line);transition:border-color .15s ease,box-shadow .15s ease,opacity .15s ease;
+}
+#tabEnvios .ev-valor:focus-within{border-color:var(--adm-lime);box-shadow:0 0 0 3px rgba(138,240,78,.14);}
+#tabEnvios .ev-valor > span{display:grid;place-items:center;width:46px;border-right:1px solid var(--adm-line);color:var(--adm-lime);font-weight:700;font-size:17px;}
+.admin-page #tabEnvios .ev-valor input[type="text"]{
+  flex:1;min-width:0;border:0;border-radius:0;background:transparent;box-shadow:none;padding:14px 14px;font-size:15px;color:var(--adm-text);
+}
+#tabEnvios .ev-valor.is-off{opacity:.45;}
+#tabEnvios .ev-ej{display:block;margin-top:8px;font-size:12.5px;color:var(--adm-text-dim);}
+#tabEnvios .ev-error{margin:8px 0 0;min-height:0;font-size:13px;color:var(--adm-red);}
+#tabEnvios .ev-error:empty{display:none;}
+#tabEnvios .ev-btns{display:flex;gap:10px;margin-top:18px;}
+#tabEnvios .ev-btns .admin-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;text-transform:uppercase;letter-spacing:.05em;}
+#tabEnvios .ev-btns .admin-btn-primary{flex:1;}
+#tabEnvios .ev-btns .ap-i{width:18px;height:18px;}
+#tabEnvios .ev-btns .admin-btn[disabled]{opacity:.45;cursor:not-allowed;}
+
+#tabEnvios .ev-cobertura{border-color:rgba(138,240,78,.22);}
+
+/* ---------- tabla de tarifas ---------- */
+#tabEnvios .ev-tabla-card{padding:22px 0 18px;}
+#tabEnvios .ev-tabla-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0 12px;padding:0 22px;}
+#tabEnvios .ev-tabla-head .ev-h{min-width:0;}
+#tabEnvios .ev-tabla-head .ev-h{margin-bottom:18px;}
+#tabEnvios .ev-pill{
+  margin-bottom:18px;padding:5px 14px;border-radius:999px;font-size:13px;white-space:nowrap;color:var(--adm-lime);
+  background:rgba(138,240,78,.08);border:1px solid rgba(138,240,78,.5);
+}
+#tabEnvios .ev-filtros{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:12px;padding:0 22px 16px;}
+#tabEnvios .ev-buscador-lista{margin:0;}
+#tabEnvios .ev-tabla-wrap{border-top:1px solid var(--adm-line);}
+#tabEnvios .ev-tabla{width:100%;border-collapse:collapse;}
+#tabEnvios .ev-tabla td{padding:11px 12px;vertical-align:middle;border-bottom:1px solid var(--adm-line);color:var(--adm-text);font-size:14px;}
+#tabEnvios .ev-tabla tbody tr:hover{background:rgba(138,240,78,.04);}
+#tabEnvios .ev-tabla th:first-child,#tabEnvios .ev-tabla td:first-child{padding-left:22px;}
+#tabEnvios .ev-tabla th:last-child,#tabEnvios .ev-tabla td:last-child{padding-right:22px;}
+#tabEnvios .ev-td-ub{display:flex;align-items:center;gap:12px;min-width:170px;}
+#tabEnvios .ev-td-ub .ev-pin{flex:0 0 34px;width:34px;height:34px;}
+#tabEnvios .ev-td-ub .ev-pin .ap-i{width:17px;height:17px;}
+#tabEnvios .ev-td-ub b{display:block;font-weight:600;}
+#tabEnvios .ev-td-ub small{display:none;margin-top:2px;font-size:11.5px;color:var(--adm-text-dim);}
+#tabEnvios .ev-col-dep{color:var(--adm-text-dim);}
+#tabEnvios .ev-td-tarifa{font-family:var(--ap-font-display);font-weight:700;font-size:20px;color:var(--adm-lime);white-space:nowrap;}
+#tabEnvios .ev-badge{
+  display:inline-block;padding:4px 14px;border-radius:6px;font-size:13px;font-weight:600;color:var(--adm-lime);
+  background:rgba(138,240,78,.14);border:1px solid rgba(138,240,78,.35);
+}
+#tabEnvios .ev-badge.is-gratis{color:#0a1204;background:var(--adm-lime);border-color:var(--adm-lime);}
+#tabEnvios .ev-th-acc{text-align:right;}
+#tabEnvios .ev-td-acc{white-space:nowrap;text-align:right;}
+#tabEnvios .ev-ib{
+  display:inline-grid;place-items:center;width:36px;height:36px;margin-left:6px;cursor:pointer;border-radius:8px;
+  background:transparent;border:1px solid var(--adm-line);color:var(--adm-text);transition:border-color .15s ease,color .15s ease,background .15s ease;
+}
+#tabEnvios .ev-ib .ap-i{width:17px;height:17px;}
+#tabEnvios .ev-ib:hover{border-color:var(--adm-lime);color:var(--adm-lime);background:rgba(138,240,78,.08);}
+#tabEnvios .ev-ib-del:hover{border-color:var(--adm-red);color:var(--adm-red);background:rgba(255,92,108,.08);}
+#tabEnvios .ev-ib:focus-visible{outline:2px solid var(--adm-lime);outline-offset:2px;}
+#tabEnvios .ev-vacio{padding:36px 22px !important;text-align:center;color:var(--adm-text-dim) !important;line-height:1.5;}
+
+#tabEnvios .ev-pag{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;padding:18px 22px 0;}
+#tabEnvios .ev-pag button{
+  min-width:38px;height:38px;padding:0 10px;cursor:pointer;border-radius:8px;font:inherit;font-size:14px;
+  background:transparent;border:1px solid var(--adm-line);color:var(--adm-text);
+}
+#tabEnvios .ev-pag button:hover:not([disabled]){border-color:var(--adm-lime);color:var(--adm-lime);}
+#tabEnvios .ev-pag button.is-on{background:var(--adm-lime);border-color:var(--adm-lime);color:var(--adm-lime-ink);font-weight:700;}
+#tabEnvios .ev-pag button[disabled]{opacity:.35;cursor:not-allowed;}
+#tabEnvios .ev-pag-gap{padding:0 4px;color:var(--adm-text-dim);}
+
+/* ---------- tarifas base por zona (plegable) ---------- */
+#tabEnvios .env-base{margin-top:22px;border:1px solid var(--adm-line);border-radius:var(--ap-radius);background:var(--adm-surface);}
+#tabEnvios .env-base > summary{
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:16px 22px;cursor:pointer;list-style:none;
+  font-family:var(--ap-font-display);font-weight:700;font-size:20px;letter-spacing:.03em;text-transform:uppercase;color:var(--adm-text);
+}
+#tabEnvios .env-base > summary::-webkit-details-marker{display:none;}
+#tabEnvios .env-base > summary::before{content:"▸";color:var(--adm-lime);font-size:15px;transition:transform .15s ease;}
+#tabEnvios .env-base[open] > summary::before{transform:rotate(90deg);}
+#tabEnvios .env-base > summary small{font-family:'Work Sans',system-ui,sans-serif;font-weight:400;font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--adm-text-dim);}
+#tabEnvios .env-base > summary:focus-visible{outline:2px solid var(--adm-lime);outline-offset:-2px;border-radius:var(--ap-radius);}
+#tabEnvios .env-base > .env-card{margin:0 14px 14px;}
+
+/* ---------- pantallas medianas y móviles ---------- */
+@media (max-width:1180px){
+  #tabEnvios .ev-grid{grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:700px){
+  #tabEnvios .ev-card{padding:18px;}
+  #tabEnvios .ev-tabla-card{padding:18px 0 14px;}
+  #tabEnvios .ev-2col,#tabEnvios .ev-tipos{grid-template-columns:1fr;}
+  #tabEnvios .ev-filtros{grid-template-columns:1fr;}
+  #tabEnvios .ev-col-dep{display:none;}
+  #tabEnvios .ev-td-ub small{display:block;}
+  #tabEnvios .ev-info{max-width:none;}
+  #tabEnvios .ev-btns .admin-btn{min-height:50px;}
+}

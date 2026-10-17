@@ -1,0 +1,59 @@
+============================================================
+ MENSAJES DE CLIENTES EN EL PANEL (formulario de Contacto)
+============================================================
+
+QUÉ HAY DE NUEVO
+- Pestaña "Mensajes" en el panel (admin.html), con contador de "sin leer".
+- Muestra nombre, correo, teléfono, asunto, mensaje y fecha/hora.
+- Buscador + filtros por estado (Sin leer / Nuevo / En revisión /
+  Respondido) y por fecha (Desde / Hasta). Click en un mensaje = detalle.
+- Estados: Nuevo, En revisión, Respondido. Marcar leído / no leído.
+- Acciones: copiar correo, copiar teléfono, responder por correo y
+  responder por WhatsApp (solo si el teléfono es un celular colombiano
+  válido: 10 dígitos que empiezan por 3).
+- Todo queda en Firestore (colección "mensajes_contacto"), la MISMA
+  donde ya guarda el formulario. No hay otra base de datos. Sigue ahí
+  al recargar, cerrar sesión o entrar desde otro computador.
+
+ARCHIVOS QUE CAMBIARON (súbelos todos a GitHub, mismas rutas)
+  firestore.rules              <- PUBLICARLAS EN FIREBASE (paso 1)
+  admin.html
+  js/admin.js
+  js/admin-ui.js
+  js/admin-mensajes.js         (NUEVO)
+  js/store.js
+  servicios.html               (solo subió la versión de store.js)
+  css/admin-extras.css
+  APPS_SCRIPT_pegar_en_script.google.com.txt   (NO es del sitio: va a Apps Script)
+  tests-reglas/test-contacto.js                (opcional, pruebas)
+
+PASOS (en este orden)
+1) Firebase Console -> Firestore Database -> Reglas -> pega TODO el
+   contenido de firestore.rules -> Publicar.
+   (Sin esto el panel muestra "no tienes permiso para leer los
+   mensajes", porque antes las reglas no dejaban al admin cambiar el
+   estado de un mensaje.)
+2) Sube los archivos del sitio a GitHub.
+3) Apps Script: pega el contenido de APPS_SCRIPT_...txt (reemplaza todo)
+   -> Implementar -> Administrar implementaciones -> lápiz ->
+   Nueva versión -> Implementar. Abre la URL /exec: debe decir
+   "versión 2026-10-10 final-unificado".
+4) Entra al panel con Ctrl+Shift+R (recarga forzada). Verás "Mensajes".
+
+PERMISOS
+- Hay un permiso nuevo "Mensajes" (Usuarios -> Editar permisos).
+- Los usuarios que ya existían lo heredan de "Pedidos": quien veía
+  Pedidos verá Mensajes. Si no quieres eso, desmárcalo ahí.
+- OJO: el permiso solo muestra/oculta la pestaña. La protección real
+  está en Firestore: solo los UID de administrador (los de
+  firestore.rules + los de admin_config/admins) pueden leer los mensajes.
+
+PRUEBA RÁPIDA (con datos reales)
+a) Abre servicios.html, llena el formulario y envíalo.
+b) Debe llegarte el correo de "Nuevo mensaje de contacto".
+c) En el panel -> Mensajes aparece con el mismo código (ej. 6G5NSA)
+   que ve el cliente al enviar.
+d) Ábrelo, cámbiale el estado, recarga la página: debe seguir igual.
+
+PROBAR LAS REGLAS EN TU PC (opcional, ver tests-reglas/LEEME.txt)
+   npx firebase emulators:exec --only firestore "node test-contacto.js"

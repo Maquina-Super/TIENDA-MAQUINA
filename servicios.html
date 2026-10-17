@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Contacto y servicio al cliente — MAQUINA</title>
+<meta name="description" content="Escríbenos: formulario de contacto, WhatsApp, cambios, garantía y atención al cliente de MAQUINA.">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:title" content="Contacto y servicio al cliente — MAQUINA">
+<meta property="og:description" content="Envíos, cambios, garantía y atención al cliente de MAQUINA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maquina-super.github.io/TIENDA-MAQUINA/servicios.html">
+<meta property="og:image" content="https://maquina-super.github.io/TIENDA-MAQUINA/img/login-model.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="css/estilos.css?v=rev4">
+<link rel="stylesheet" href="css/maquina-ui.css?v=11">
+<link rel="stylesheet" href="css/extras-cliente.css?v=2">
+<link rel="stylesheet" href="css/contacto.css?v=5">
+<link rel="stylesheet" href="css/maquina-sistema.css?v=4">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<!-- Iconos del formulario de contacto (sprite SVG) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="ct-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="ct-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="ct-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+  <symbol id="ct-whatsapp" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></symbol>
+  <symbol id="ct-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="ct-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></symbol>
+  <symbol id="ct-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8"/><path d="M8 12h5"/></symbol>
+  <symbol id="ct-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="ct-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="ct-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="ct-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="ct-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="ct-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="ct-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="ct-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="ct-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></symbol>
+  <symbol id="ct-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+</svg>
+
+<!-- ========== CONTACTO: formulario + canales directos ========== -->
+<section class="ct" id="contacto" aria-labelledby="ctTitulo">
+  <div class="ct-wrap">
+
+    <div class="ct-intro">
+      <div class="ct-eyebrow">Contacto</div>
+      <h1 class="ct-title" id="ctTitulo">Escríbe<em>nos</em></h1>
+      <p class="ct-lead">¿Dudas con un pedido, una talla o una colaboración? Cuéntanos y te respondemos por el medio que prefieras.</p>
+    </div>
+
+    <div class="ct-canales">
+      <a class="ct-canal" href="https://wa.me/573239523623?text=Hola%2C%20quiero%20hacer%20una%20consulta" target="_blank" rel="noopener">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-whatsapp"/></svg></span>
+        <span class="ct-canal-txt"><small>WhatsApp</small><strong>+57 323 952 3623</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal" href="tel:+573239523623">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-phone"/></svg></span>
+        <span class="ct-canal-txt"><small>Llámanos</small><strong>+57 323 952 3623</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal" href="mailto:contacto@maquina.co">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-mail"/></svg></span>
+        <span class="ct-canal-txt"><small>Correo</small><strong>contacto@maquina.co</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal" href="https://www.google.com/maps/search/?api=1&amp;query=Calle+50+%2345-30+Medell%C3%ADn+Colombia" target="_blank" rel="noopener">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-pin"/></svg></span>
+        <span class="ct-canal-txt"><small>Ubicación</small><strong>Calle 50 #45-30, Medellín</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <a class="ct-canal ct-canal-pedido" href="seguimiento.html">
+        <span class="ct-canal-ico"><svg class="ct-i" aria-hidden="true"><use href="#ct-box"/></svg></span>
+        <span class="ct-canal-txt"><small>¿Ya compraste?</small><strong>Seguir mi pedido</strong></span>
+        <svg class="ct-i sm ct-canal-go" aria-hidden="true"><use href="#ct-arrow"/></svg>
+      </a>
+      <p class="ct-nota">¿Es por un cambio, garantía o queja? Usa las <a href="#servicio-cliente">opciones de servicio al cliente</a> más abajo.</p>
+    </div>
+
+    <div class="ct-form-card" id="ctCard">
+
+      <div class="ct-formulario" id="ctFormulario">
+        <div class="ct-form-head">
+          <h2>Envíanos un mensaje</h2>
+          <p>Todos los campos son obligatorios <b>*</b></p>
+        </div>
+
+        <form id="formContacto" class="ct-form" novalidate autocomplete="on">
+          <fieldset class="ct-fieldset" id="ctCampos">
+            <legend class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Datos de contacto</legend>
+
+            <div class="ct-field ct-full" data-campo="nombre">
+              <label class="ct-label" for="ctNombre">Nombre completo<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-user"/></svg>
+                <input class="ct-input" type="text" id="ctNombre" name="nombre" placeholder="Ej: Camila Rodríguez" autocomplete="name" autocapitalize="words" maxlength="80" required aria-describedby="ctNombreErr">
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctNombreErr"></div>
+            </div>
+
+            <div class="ct-field" data-campo="correo">
+              <label class="ct-label" for="ctCorreo">Correo electrónico<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-mail"/></svg>
+                <input class="ct-input" type="email" id="ctCorreo" name="correo" placeholder="nombre@correo.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="120" required aria-describedby="ctCorreoErr">
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctCorreoErr"></div>
+              <div class="ct-sugerencia" id="ctCorreoSug" role="status"></div>
+            </div>
+
+            <div class="ct-field" data-campo="telefono">
+              <label class="ct-label" for="ctTelefono">Teléfono / celular<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <span class="ct-prefijo" aria-hidden="true"><svg class="ct-i" aria-hidden="true"><use href="#ct-phone"/></svg>+57</span>
+                <input class="ct-input tiene-prefijo" type="tel" id="ctTelefono" name="telefono" placeholder="300 123 4567" autocomplete="tel-national" inputmode="tel" maxlength="20" required aria-describedby="ctTelefonoAyuda ctTelefonoErr">
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-ayuda" id="ctTelefonoAyuda">Celular de 10 dígitos.</div>
+              <div class="ct-error" id="ctTelefonoErr"></div>
+            </div>
+
+            <div class="ct-field ct-full" data-campo="asunto">
+              <label class="ct-label" for="ctAsunto">Asunto<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-tag"/></svg>
+                <select class="ct-select" id="ctAsunto" name="asunto" required aria-describedby="ctAsuntoErr">
+                  <option value="" selected disabled>Selecciona un asunto</option>
+                  <option>Consulta sobre un pedido</option>
+                  <option>Información de un producto o talla</option>
+                  <option>Envíos y entregas</option>
+                  <option>Pagos</option>
+                  <option>Cambios, garantía o devoluciones</option>
+                  <option>Ventas al por mayor / colaboraciones</option>
+                  <option>Otro</option>
+                </select>
+                <svg class="ct-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-chevron"/></svg>
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctAsuntoErr"></div>
+            </div>
+
+            <div class="ct-field ct-full" data-campo="mensaje">
+              <label class="ct-label" for="ctMensaje">Mensaje<span class="ct-req" aria-hidden="true">*</span></label>
+              <div class="ct-control is-area">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-msg"/></svg>
+                <textarea class="ct-textarea" id="ctMensaje" name="mensaje" placeholder="Cuéntanos en qué podemos ayudarte. Si es sobre un pedido, incluye tu número de pedido." maxlength="1000" required aria-describedby="ctMensajeErr"></textarea>
+                <span class="ct-contador" id="ctContador" aria-hidden="true">0/1000</span>
+                <svg class="ct-estado ok" viewBox="0 0 24 24" aria-hidden="true" style="right:14px"><use href="#ct-check"/></svg>
+                <svg class="ct-estado mal" viewBox="0 0 24 24" aria-hidden="true" style="right:14px"><use href="#ct-alert"/></svg>
+              </div>
+              <div class="ct-error" id="ctMensajeErr"></div>
+            </div>
+
+            <div class="ct-field ct-full ct-foto" data-campo="foto" id="ctFoto">
+              <input type="file" id="ctFotoInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden aria-describedby="ctFotoErr">
+              <div class="ct-foto-vacia" id="ctFotoVacia">
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-camera"/></svg>
+                <div class="ct-foto-txt"><b>Opcional:</b> adjunta una foto para ayudarnos a entender mejor tu solicitud.<small>JPG, PNG o WEBP · máximo 5 MB</small></div>
+                <button type="button" class="ct-foto-btn" id="ctFotoBtn"><svg class="ct-i sm" aria-hidden="true"><use href="#ct-upload"/></svg>Adjuntar foto</button>
+              </div>
+              <div class="ct-foto-prev" id="ctFotoPrev" hidden>
+                <img id="ctFotoImg" alt="Vista previa de la foto adjunta">
+                <div class="ct-foto-txt"><b id="ctFotoNombre"></b><small id="ctFotoInfo"></small></div>
+                <button type="button" class="ct-foto-quitar" id="ctFotoQuitar" aria-label="Quitar foto"><svg class="ct-i sm" aria-hidden="true"><use href="#ct-x"/></svg>Quitar</button>
+              </div>
+              <div class="ct-error" id="ctFotoErr"></div>
+            </div>
+
+            <div class="ct-field ct-full ct-acepto" data-campo="acepto" id="ctAcepto">
+              <label class="ct-check" for="ctAceptoChk">
+                <input type="checkbox" id="ctAceptoChk" name="acepto" required aria-describedby="ctAceptoErr">
+                <span class="ct-box"><svg class="ct-i" viewBox="0 0 24 24" aria-hidden="true"><use href="#ct-check"/></svg></span>
+                <span>Autorizo a MAQUINA a usar mis datos para responder este mensaje, según la <a href="legal.html#datos-personales" target="_blank" rel="noopener">política de datos personales</a>.</span>
+              </label>
+              <div class="ct-error" id="ctAceptoErr"></div>
+            </div>
+
+            <!-- Campo trampa para bots: las personas no lo ven -->
+            <div class="ct-trampa" aria-hidden="true">
+              <label for="ctWeb">No llenes este campo</label>
+              <input type="text" id="ctWeb" name="web" tabindex="-1" autocomplete="off">
+            </div>
+
+            <div class="ct-aviso error ct-full" id="ctAviso" role="alert" aria-live="assertive">
+              <svg class="ct-i" aria-hidden="true"><use href="#ct-alert"/></svg>
+              <div class="ct-aviso-txt" id="ctAvisoTxt"></div>
+            </div>
+
+            <div class="ct-full">
+              <button type="submit" class="ct-enviar" id="ctEnviar">
+                <span class="ct-spin" aria-hidden="true"></span>
+                <span id="ctEnviarTxt">Enviar mensaje</span>
+                <svg class="ct-i" aria-hidden="true"><use href="#ct-send"/></svg>
+              </button>
+            </div>
+
+            <div class="ct-full ct-privacidad">
+              <svg class="ct-i" aria-hidden="true"><use href="#ct-shield"/></svg>
+              <span>Tus datos están seguros y solo los usamos para responderte.</span>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+
+      <!-- Estado: enviado correctamente -->
+      <div class="ct-exito" id="ctExito" role="status" aria-live="polite">
+        <div class="ct-exito-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h2 id="ctExitoTitulo" tabindex="-1">¡Mensaje enviado!</h2>
+        <p id="ctExitoTxt"></p>
+        <div class="ct-codigo">Código de tu mensaje <span id="ctCodigo"></span></div>
+        <div class="ct-exito-acciones">
+          <a class="ct-btn-sec principal" href="https://wa.me/573239523623" target="_blank" rel="noopener" id="ctExitoWa">
+            <svg class="ct-i sm" aria-hidden="true"><use href="#ct-whatsapp"/></svg> Escribir por WhatsApp
+          </a>
+          <button type="button" class="ct-btn-sec" id="ctOtro">Enviar otro mensaje</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="ct-sep" aria-hidden="true"><div></div></div>
+
+<section class="section" id="servicio-cliente">
+  <div class="section-head reveal" style="border:none;padding-bottom:0;">
+    <div>
+      <div class="section-eyebrow">Estamos para ayudarte</div>
+      <h2>Servicio al cliente</h2>
+    </div>
+    <p>Cambios, garantías, guía de tallas y todo lo que necesites.</p>
+  </div>
+
+  <div id="alertaMsg"></div>
+
+  <div class="servicios-grid" style="margin-top:30px;">
+
+    <div class="servicio-card">
+      <span class="serv-icon-badge" style="background:#dfe8da"><span class="serv-icon">📦</span></span>
+      <span class="serv-tag">15 días sin costo</span>
+      <h3>Cambios y devoluciones</h3>
+      <p>Tienes 15 días para cambiar talla o color sin costo, con la prenda sin usar y su etiqueta.</p>
+      <button class="btn-opciones" onclick="abrirOpciones('cambios','📦','Cambios y devoluciones','Tienes 15 días para cambiar talla o color sin costo, con la prenda sin usar y su etiqueta.','#dfe8da')">Ver opciones</button>
+      <a href="legal.html#cambios-devoluciones" class="legal-link-mini">Ver política completa →</a>
+    </div>
+
+    <div class="servicio-card">
+      <span class="serv-icon-badge" style="background:#f3e0da"><span class="serv-icon">📏</span></span>
+      <span class="serv-tag">100% gratis</span>
+      <h3>Guía de tallas</h3>
+      <p>Te ayudamos a elegir la talla correcta según tus medidas antes de comprar.</p>
+      <button class="btn-opciones" onclick="abrirOpciones('tallas','📏','Guía de tallas','Te ayudamos a elegir la talla correcta según tus medidas antes de comprar.','#f3e0da')">Ver opciones</button>
+    </div>
+
+    <div class="servicio-card">
+      <span class="serv-icon-badge" style="background:#f5ecd6"><span class="serv-icon">🚚</span></span>
+      <span class="serv-tag">Todo Colombia</span>
+      <h3>Envíos a todo el país</h3>
+      <p>Enviamos con empaque cuidado y seguimiento en tiempo real a toda Colombia.</p>
+      <button class="btn-opciones" onclick="abrirOpciones('envios','🚚','Envíos a todo el país','Enviamos con empaque cuidado y seguimiento en tiempo real a toda Colombia.','#f5ecd6')">Ver opciones</button>
+    </div>
+
+    <div class="servicio-card">
+      <span class="serv-icon-badge" style="background:#e7efe9"><span class="serv-icon">💬</span></span>
+      <span class="serv-tag">Respuesta rápida</span>
+      <h3>Soporte por WhatsApp</h3>
+      <p>Escríbenos y te respondemos rápido para resolver cualquier duda sobre tu pedido.</p>
+      <button class="btn-opciones" onclick="abrirOpciones('soporte','💬','Soporte por WhatsApp','Escríbenos y te respondemos rápido para resolver cualquier duda sobre tu pedido.','#e7efe9')">Ver opciones</button>
+    </div>
+
+    <div class="servicio-card card-garantia">
+      <span class="serv-icon-badge" style="background:#f8ecce"><span class="serv-icon">🛡️</span></span>
+      <span class="serv-tag">Cobertura total</span>
+      <h3>Garantía de producto</h3>
+      <p>¿Tu prenda llegó con una falla de costura o material? Registra tu garantía aquí.</p>
+      <button class="btn-opciones btn-garantia" onclick="abrirId('modalGarantia')">🛡️ Solicitar garantía</button>
+      <a href="legal.html#garantia" class="legal-link-mini">Ver política completa →</a>
+    </div>
+
+    <div class="servicio-card card-queja">
+      <span class="serv-icon-badge" style="background:#fbe4e2"><span class="serv-icon">📢</span></span>
+      <span class="serv-tag">Máx 48 horas</span>
+      <h3>Quejas y reclamos</h3>
+      <p>¿Tuviste algún inconveniente con tu compra? Cuéntanos, lo solucionamos.</p>
+      <button class="btn-opciones btn-queja" onclick="abrirId('modalQueja')">📢 Enviar queja</button>
+    </div>
+
+  </div>
+</section>
+
+<!-- ========== PREGUNTAS FRECUENTES ========== -->
+<section class="cf-faq" id="faq">
+  <h2>Preguntas frecuentes</h2>
+  <details><summary>¿Cómo sé qué talla pedir?</summary><p>En cada producto, junto a “Talla”, está el botón <b>Guía de tallas</b> con las medidas. Si sigues con dudas, escríbenos por <a href="https://wa.me/573239523623" target="_blank" rel="noopener">WhatsApp</a>.</p></details>
+  <details><summary>¿Hacen envíos a toda Colombia?</summary><p>Sí. Enviamos a todo el país con empaque cuidado y seguimiento. Los tiempos y costos dependen de la zona y los ves en el checkout antes de pagar.</p></details>
+  <details><summary>¿Cómo rastreo mi pedido?</summary><p>Entra a <a href="seguimiento.html">Rastrear mi pedido</a> y escribe tu número de pedido y el teléfono que usaste al comprar. Si no guardaste el número, escríbenos por WhatsApp.</p></details>
+  <details><summary>¿Qué métodos de pago aceptan?</summary><p>Pago contra entrega y PSE.</p></details>
+  <details><summary>¿Puedo cambiar mi prenda?</summary><p>Sí. Tienes 15 días desde que recibes tu pedido para cambiar talla o color sin costo adicional, con la prenda sin usar y con su etiqueta. Pide el cambio en “Cambios y devoluciones” más arriba. <a href="legal.html#cambios-devoluciones">Ver política completa</a>.</p></details>
+  <details><summary>¿Qué pasa si mi prenda llega con una falla?</summary><p>Todos los productos tienen la garantía legal por fallas de fábrica. Registra tu caso en “Garantía de producto” con fotos de la falla. <a href="legal.html#garantia">Ver garantía</a>.</p></details>
+  <details><summary>¿Qué es el Voltage Club?</summary><p>Es nuestra lista para enterarte primero de cada drop, antes de que se agote. Te puedes unir desde la portada o creando tu cuenta.</p></details>
+</section>
+
+<div id="site-footer"></div>
+
+<!-- MODAL: Servicios generales (cambios · tallas · envíos · soporte) -->
+<div class="modal-overlay" id="modalOpciones" onclick="cerrarFondo(event,'modalOpciones')">
+  <div class="modal-box">
+    <button class="modal-cerrar" onclick="cerrarId('modalOpciones')">✕</button>
+    <div class="modal-icon-badge" id="modalIconoBadge"><span class="modal-icon" id="modalIcono">📦</span></div>
+    <h3 id="modalTitulo">Servicio</h3>
+    <p id="modalDesc" class="modal-desc"></p>
+    <form id="formSolicitud" class="form-solicitud">
+      <input type="text" id="modalNombre"   placeholder="Tu nombre" required>
+      <input type="text" id="modalContacto" placeholder="Teléfono o correo de contacto" required>
+
+      <div id="camposExtra"><!-- se llena según el servicio elegido --></div>
+
+      <button type="submit" class="btn-enviar-solicitud">Enviar solicitud</button>
+    </form>
+    <div class="modal-divisor"><span>o contáctanos directo</span></div>
+    <div class="modal-opciones">
+      <a id="modalWhatsapp" class="opcion-btn" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+      <a class="opcion-btn" href="tel:+573239523623">📞 Llamar ahora</a>
+      <a id="modalCorreo" class="opcion-btn" target="_blank">✉️ Escribir por correo</a>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Garantía -->
+<div class="modal-overlay" id="modalGarantia" onclick="cerrarFondo(event,'modalGarantia')">
+  <div class="modal-box">
+    <button class="modal-cerrar" onclick="cerrarId('modalGarantia')">✕</button>
+    <div class="modal-icon-badge" style="background:#f8ecce"><span class="modal-icon">🛡️</span></div>
+    <h3>Solicitud de garantía</h3>
+    <p class="modal-desc">Completa el formulario y nos comunicamos contigo para resolver tu caso.</p>
+    <form id="formGarantia" class="form-solicitud">
+      <input type="text" name="g_nombre"   id="gNombre"   placeholder="Tu nombre completo" required>
+      <input type="text" name="g_contacto" id="gContacto" placeholder="Teléfono o correo de contacto" required>
+      <input type="text" name="g_producto" id="gProducto" placeholder="¿Qué prenda compraste?" required>
+      <label class="campo-label">📅 ¿Cuándo compraste la prenda?</label>
+      <input type="date" name="g_fecha_compra" id="gFecha" required>
+      <select name="g_causa" id="gCausa" required>
+        <option value="" disabled selected>— Selecciona la causa del problema —</option>
+        <option>Falla de costura</option>
+        <option>Tela dañada o defectuosa</option>
+        <option>Talla incorrecta</option>
+        <option>Color distinto al comprado</option>
+        <option>Estampado descosido o dañado</option>
+        <option>Otro</option>
+      </select>
+
+      <label class="campo-label">📸 Sube una foto de evidencia de la falla</label>
+      <div class="campo-upload">
+        <input type="file" accept="image/*" capture="environment" id="gFoto" hidden>
+        <label for="gFoto" class="upload-placeholder" id="gFoto_placeholder">
+          <span class="upload-icono">📷</span>
+          <span>Toca para tomar o subir una foto</span>
+        </label>
+        <div class="upload-preview" id="gFoto_preview" style="display:none;">
+          <img id="gFoto_img" alt="Foto de la falla">
+          <button type="button" class="upload-quitar" id="gFoto_quitar">✕ Quitar foto</button>
+        </div>
+      </div>
+
+      <label class="campo-label">¿Qué fue lo que pasó cuando te llegó el pedido?</label>
+      <textarea name="g_descripcion" id="gDescripcion" placeholder="Cuéntanos con detalle: ¿la caja venía dañada? ¿la falla se vio al abrir el paquete? ¿desde cuándo la notaste?..." required></textarea>
+      <button type="submit" class="btn-enviar-solicitud">Enviar solicitud de garantía</button>
+    </form>
+    <div class="modal-divisor"><span>o contáctanos directo</span></div>
+    <div class="modal-opciones">
+      <a class="opcion-btn" href="https://wa.me/573239523623?text=Hola%2C%20necesito%20ayuda%20con%20una%20garant%C3%ADa%20de%20mi%20prenda" target="_blank" rel="noopener">💬 WhatsApp Garantía</a>
+      <a class="opcion-btn" href="tel:+573239523623">📞 Llamar ahora</a>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Quejas -->
+<div class="modal-overlay" id="modalQueja" onclick="cerrarFondo(event,'modalQueja')">
+  <div class="modal-box">
+    <button class="modal-cerrar" onclick="cerrarId('modalQueja')">✕</button>
+    <div class="modal-icon-badge" style="background:#fbe4e2"><span class="modal-icon">📢</span></div>
+    <h3>Quejas y reclamos</h3>
+    <p class="modal-desc">Tu opinión nos ayuda a mejorar. Cuéntanos qué pasó.</p>
+    <form id="formQueja" class="form-solicitud">
+      <input type="text" name="q_nombre"   id="qNombre"   placeholder="Tu nombre completo" required>
+      <input type="text" name="q_contacto" id="qContacto" placeholder="Teléfono o correo de contacto" required>
+      <select name="q_tipo" id="qTipo" onchange="toggleDescQueja(this)" required>
+        <option value="" disabled selected>— Tipo de queja o reclamo —</option>
+        <option>Prenda defectuosa o dañada</option>
+        <option>Entrega tardía o no recibida</option>
+        <option>Cobro incorrecto</option>
+        <option>Mal servicio al cliente</option>
+        <option>Publicidad engañosa</option>
+        <option>Otro</option>
+      </select>
+      <div id="bloque-descripcion-queja">
+        <input type="text" name="q_pedido" id="qPedido" placeholder="N° de pedido (opcional)">
+
+        <label class="campo-label">🗓️ ¿Cuándo pasó?</label>
+        <div class="campo-fila">
+          <input type="date" name="q_fecha" id="qFecha" placeholder="Fecha">
+          <input type="time" name="q_hora"  id="qHora"  placeholder="Hora aprox.">
+        </div>
+
+        <label class="campo-label">📸 Adjunta una foto de evidencia (opcional)</label>
+        <div class="campo-upload">
+          <input type="file" accept="image/*" capture="environment" id="qFoto" hidden>
+          <label for="qFoto" class="upload-placeholder" id="qFoto_placeholder">
+            <span class="upload-icono">📷</span>
+            <span>Toca para tomar o subir una foto</span>
+          </label>
+          <div class="upload-preview" id="qFoto_preview" style="display:none;">
+            <img id="qFoto_img" alt="Foto de evidencia">
+            <button type="button" class="upload-quitar" id="qFoto_quitar">✕ Quitar foto</button>
+          </div>
+        </div>
+
+        <textarea name="q_descripcion" id="qDescripcion" placeholder="Describe tu queja con el mayor detalle posible..."></textarea>
+        <button type="submit" class="btn-enviar-solicitud" style="background:var(--red);">Enviar queja</button>
+      </div>
+    </form>
+    <div class="modal-divisor"><span>o contáctanos directo</span></div>
+    <div class="modal-opciones">
+      <a class="opcion-btn" href="https://wa.me/573239523623?text=Hola%2C%20tengo%20una%20queja%20o%20reclamo%20que%20quiero%20reportar" target="_blank" rel="noopener">💬 WhatsApp Quejas</a>
+      <a class="opcion-btn" href="tel:+573239523623">📞 Llamar ahora</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js?v=4"></script>
+<script src="js/icons.js?v=4"></script>
+<script src="js/products.js?v=6"></script>
+<script src="js/store.js?v=9"></script>
+<script src="js/layout.js?v=7"></script>
+<script src="js/maquina-ui.js?v=4b"></script>
+<script src="js/extras-cliente.js?v=1"></script>
+<script src="js/contacto.js?v=2"></script>
+<script>
+renderHeader('servicios');
+renderFooter();
+
+function mostrarAlerta(texto, tipo) {
+  document.getElementById('alertaMsg').innerHTML =
+    `<div class="alerta ${tipo}">${tipo === 'ok' ? '✅' : '❌'} ${texto}</div>`;
+  document.getElementById('alertaMsg').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function abrirId(id)       { document.getElementById(id).classList.add('activo'); }
+function cerrarId(id)      { document.getElementById(id).classList.remove('activo'); }
+function cerrarFondo(e,id) { if (e.target.id === id) cerrarId(id); }
+function valor(id)         { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+/* ---- foto de evidencia: subir / previsualizar / quitar (reutilizable) ---- */
+const fotosCargadas = {};
+function activarUpload(inputId) {
+  const input       = document.getElementById(inputId);
+  const placeholder = document.getElementById(inputId + '_placeholder');
+  const preview      = document.getElementById(inputId + '_preview');
+  const img          = document.getElementById(inputId + '_img');
+  const quitar        = document.getElementById(inputId + '_quitar');
+  if (!input) return;
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await comprimirImagen(file);
+      fotosCargadas[inputId] = dataUrl;
+      img.src = dataUrl;
+      placeholder.style.display = 'none';
+      preview.style.display = 'flex';
+    } catch (err) {
+      mostrarAlerta('No pudimos procesar esa imagen, intenta con otra foto.', 'error');
+    }
+  });
+  quitar.addEventListener('click', () => {
+    input.value = '';
+    delete fotosCargadas[inputId];
+    preview.style.display = 'none';
+    placeholder.style.display = 'flex';
+  });
+}
+function plantillaUpload(inputId, etiqueta, obligatoria) {
+  return `
+    <label class="campo-label">📸 ${etiqueta}${obligatoria ? '' : ' (opcional)'}</label>
+    <div class="campo-upload">
+      <input type="file" accept="image/*" capture="environment" id="${inputId}" hidden>
+      <label for="${inputId}" class="upload-placeholder" id="${inputId}_placeholder">
+        <span class="upload-icono">📷</span>
+        <span>Toca para tomar o subir una foto</span>
+      </label>
+      <div class="upload-preview" id="${inputId}_preview" style="display:none;">
+        <img id="${inputId}_img" alt="Foto adjunta">
+        <button type="button" class="upload-quitar" id="${inputId}_quitar">✕ Quitar foto</button>
+      </div>
+    </div>`;
+}
+
+/* ---- ubicación en vivo para envíos ---- */
+let envioUbicacion = null;
+function activarUbicacion() {
+  const btn = document.getElementById('btnUbicacion');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      mostrarAlerta('Tu navegador no permite compartir ubicación. Escribe la dirección manualmente, por si acaso.', 'error');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '📍 Buscando tu ubicación…';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        envioUbicacion = { lat: latitude, lng: longitude };
+        const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        window.open(url, '_blank', 'noopener');
+        const res = document.getElementById('ubicacionResultado');
+        res.style.display = 'flex';
+        res.innerHTML = `✅ Ubicación capturada — <a href="${url}" target="_blank" rel="noopener">ver en Maps</a>`;
+        btn.disabled = false;
+        btn.textContent = '📍 Actualizar mi ubicación';
+      },
+      () => {
+        btn.disabled = false;
+        btn.textContent = '📍 Usar mi ubicación (abrir en Maps)';
+        mostrarAlerta('No pudimos obtener tu ubicación. Escribe la dirección manualmente, por si acaso.', 'error');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  });
+}
+
+/* ---- configuración de cada tipo de servicio del modal general ---- */
+const SERVICIOS_CONFIG = {
+  cambios: {
+    campos: () => `
+      <textarea id="modalProblema" placeholder="Cuéntanos qué quieres cambiar: talla, color o el motivo…" required></textarea>
+      ${plantillaUpload('modalFoto', 'Sube una foto de evidencia de la prenda', true)}`,
+    activar: () => activarUpload('modalFoto'),
+    construir: () => {
+      const problema = valor('modalProblema');
+      if (!problema) { mostrarAlerta('Cuéntanos qué necesitas cambiar.', 'error'); return null; }
+      if (!fotosCargadas['modalFoto']) { mostrarAlerta('Adjunta una foto de evidencia de la prenda para tramitar el cambio.', 'error'); return null; }
+      return { descripcion: problema, extra: { foto: fotosCargadas['modalFoto'] } };
+    },
+  },
+  tallas: {
+    campos: () => `
+      <select id="tallaPrenda" required>
+        <option value="" disabled selected>¿Qué prenda quieres comprar?</option>
+        ${categoriasDisponibles().map(c => `<option>${c}</option>`).join('')}
+        <option>Otra</option>
+      </select>
+      <label class="campo-label">¿Qué talla usas o tienes duda?</label>
+      <div class="chip-select">
+        ${['XS','S','M','L','XL','XXL','Única'].map(t => `
+          <label class="chip-radio"><input type="radio" name="talla_chip" value="${t}" required><span>${t}</span></label>`).join('')}
+      </div>
+      <textarea id="modalProblema" placeholder="Cuéntanos tus medidas (pecho, cintura, largo…) o tu duda (opcional)"></textarea>`,
+    activar: () => {},
+    construir: () => {
+      const prenda = valor('tallaPrenda');
+      const chip = document.querySelector('input[name="talla_chip"]:checked');
+      if (!prenda) { mostrarAlerta('Selecciona qué prenda quieres comprar.', 'error'); return null; }
+      if (!chip) { mostrarAlerta('Selecciona la talla que necesitas.', 'error'); return null; }
+      const notas = valor('modalProblema');
+      return {
+        descripcion: `Prenda: ${prenda} | Talla: ${chip.value}${notas ? ' | Notas: ' + notas : ''}`,
+        extra: {},
+      };
+    },
+  },
+  envios: {
+    campos: () => `
+      <input type="text" id="envioDireccion" placeholder="Dirección exacta (calle / carrera / número)" required>
+      <input type="text" id="envioMunicipio" placeholder="Municipio, ciudad o barrio" required>
+      <button type="button" class="btn-ubicacion" id="btnUbicacion">📍 Usar mi ubicación (abrir en Maps)</button>
+      <div class="ubicacion-resultado" id="ubicacionResultado" style="display:none;"></div>
+      <textarea id="modalProblema" placeholder="Indicaciones adicionales: apto, color de casa, referencia… (opcional)"></textarea>`,
+    activar: () => activarUbicacion(),
+    construir: () => {
+      const direccion = valor('envioDireccion');
+      const municipio = valor('envioMunicipio');
+      if (!direccion) { mostrarAlerta('Escribe la dirección exacta de entrega, por si algo.', 'error'); return null; }
+      if (!municipio) { mostrarAlerta('Escribe el municipio, ciudad o barrio de entrega.', 'error'); return null; }
+      const notas = valor('modalProblema');
+      const ubicTxt = envioUbicacion
+        ? `https://www.google.com/maps?q=${envioUbicacion.lat},${envioUbicacion.lng}`
+        : 'no compartida';
+      return {
+        descripcion: `Dirección: ${direccion} | Municipio/barrio: ${municipio} | Ubicación GPS: ${ubicTxt}${notas ? ' | Notas: ' + notas : ''}`,
+        extra: { ubicacion: envioUbicacion },
+      };
+    },
+  },
+  soporte: {
+    campos: () => `
+      <textarea id="modalProblema" placeholder="Cuéntanos tu duda o problema con el pedido…" required></textarea>
+      ${plantillaUpload('modalFoto', 'Adjunta una foto si tiene que ver con tu pedido', false)}`,
+    activar: () => activarUpload('modalFoto'),
+    construir: () => {
+      const problema = valor('modalProblema');
+      if (!problema) { mostrarAlerta('Cuéntanos tu duda para poder ayudarte.', 'error'); return null; }
+      return { descripcion: problema, extra: { foto: fotosCargadas['modalFoto'] || null } };
+    },
+  },
+};
+
+let servicioActual = '';
+let tipoActual = '';
+function abrirOpciones(tipo, icono, titulo, desc, colorTint) {
+  tipoActual = tipo;
+  servicioActual = titulo;
+  envioUbicacion = null;
+  delete fotosCargadas['modalFoto'];
+
+  document.getElementById('modalIcono').textContent    = icono;
+  document.getElementById('modalIconoBadge').style.background = colorTint || 'var(--offwhite)';
+  document.getElementById('modalTitulo').textContent   = titulo;
+  document.getElementById('modalDesc').textContent     = desc;
+  document.getElementById('modalWhatsapp').href = 'https://wa.me/573239523623?text=' + encodeURIComponent('Hola, ' + desc);
+  document.getElementById('modalCorreo').href   = 'mailto:contacto@maquina.co?subject=' + encodeURIComponent(titulo);
+
+  const cfg = SERVICIOS_CONFIG[tipo];
+  document.getElementById('camposExtra').innerHTML = cfg.campos();
+  cfg.activar();
+
+  abrirId('modalOpciones');
+}
+
+function toggleDescQueja(select) {
+  const bloque = document.getElementById('bloque-descripcion-queja');
+  bloque.style.display = select.value ? 'block' : 'none';
+  bloque.querySelector('textarea').required = !!select.value;
+}
+
+/* ---- formulario de servicio general (cambios · tallas · envíos · soporte) ---- */
+document.getElementById('formSolicitud').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const nombre = valor('modalNombre');
+  const contacto = valor('modalContacto');
+  if (!nombre || !contacto) {
+    mostrarAlerta('Completa tu nombre y un contacto para enviar tu solicitud.', 'error');
+    return;
+  }
+  const resultado = SERVICIOS_CONFIG[tipoActual].construir();
+  if (!resultado) return;
+  guardarSolicitud(servicioActual, nombre, contacto, resultado.descripcion, resultado.extra);
+  mostrarAlerta(`¡Listo, ${nombre}! Tu solicitud de "${servicioActual}" fue enviada. Te contactaremos pronto.`, 'ok');
+  this.reset();
+  document.getElementById('camposExtra').innerHTML = '';
+  cerrarId('modalOpciones');
+});
+
+/* ---- foto de la garantía ---- */
+activarUpload('gFoto');
+
+/* ---- formulario de garantía ---- */
+document.getElementById('formGarantia').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const nombre = valor('gNombre');
+  const contacto = valor('gContacto');
+  const fecha = valor('gFecha');
+  const producto = valor('gProducto');
+  const causa = valor('gCausa');
+  const descripcion = valor('gDescripcion');
+  if (!nombre || !contacto || !fecha || !producto || !causa || !descripcion) {
+    mostrarAlerta('Completa todos los campos del formulario de garantía.', 'error');
+    return;
+  }
+  if (!fotosCargadas['gFoto']) {
+    mostrarAlerta('Sube una foto de evidencia de la falla para poder tramitar tu garantía.', 'error');
+    return;
+  }
+  const desc = `Producto: ${producto} | Fecha compra: ${fecha} | Causa: ${causa} | Qué pasó al llegar el pedido: ${descripcion}`;
+  guardarSolicitud('Garantía / Cambio de talla', nombre, contacto, desc, { foto: fotosCargadas['gFoto'] });
+  mostrarAlerta(`¡Listo, ${nombre}! Tu solicitud de garantía/cambio fue registrada. Te contactaremos pronto.`, 'ok');
+  this.reset();
+  delete fotosCargadas['gFoto'];
+  document.getElementById('gFoto_preview').style.display = 'none';
+  document.getElementById('gFoto_placeholder').style.display = 'flex';
+  cerrarId('modalGarantia');
+});
+
+/* ---- foto de la queja ---- */
+activarUpload('qFoto');
+
+/* ---- formulario de quejas ---- */
+document.getElementById('formQueja').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const nombre = valor('qNombre');
+  const contacto = valor('qContacto');
+  const tipo = valor('qTipo');
+  const pedido = valor('qPedido');
+  const fecha = valor('qFecha');
+  const hora = valor('qHora');
+  const descripcion = valor('qDescripcion');
+  if (!nombre || !contacto || !tipo || !descripcion) {
+    mostrarAlerta('Completa todos los campos obligatorios de la queja.', 'error');
+    return;
+  }
+  const cuando = [fecha, hora].filter(Boolean).join(' ');
+  const desc = `Tipo: ${tipo} | Pedido: ${pedido || '—'} | Cuándo pasó: ${cuando || 'no indicado'} | Detalle: ${descripcion}`;
+  guardarSolicitud('Queja / Reclamo', nombre, contacto, desc, { foto: fotosCargadas['qFoto'] || null });
+  mostrarAlerta(`¡Recibido, ${nombre}! Tu queja fue registrada. La atenderemos en máximo 48 horas.`, 'ok');
+  this.reset();
+  delete fotosCargadas['qFoto'];
+  document.getElementById('qFoto_preview').style.display = 'none';
+  document.getElementById('qFoto_placeholder').style.display = 'flex';
+  toggleDescQueja(document.getElementById('qTipo'));
+  cerrarId('modalQueja');
+});
+</script>
+
+</body>
+</html>
