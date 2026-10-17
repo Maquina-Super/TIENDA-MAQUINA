@@ -13,18 +13,38 @@ service cloud.firestore {
        pestaña "Usuarios" del panel) los agrega el panel solo al
        documento admin_config/admins, en Firestore.
     ============================================================ */
+    // Dueños (admins de respaldo): los únicos UID que no dependen de ningún permiso guardado.
+    function esUidDuenio(uid) {
+      return uid in [
+        '8CBfiOxDeda0MmtTmSlXYIkfbx82',
+        '9JYFhLkos8PpWdiLcowvmaw9xoo2'
+      ];
+    }
+    function isOwner() {
+      return request.auth != null && esUidDuenio(request.auth.uid);
+    }
+
     function isAdmin() {
       return request.auth != null && (
-        request.auth.uid in [
-          '8CBfiOxDeda0MmtTmSlXYIkfbx82',
-          '9JYFhLkos8PpWdiLcowvmaw9xoo2'
-        ]
+        esUidDuenio(request.auth.uid)
         ||
         (
           exists(/databases/$(database)/documents/admin_config/admins) &&
           request.auth.uid in get(/databases/$(database)/documents/admin_config/admins).data.uids
         )
       );
+    }
+
+    /* Permisos del panel, EXIGIDOS EN EL SERVIDOR (antes solo se ocultaban botones en la
+       pantalla y cualquier admin podía saltárselos desde la consola del navegador).
+       Un dueño siempre puede. Un admin normal puede si su perfil (admin_usuarios/<uid>) tiene
+       el permiso en true; un perfil antiguo sin el campo «permisos» tiene acceso total, igual
+       que en el panel (normalizarPermisos en js/store.js). */
+    function adminPuede(permiso) {
+      let ruta = /databases/$(database)/documents/admin_usuarios/$(request.auth.uid);
+      return isOwner()
+        || (isAdmin() && exists(ruta)
+            && (!('permisos' in get(ruta).data) || get(ruta).data.permisos.get(permiso, false) == true));
     }
 
     // Cada cliente puede crear y leer SOLO su propio perfil
@@ -145,7 +165,8 @@ service cloud.firestore {
     function gestionPedidoValida() {
       let antes = resource.data;
       let despues = request.resource.data;
-      return despues.diff(antes).affectedKeys().hasOnly(['estado', 'historial_estados', 'estado_pago', 'historial_pagos'])
+      return despues.diff(antes).affectedKeys().hasOnly(['estado', 'historial_estados', 'estado_pago', 'historial_pagos', 'stock_devuelto'])
+        && (!('stock_devuelto' in despues) || despues.stock_devuelto is bool)
         && ((!('estado' in antes) && !('estado' in despues))
             || despues.estado in ['pendiente', 'confirmado', 'enviado', 'entregado', 'cancelado'])
         && ((!('estado_pago' in antes) && !('estado_pago' in despues))
@@ -166,7 +187,7 @@ service cloud.firestore {
     // - "get" (leer UNO) abierto: lo usa seguimiento.html.
     // - "list" (todos) solo admin: así nadie saca la lista de clientes.
     // - "create" abierto (checkout sin cuenta) pero validado.
-    // - update solo admin y SOLO estado/pago e historiales (gestionPedidoValida); delete solo admin.
+    // - update solo admin y SOLO estado/pago e historiales (gestionPedidoValida); delete solo admin con el permiso «eliminarPedidos».
     match /pedidos/{pedidoId} {
       allow get: if true;
       allow list: if isAdmin();
@@ -174,7 +195,7 @@ service cloud.firestore {
       // lo reutiliza al reintentar, y así un mismo intento nunca crea dos pedidos.
       allow create: if pedidoId.matches('[A-Za-z0-9]{20}') && pedidoValido();
       allow update: if isAdmin() && gestionPedidoValida();
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() && adminPuede('eliminarPedidos');
     }
 
     // Descuento de stock en el checkout: el navegador del cliente (que
@@ -302,16 +323,32 @@ service cloud.firestore {
     }
 
     // Usuarios y sesiones del panel: SOLO admin.
+    // Nadie (salvo un dueño) puede cambiarse a sí mismo permisos/estado/código ni borrar o
+    // recrear su propio perfil: así un admin limitado no se da más permisos. Gestionar el
+    // perfil de OTRAS personas exige el permiso «usuarios», y los perfiles de los dueños
+    // solo los toca un dueño. Lo que sí puede cada admin en su perfil: los contadores de
+    // intentos de código (devIntentosFallidos, codigoIntentosFallidos, ...).
     match /admin_usuarios/{usuarioId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create, delete: if isAdmin()
+        && (isOwner() || (usuarioId != request.auth.uid && !esUidDuenio(usuarioId) && adminPuede('usuarios')));
+      allow update: if isAdmin() && (
+        isOwner()
+        || (usuarioId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys()
+                 .hasAny(['permisos', 'activo', 'superAdmin', 'codigoPanel', 'correo', 'creado']))
+        || (usuarioId != request.auth.uid && !esUidDuenio(usuarioId) && adminPuede('usuarios'))
+      );
     }
     match /admin_sesiones/{usuarioId} {
       allow read, write: if isAdmin();
     }
 
     // Lista de UIDs admin que mantiene el panel. Solo admin.
+    // Escribir aquí = dar o quitar acceso de admin: solo dueños o quien tenga el permiso «usuarios».
     match /admin_config/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isAdmin() && adminPuede('usuarios');
     }
 
     // Código de acceso al panel por CORREO: "get" abierto (pantalla
@@ -319,7 +356,7 @@ service cloud.firestore {
     match /panel_codigos/{correoId} {
       allow get: if true;
       allow list: if false;
-      allow write: if isAdmin();
+      allow write: if isAdmin() && adminPuede('usuarios');
     }
   }
 }

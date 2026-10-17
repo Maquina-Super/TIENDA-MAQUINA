@@ -1874,7 +1874,9 @@ document.getElementById('tablaPedidosBody').addEventListener('change', async (e)
     peligro: true,
     textoOk: 'Sí, cancelar pedido',
     textoCancelar: 'No, volver',
-    mensaje: 'Quedará marcado como cancelado y dejará de contar en el total vendido.'
+    mensaje: estadoPrevio === 'entregado'
+      ? 'Quedará marcado como cancelado y dejará de contar en el total vendido. Como ya estaba «Entregado», NO se devuelve stock al inventario.'
+      : 'Quedará marcado como cancelado, dejará de contar en el total vendido y las prendas volverán al inventario.'
   }))) {
     ponerSelectEstado(select, estadoPrevio);
     return;
@@ -1906,7 +1908,11 @@ document.getElementById('tablaPedidosBody').addEventListener('change', async (e)
   if (res.entradaHistorial) pedido.historial_estados = [...(pedido.historial_estados || []), res.entradaHistorial];
   aplicarFiltrosPedidos(); // repinta fila, contadores y "total vendido" con el estado ya guardado
   const etiqueta = ESTADOS_PEDIDO[nuevoEstado].label;
-  showToast(res.sinCambio ? `El pedido ya estaba en «${etiqueta}».` : `Estado actualizado a «${etiqueta}» ✓`);
+  let msgEstado = res.sinCambio ? `El pedido ya estaba en «${etiqueta}».` : `Estado actualizado a «${etiqueta}» ✓`;
+  if (res.accionStock === 'devuelto') msgEstado += ` ${res.stockMovido} prenda(s) volvieron al inventario.`;
+  else if (res.accionStock === 'descontado') msgEstado += ` ${res.stockMovido} prenda(s) se descontaron otra vez del inventario.`;
+  showToast(msgEstado);
+  if (res.stockMovido > 0 && typeof pintarTodo === 'function') pintarTodo();
 });
 
 /* ---------- eliminar un pedido (pide la contraseña del panel) ---------- */

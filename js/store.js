@@ -1055,6 +1055,67 @@ async function obtenerPedidosAdmin() {
 
     Devuelve { ok:true, sinCambio, entradaHistorial } o { ok:false, msg }
     con un mensaje que dice la causa real (permiso, sesión, red...). */
+/* ---------- Stock de un pedido (devolver al cancelar/eliminar, volver a descontar al reactivar) ----------
+   Un pedido guarda cada prenda en "items" (una fila = una unidad). Estas funciones mueven el stock
+   en la MISMA variante que se descontó al comprar (color y/o talla + el total), dentro de la
+   transacción que las llama. Firestore exige leer TODO antes de escribir: primero
+   _leerProductosDeItems, luego _moverStockPedido. */
+async function _leerProductosDeItems(tx, necesidades) {
+  const productos = {};
+  for (const k of Object.keys(necesidades)) {
+    const pid = String(necesidades[k].id);
+    if (!(pid in productos)) {
+      const ps = await tx.get(fbDb.collection('productos').doc(pid));
+      productos[pid] = ps.exists ? ps.data() : null;   // null = el producto ya no está en el catálogo
+    }
+  }
+  return productos;
+}
+
+/** Unidades disponibles de una variante (misma lógica que usa crearPedido). */
+function _disponibleVariante(data, n) {
+  if (data.stockColores && Object.prototype.hasOwnProperty.call(data.stockColores, n.color)) {
+    return Math.max(0, Number(data.stockColores[n.color]) || 0);
+  }
+  if (data.stockTallas && Object.prototype.hasOwnProperty.call(data.stockTallas, n.talla)) {
+    return Math.max(0, Number(data.stockTallas[n.talla]) || 0);
+  }
+  return Math.max(0, Number(data.stock) || 0);
+}
+
+/** signo = +1 devuelve las prendas al inventario, -1 las vuelve a descontar.
+    Al descontar revisa antes que alcance (si no, lanza SIN_STOCK y no se escribe nada).
+    Devuelve cuántas unidades movió. */
+function _moverStockPedido(tx, necesidades, productos, signo) {
+  const lista = Object.values(necesidades).filter(n => productos[String(n.id)]);
+  if (signo < 0) {
+    lista.forEach(n => {
+      const disp = _disponibleVariante(productos[String(n.id)], n);
+      if (disp < n.cantidad) {
+        throw Object.assign(
+          new Error(`No se puede reactivar el pedido: de «${productos[String(n.id)].nombre || n.nombre || 'un producto'}» solo quedan ${disp} y el pedido necesita ${n.cantidad}. Repón stock y vuelve a intentarlo.`),
+          { code: 'SIN_STOCK' });
+      }
+    });
+  }
+  let total = 0;
+  lista.forEach(n => {
+    const data = productos[String(n.id)];
+    const delta = signo * n.cantidad;
+    const cambios = {};
+    if (data.stockColores && Object.prototype.hasOwnProperty.call(data.stockColores, n.color)) {
+      cambios[`stockColores.${n.color}`] = firebase.firestore.FieldValue.increment(delta);
+    }
+    if (data.stockTallas && Object.prototype.hasOwnProperty.call(data.stockTallas, n.talla)) {
+      cambios[`stockTallas.${n.talla}`] = firebase.firestore.FieldValue.increment(delta);
+    }
+    cambios.stock = firebase.firestore.FieldValue.increment(delta);
+    tx.update(fbDb.collection('productos').doc(String(n.id)), cambios);
+    total += n.cantidad;
+  });
+  return total;
+}
+
 async function actualizarEstadoPedidoAdmin(id, estado) {
   if (!ESTADOS_PEDIDO[estado]) return { ok: false, msg: 'Estado inválido.' };
   if (!id) return { ok: false, msg: 'No se encontró el pedido.' };
@@ -1065,22 +1126,43 @@ async function actualizarEstadoPedidoAdmin(id, estado) {
   const entradaHistorial = { estado, usuario, fecha: new Date().toISOString() };
   const ref = fbDb.collection('pedidos').doc(id);
   try {
-    const sinCambio = await fbDb.runTransaction(async (tx) => {
+    const r = await fbDb.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw Object.assign(new Error('El pedido no existe'), { code: 'pedido-no-existe' });
-      const actual = snap.data().estado;
-      if ((ESTADOS_PEDIDO[actual] ? actual : 'pendiente') === estado) return true; // ya estaba así: no se escribe nada
-      tx.update(ref, {
+      const ped = snap.data();
+      const actual = ESTADOS_PEDIDO[ped.estado] ? ped.estado : 'pendiente';
+      if (actual === estado) return { sinCambio: true, stockMovido: 0, accionStock: null }; // ya estaba así: no se escribe nada
+
+      const cambios = {
         estado,
         historial_estados: firebase.firestore.FieldValue.arrayUnion(entradaHistorial),
-      });
-      return false;
+      };
+      /* Stock:
+         · A «cancelado» (si no venía de «entregado», porque ahí la ropa ya salió): las prendas
+           vuelven al inventario UNA sola vez (se anota stock_devuelto = true).
+         · De «cancelado» a otro estado: se vuelven a descontar (si no, cancelar y reactivar
+           inflaría el inventario). Si ya no alcanza, no deja reactivar. */
+      const devolver = estado === 'cancelado' && actual !== 'entregado' && ped.stock_devuelto !== true;
+      const redescontar = actual === 'cancelado' && ped.stock_devuelto === true && estado !== 'cancelado';
+      let stockMovido = 0;
+      let accionStock = null;
+      if (devolver || redescontar) {
+        const necesidades = _agruparNecesidadesStock(Array.isArray(ped.items) ? ped.items : []);
+        const productos = await _leerProductosDeItems(tx, necesidades);
+        stockMovido = _moverStockPedido(tx, necesidades, productos, devolver ? 1 : -1);
+        cambios.stock_devuelto = devolver;
+        accionStock = devolver ? 'devuelto' : 'descontado';
+      }
+      tx.update(ref, cambios);
+      return { sinCambio: false, stockMovido, accionStock };
     });
-    if (!sinCambio) enviarAviso({ tipo: 'pedido_estado', id, estado, usuario });
-    return { ok: true, sinCambio, entradaHistorial: sinCambio ? null : entradaHistorial };
+    if (!r.sinCambio) enviarAviso({ tipo: 'pedido_estado', id, estado, usuario });
+    if (r.stockMovido > 0) { try { await cargarCatalogo(); } catch (e) { /* no crítico */ } }
+    return { ok: true, sinCambio: r.sinCambio, entradaHistorial: r.sinCambio ? null : entradaHistorial, stockMovido: r.stockMovido, accionStock: r.accionStock };
   } catch (e) {
     console.error('Error cambiando el estado del pedido:', e);
     const code = (e && e.code) || '';
+    if (code === 'SIN_STOCK') return { ok: false, msg: e.message };
     if (code === 'permission-denied') return { ok: false, msg: 'No tienes permiso para cambiar el estado de los pedidos.' };
     if (code === 'unauthenticated') return { ok: false, msg: 'Tu sesión del panel expiró. Vuelve a entrar e inténtalo de nuevo.' };
     if (code === 'pedido-no-existe' || code === 'not-found') return { ok: false, msg: 'Este pedido ya no existe. Recarga la lista de pedidos.' };
@@ -1213,32 +1295,13 @@ async function eliminarPedidoAdmin(id) {
       const ped = snap.data();
       const items = Array.isArray(ped.items) ? ped.items : [];
       const entregado = ped.estado === 'entregado';
-      // Lecturas primero (Firestore exige leer todo antes de escribir)
-      const aDevolver = entregado ? {} : _agruparNecesidadesStock(items);
-      const productos = {};
-      for (const k of Object.keys(aDevolver)) {
-        const pid = String(aDevolver[k].id);
-        if (!(pid in productos)) {
-          const ps = await tx.get(fbDb.collection('productos').doc(pid));
-          productos[pid] = ps.exists ? ps.data() : null;   // null = el producto ya se borró del catálogo
-        }
-      }
-      // Escrituras: suma el stock de vuelta en la misma variante que se descontó
+      const yaDevuelto = ped.stock_devuelto === true; // se devolvió al cancelarlo: no se suma dos veces
       let devueltas = 0;
-      Object.values(aDevolver).forEach(n => {
-        const data = productos[String(n.id)];
-        if (!data) return;
-        const cambios = {};
-        if (data.stockColores && Object.prototype.hasOwnProperty.call(data.stockColores, n.color)) {
-          cambios[`stockColores.${n.color}`] = firebase.firestore.FieldValue.increment(n.cantidad);
-        }
-        if (data.stockTallas && Object.prototype.hasOwnProperty.call(data.stockTallas, n.talla)) {
-          cambios[`stockTallas.${n.talla}`] = firebase.firestore.FieldValue.increment(n.cantidad);
-        }
-        cambios.stock = firebase.firestore.FieldValue.increment(n.cantidad);
-        tx.update(fbDb.collection('productos').doc(String(n.id)), cambios);
-        devueltas += n.cantidad;
-      });
+      if (!entregado && !yaDevuelto) {
+        const necesidades = _agruparNecesidadesStock(items);
+        const productos = await _leerProductosDeItems(tx, necesidades);
+        devueltas = _moverStockPedido(tx, necesidades, productos, 1);
+      }
       tx.delete(refPedido);
       res.stockDevuelto = devueltas;
       res.entregado = entregado;
