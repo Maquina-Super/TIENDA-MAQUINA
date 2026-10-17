@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0a">
+<title>Página no encontrada — MAQUINA</title>
+<style>
+  :root{--ok:#8af04e;--bg:#0a0a0a;--tx:#f2f2f2;--mut:#9a9a9a}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--tx);font-family:'Work Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+       display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+  main{max-width:520px}
+  .code{font-family:Anton,Impact,'Arial Narrow',sans-serif;font-size:clamp(88px,26vw,168px);line-height:.95;margin:0;
+        color:transparent;-webkit-text-stroke:2px var(--ok);letter-spacing:.02em}
+  h1{font-family:Anton,Impact,'Arial Narrow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.03em;
+     font-size:clamp(24px,6vw,34px);margin:8px 0 12px}
+  p{color:var(--mut);line-height:1.55;margin:0 0 28px}
+  .acciones{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  a{display:inline-block;padding:13px 22px;border-radius:4px;text-decoration:none;font-weight:600;
+    font-size:15px;border:1px solid var(--ok);min-height:44px}
+  a.principal{background:var(--ok);color:#0a0a0a}
+  a.sec{color:var(--ok)}
+  a:hover,a:focus-visible{outline:2px solid var(--tx);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <p class="code" aria-hidden="true">404</p>
+  <h1>Esta página no existe</h1>
+  <p>El enlace puede estar roto o el producto ya no está disponible. Vuelve a la tienda y sigue explorando la colección.</p>
+  <div class="acciones">
+    <a class="principal" id="irInicio" href="index.html">Ir al inicio</a>
+    <a class="sec" id="irProductos" href="productos.html">Ver productos</a>
+  </div>
+</main>
+<script>
+/* Esta página se muestra en CUALQUIER ruta inexistente (por ejemplo /TIENDA-MAQUINA/a/b/c),
+   así que los enlaces relativos no sirven. Se calcula la carpeta raíz del sitio:
+   en GitHub Pages de proyecto es "/<repositorio>/", con dominio propio es "/". */
+(function () {
+  var p = location.pathname.split('/').filter(Boolean);
+  var base = (location.hostname.slice(-10) === 'github.io' && p.length) ? '/' + p[0] + '/' : '/';
+  document.getElementById('irInicio').href = base + 'index.html';
+  document.getElementById('irProductos').href = base + 'productos.html';
+})();
+</script>
+</body>
+</html>

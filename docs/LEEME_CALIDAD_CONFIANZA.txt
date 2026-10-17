@@ -1,0 +1,54 @@
+CALIDAD Y CONFIANZA — qué se agregó y cómo mantenerlo
+============================================================
+
+1) 404.html
+   GitHub Pages la muestra sola en cualquier enlace roto. Calcula la carpeta raíz del sitio
+   (/TIENDA-MAQUINA/ en github.io, "/" si algún día usas dominio propio), así que los botones
+   "Ir al inicio" y "Ver productos" funcionan aunque la dirección sea /a/b/c.
+   Lleva noindex para que Google no la indexe.
+
+2) Content-Security-Policy (CSP) en las 15 páginas + 404
+   Es una etiqueta <meta http-equiv="Content-Security-Policy"> justo después de <meta charset>.
+   Le dice al navegador desde qué sitios puede cargar scripts, estilos, imágenes y conexiones.
+   Si alguien lograra meter un <script src="https://sitio-malo..."> o enviar datos a un servidor
+   ajeno, el navegador lo bloquea. También: sin <object>, sin <base> externo, formularios solo a este sitio.
+
+   Sitios permitidos (todos los que el sitio usa hoy):
+     scripts : gstatic.com (Firebase), unpkg.com (Leaflet), cdn.jsdelivr.net (EmailJS),
+               google.com / apis.google.com (reCAPTCHA del SMS)
+     estilos : fonts.googleapis.com, unpkg.com     fuentes: fonts.gstatic.com
+     conexión: *.googleapis.com, *.firebaseio.com, *.firebaseapp.com (Firebase),
+               script.google.com / script.googleusercontent.com (Apps Script),
+               nominatim.openstreetmap.org (mapa), api.emailjs.com
+     imágenes: este sitio, data:, blob: y cualquier https (mosaicos del mapa, fotos)
+
+   LÍMITE IMPORTANTE: el sitio usa scripts y estilos "en línea" (dentro del propio HTML), por eso
+   la política incluye 'unsafe-inline'. Eso significa que NO protege contra inyección de HTML
+   (XSS) en sí; para eso sigue siendo clave escapar los datos (escaparHtml en admin.js).
+   Lo que sí bloquea es cargar código desde sitios no listados y enviar datos a sitios no listados.
+
+   SI AGREGAS UN SERVICIO NUEVO (Google Analytics, Wompi, Meta Pixel, otra fuente...) hay que
+   añadir su dirección a la CSP en TODAS las páginas, o el navegador lo bloqueará y verás en la
+   consola: "Refused to ... because it violates the following Content-Security-Policy".
+   Ejemplo Wompi: agregar https://checkout.wompi.co en connect-src y frame-src.
+
+   PARA QUITARLA en una emergencia: borrar esa línea <meta http-equiv="Content-Security-Policy">.
+   scripts/verificar.py avisa (error) si una página queda sin ella; si de verdad la quieres
+   quitar, quita también esa comprobación (bloque "2b").
+
+3) Integridad (SRI) de Leaflet
+   carrito.html carga Leaflet 1.9.4 con integrity="sha256-..." y crossorigin. Si el archivo de
+   unpkg cambiara aunque sea un byte, el navegador NO lo ejecuta. Los hashes son los publicados
+   por leafletjs.com para esa versión exacta. Si algún día subes de versión, cambia los dos hashes.
+
+   Firebase (gstatic.com) y EmailJS NO llevan SRI: Google no publica hashes para Firebase y
+   EmailJS está sin configurar (ver abajo). Fijar versión exacta de EmailJS + hash queda pendiente.
+
+4) PENDIENTE QUE ENCONTRÉ (no es parte de este cambio)
+   registro.html: EMAILJS_CONFIG tiene PEGA_AQUI_TU_PUBLIC_KEY / SERVICE_ID / TEMPLATE_ID sin
+   reemplazar. Mientras sea así, el registro por CORREO no puede enviar el código de verificación.
+   (El registro por teléfono/SMS usa Firebase y es independiente.) Pruébalo.
+
+5) PRUEBA NUEVA
+   tests-visual/csp_check.py carga las 16 páginas y falla si el navegador reporta alguna violación.
+   Límite: usa el Firebase simulado, así que NO prueba conexiones reales a Firebase ni reCAPTCHA.

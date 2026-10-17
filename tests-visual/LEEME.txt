@@ -15,6 +15,7 @@ Ejecutar (desde esta carpeta):
   python3 axe_run.py               accesibilidad (axe-core) en contacto, carrito, checkout y panel
   python3 layout_audit.py          desbordes y botones tapados en 320/375/768/1024/1366 px
   python3 smoke.py                 todas las páginas en móvil/tablet/escritorio
+  python3 csp_check.py             que la política de seguridad (CSP) no bloquee nada propio
   python3 links.py                 enlaces y recursos rotos
 
 LÍMITES: no prueban las reglas reales de Firestore ni la escritura real en Google Sheets.

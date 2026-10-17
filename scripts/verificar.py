@@ -33,6 +33,11 @@ for f in OBLIGATORIOS:
     if not os.path.isfile(f):
         errores.append(f'Falta el archivo principal: {f}')
 
+# 2b) Toda página debe declarar su Content-Security-Policy (ver docs/LEEME_CALIDAD_CONFIANZA.txt)
+for f in sorted(glob.glob('*.html')):
+    if 'Content-Security-Policy' not in open(f, encoding='utf-8', errors='ignore').read():
+        errores.append(f'{f} no tiene la etiqueta <meta http-equiv="Content-Security-Policy">.')
+
 # 3) Sintaxis JavaScript
 if shutil.which('node'):
     for f in sorted(glob.glob('js/*.js')):
