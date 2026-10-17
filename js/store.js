@@ -1168,7 +1168,9 @@ async function sincronizarPedidosConHoja(pedidos, alProgreso) {
     if (intentarLeer) {
       try {
         const resp = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: cuerpo });
-        const j = JSON.parse(await resp.text());
+        const texto = await resp.text();
+        let j = null;
+        try { j = JSON.parse(texto); } catch (e2) { if (/^\s*ok\s*$/i.test(texto)) res.versionVieja = true; } // respondió solo "ok": el script publicado es viejo
         if (j && j.ok === false) return { ...res, ok: false, msg: j.error || 'La hoja rechazó la sincronización.' };
         if (j && j.ok === true) {
           res.confirmados += lote.length;

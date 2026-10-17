@@ -1808,6 +1808,8 @@ if (btnSincronizarPedidosHoja) btnSincronizarPedidosHoja.addEventListener('click
       } else {
         showToast(`Hoja al día: ${partes.join(', ')}.`);
       }
+    } else if (r.versionVieja) {
+      showToast('El script publicado en Google es una versión vieja (solo respondió «ok») y no sincroniza. Publica una «Nueva versión»: Implementar → Administrar implementaciones → lápiz → Nueva versión → Implementar.', true);
     } else {
       showToast(`Enviados ${r.total} pedidos a la hoja, pero el navegador no puede leer la respuesta de Google. Revisa la hoja y la pestaña Errores_Pedidos en unos segundos.`);
     }
