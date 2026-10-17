@@ -985,7 +985,7 @@ async function crearPedido(datosCliente) {
     "pendiente". */
 const ESTADOS_PEDIDO = {
   pendiente:  { label: 'Pendiente',  emoji: '🕓' },
-  confirmado: { label: 'Confirmado', emoji: '✅' },
+  confirmado: { label: 'Listo',      emoji: '✅' },
   enviado:    { label: 'Enviado',    emoji: '🚚' },
   entregado:  { label: 'Entregado',  emoji: '📦' },
   cancelado:  { label: 'Cancelado',  emoji: '✕' },

@@ -34,7 +34,7 @@
    ============================================================ */
 
 /* ---------- 1) CONFIGURACIÓN ---------- */
-const VERSION_SCRIPT = "2026-10-17 aviso-estado-pedido-por-correo + correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+const VERSION_SCRIPT = "2026-10-17b estado-listo + pestana-pedidos-flexible + aviso-estado-pedido-por-correo + correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
 
 const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
 const SHEET_TAB = "Pedidos";
@@ -55,7 +55,7 @@ const SHEET_TAB_ERRORES_PEDIDOS = "Errores_Pedidos";
 const TITULO_COLUMNA_ESTADO_PEDIDO = "Estado del pedido";
 // Columna M de "Pedidos" = "Estado de pago" (la que se escribe al crear la fila).
 const COLUMNA_ESTADO_PAGO = 13;
-const ESTADOS_PEDIDO_TXT = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
+const ESTADOS_PEDIDO_TXT = { pendiente: 'Pendiente', confirmado: 'Listo', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
 
 // Proyecto de Firestore de la tienda. El estado se LEE de ahí (fuente de verdad):
 // lo que el navegador diga en el aviso se ignora, así nadie puede falsearlo.
@@ -336,13 +336,29 @@ function leerPedidoRealParaAviso(pedidoDelAviso) {
 }
 
 /* ---------- 5) PEDIDOS EN LA HOJA ---------- */
+
+/* Pestaña de pedidos. Primero busca la que se llama "Pedidos". Si no existe (por ejemplo
+   se quedó como "Hoja 1"), usa la única pestaña cuyo encabezado A1 diga "Pedido"
+   (ej. "Nº Pedido"), sin contar Contactos ni las de errores. Si hay duda, devuelve null. */
+function obtenerHojaPedidos() {
+  const libro = SpreadsheetApp.openById(SHEET_ID);
+  const hoja = libro.getSheetByName(SHEET_TAB);
+  if (hoja || typeof libro.getSheets !== 'function') return hoja;
+  const excluidas = [SHEET_TAB_CONTACTOS, SHEET_TAB_ERRORES, SHEET_TAB_ERRORES_PEDIDOS];
+  const candidatas = libro.getSheets().filter(function (h) {
+    if (excluidas.indexOf(h.getName()) !== -1) return false;
+    if (h.getLastColumn() < 1) return false;
+    return /pedido/i.test(String(h.getRange(1, 1).getDisplayValue()));
+  });
+  return candidatas.length === 1 ? candidatas[0] : null;
+}
 function guardarPedidoEnSheet(pedido) {
   if (!pedido) return;
 
   const candado = LockService.getScriptLock();
   candado.waitLock(20000);
   try {
-    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    const hoja = obtenerHojaPedidos();
     if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
 
     // Anti-duplicados: si el N° de pedido ya está en la columna A, no se inserta otra fila.
@@ -386,6 +402,15 @@ function guardarPedidoEnSheet(pedido) {
     hoja.getRange(numeroFila, 1).setNumberFormat('@'); // columna A como texto
     hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
 
+    // Si la hoja todavía no tiene el encabezado de la columna M, se pone (con el mismo estilo que L).
+    try {
+      const encM = hoja.getRange(1, COLUMNA_ESTADO_PAGO);
+      if (!String(encM.getDisplayValue()).trim()) {
+        hoja.getRange(1, COLUMNA_ESTADO_PAGO - 1).copyTo(encM, { formatOnly: true });
+        encM.setValue('Estado de pago');
+      }
+    } catch (errEnc) { /* el encabezado es solo estético: nunca bloquea el pedido */ }
+
     // Estado inicial en la columna "Estado del pedido". Si esto falla, el pedido YA quedó
     // registrado: solo se anota el error y se sigue (nunca bloquea el pedido ni el correo).
     try {
@@ -418,6 +443,7 @@ function columnaEstadoPedido(hoja) {
   const nueva = ultimaCol + 1;
   if (nueva > hoja.getMaxColumns()) hoja.insertColumnAfter(hoja.getMaxColumns());
   const celda = hoja.getRange(1, nueva);
+  try { hoja.getRange(1, ultimaCol).copyTo(celda, { formatOnly: true }); } catch (errFmt) { /* solo estético */ }
   celda.setValue(TITULO_COLUMNA_ESTADO_PEDIDO);
   celda.setFontWeight(hoja.getRange(1, ultimaCol).getFontWeight());
   return nueva;
@@ -443,12 +469,12 @@ function leerEstadoPedidoFirestore(id) {
 
 /* ---------- 5b) AVISO AL CLIENTE CUANDO CAMBIA EL ESTADO DEL PEDIDO ----------
    - El estado y el correo se LEEN de Firestore (pedido real); del aviso solo se usa el ID.
-   - Solo avisa: confirmado, enviado, entregado y cancelado (pendiente no).
+   - Solo avisa: listo (clave interna "confirmado"), enviado, entregado y cancelado (pendiente no).
    - No repite: guarda el último estado avisado de cada pedido, así que reenviar el
      mismo aviso (o un cambio de ida y vuelta al mismo estado) no manda otro correo.
    - Respeta los límites de correo (LIMITES_ENVIO.pedido_estado) y la cuota diaria. */
 const MENSAJES_ESTADO_PEDIDO = {
-  confirmado: { emoji: '✅', titulo: 'Pedido confirmado',  texto: 'Confirmamos tu pedido y lo estamos preparando.' },
+  confirmado: { emoji: '✅', titulo: 'Pedido listo',  texto: 'Tu pedido está listo y en breve lo enviamos.' },
   enviado:    { emoji: '🚚', titulo: 'Tu pedido va en camino', texto: 'Tu pedido ya salió de nuestras manos y va rumbo a tu dirección.' },
   entregado:  { emoji: '🎉', titulo: 'Pedido entregado',   texto: 'Tu pedido fue entregado. ¡Esperamos que lo disfrutes!' },
   cancelado:  { emoji: '⚠️', titulo: 'Pedido cancelado',   texto: 'Tu pedido fue cancelado. Si no lo esperabas, escríbenos y lo revisamos contigo.' },
@@ -506,7 +532,7 @@ function actualizarEstadoPedidoEnSheet(id) {
   const candado = LockService.getScriptLock();
   candado.waitLock(20000);
   try {
-    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    const hoja = obtenerHojaPedidos();
     if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
     const ultima = hoja.getLastRow();
     const filas = [];
@@ -555,7 +581,7 @@ function escribirEstadoYPagoDePedido(pedido, escribirEstado, escribirPago) {
   const candado = LockService.getScriptLock();
   candado.waitLock(20000);
   try {
-    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    const hoja = obtenerHojaPedidos();
     if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
     const filas = filasDelPedido(hoja, codigo);
     if (filas.length === 0) throw new Error('El pedido ' + codigo + ' no está en la hoja; no se creó ninguna fila.');
@@ -636,7 +662,7 @@ function eliminarPedidoDeSheet(id, idToken) {
   const candado = LockService.getScriptLock();
   candado.waitLock(20000);
   try {
-    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    const hoja = obtenerHojaPedidos();
     if (!hoja) return rechazo('no se encontró la pestaña "' + SHEET_TAB + '".');
 
     const idCompleto = normalizarCodigo(idTxt);
@@ -1227,7 +1253,7 @@ function enviarCorreoContacto(d) {
 
 /* ---------- 7) DIAGNÓSTICO (se ejecuta a mano en el editor) ---------- */
 function diagnosticoColumnaA() {
-  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  const hoja = obtenerHojaPedidos();
   if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
   const ultima = hoja.getLastRow();
   if (ultima < 2) { console.log('La hoja no tiene pedidos.'); return; }
@@ -1244,7 +1270,7 @@ function diagnosticoColumnaA() {
 
 /* Ejecútala UNA vez: marca toda la columna A como texto. */
 function formatearColumnaAComoTexto() {
-  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  const hoja = obtenerHojaPedidos();
   if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
   hoja.getRange(2, 1, Math.max(hoja.getMaxRows() - 1, 1), 1).setNumberFormat('@');
   console.log('Columna A marcada como texto.');

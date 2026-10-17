@@ -137,7 +137,7 @@ t('repetir el aviso (doble clic / reintento) no cambia nada más ni crea filas',
 t('el estado FALSEADO en el aviso se ignora: manda el de Firestore', () => {
   E.firestore[ID('CCC333')] = { estado: 'confirmado' };
   E.post({ tipo: 'pedido_estado', id: ID('CCC333'), estado: 'entregado', usuario: 'hacker' });
-  assert.strictEqual(P.grid[3][14], 'Confirmado');
+  assert.strictEqual(P.grid[3][14], 'Listo');
 });
 t('avisos desordenados: queda siempre el estado real final', () => {
   E.firestore[ID('CCC333')] = { estado: 'cancelado' };
@@ -511,7 +511,7 @@ t('pedidos_sincronizar: deja al día \"Estado del pedido\" y no pisa la columna 
   E8.firestore[ID('BBB222')] = { estado: 'confirmado', estado_pago: 'pagado', metodo_pago: 'nequi', historial_pagos: [{ estado_pago: 'pagado', usuario: 'admin', fecha: 'f' }] };
   H.grid[2][12] = 'Por verificar (transferencia Nequi)';                                     // BBB222 se gestionó en el panel: manda Firestore
   J(E8.post({ tipo: 'pedidos_sincronizar', ids: [ID('AAA111'), ID('BBB222')], idToken: ADMIN_TOKEN }));
-  assert.strictEqual(H.grid[1][14], 'Entregado'); assert.strictEqual(H.grid[2][14], 'Confirmado');
+  assert.strictEqual(H.grid[1][14], 'Entregado'); assert.strictEqual(H.grid[2][14], 'Listo');
   assert.strictEqual(H.grid[1][12], 'Pagado'); assert.strictEqual(H.grid[2][12], 'Pagado');
   assert.strictEqual(H.grid[1][13], 'VIP', 'la columna ajena N no se toca'); assert.strictEqual(H.grid[1][11], 150000);
 });

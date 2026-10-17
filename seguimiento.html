@@ -64,7 +64,7 @@
         <div class="stepper-line" data-seg-line="1"></div>
         <div class="stepper-step" data-seg-estado="confirmado">
           <div class="stepper-circle">✅</div>
-          <div class="stepper-label">Confirmado</div>
+          <div class="stepper-label">Listo</div>
         </div>
         <div class="stepper-line" data-seg-line="2"></div>
         <div class="stepper-step" data-seg-estado="enviado">
@@ -180,7 +180,7 @@ document.getElementById('segForm').addEventListener('submit', async (e) => {
 });
 
 /* Mantiene la pantalla al día SIN recargar: cuando el equipo cambia el estado en el panel
-   (Confirmado → Enviado → Entregado), el cliente lo ve en segundos. Solo lee el pedido
+   (Listo → Enviado → Entregado), el cliente lo ve en segundos. Solo lee el pedido
    que ya pasó la verificación del teléfono; no cambia nada en Firestore. */
 let dejarDeEscuchar = null;
 function escucharCambios(id, telefono) {
@@ -220,7 +220,7 @@ function mostrarResultado(id, p) {
     });
   }
 
-  const ETIQUETAS = { pendiente:'🕓 Pendiente', confirmado:'✅ Confirmado', enviado:'🚚 Enviado', entregado:'📦 Entregado', cancelado:'✕ Cancelado' };
+  const ETIQUETAS = { pendiente:'🕓 Pendiente', confirmado:'✅ Listo', enviado:'🚚 Enviado', entregado:'📦 Entregado', cancelado:'✕ Cancelado' };
   document.getElementById('segEstadoTexto').textContent = ETIQUETAS[estado];
   document.getElementById('segEstadoTexto').className = 'seg-card-estado seg-estado-' + estado;
   document.getElementById('segNumeroPedido').textContent = 'PEDIDO #' + id;
