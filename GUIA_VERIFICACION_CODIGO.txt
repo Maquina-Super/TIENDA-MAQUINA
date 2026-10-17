@@ -1,0 +1,80 @@
+============================================================
+ GUÍA: Código de verificación al crear cuenta (correo o SMS)
+============================================================
+
+Ahora, cuando alguien se registra en registro.html, elige si
+quiere verificar su cuenta por CORREO o por TELÉFONO, le llega
+un código de 6 dígitos, y solo si lo escribe bien se crea la
+cuenta. La pantalla del código usa un morado/azul llamativo,
+distinto al resto de la tienda.
+
+------------------------------------------------------------
+1) VERIFICACIÓN POR CORREO — con EmailJS (gratis, sin backend)
+------------------------------------------------------------
+EmailJS te deja enviar correos desde el navegador (sin montar
+un servidor propio). Plan gratis: 200 correos al mes.
+
+Pasos:
+1. Entra a https://www.emailjs.com y crea una cuenta gratis.
+2. Ve a "Email Services" -> "Add New Service" -> conecta tu
+   Gmail (o el correo que quieras que envíe los códigos).
+   Te da un SERVICE_ID (algo como "service_abc1234").
+3. Ve a "Email Templates" -> "Create New Template". En el
+   cuerpo escribe algo como:
+
+     Hola {{to_name}},
+     Tu código de verificación de MAQUINA es: {{code}}
+     Vence en 10 minutos.
+
+   Y en el campo "To email" del template escribe: {{to_email}}
+   Guarda y copia el TEMPLATE_ID (algo como "template_xyz789").
+4. Ve a "Account" -> "General" y copia tu "Public Key".
+5. Abre registro.html, busca este bloque cerca del final del
+   archivo:
+
+     const EMAILJS_CONFIG = {
+       PUBLIC_KEY: "PEGA_AQUI_TU_PUBLIC_KEY",
+       SERVICE_ID: "PEGA_AQUI_TU_SERVICE_ID",
+       TEMPLATE_ID: "PEGA_AQUI_TU_TEMPLATE_ID",
+     };
+
+   Reemplaza los 3 valores por los tuyos. Guarda el archivo.
+
+Listo. Mientras no reemplaces esos 3 valores, si alguien elige
+"Correo" como método, verá un aviso pidiendo que se configure
+esto — no se romperá la página, simplemente no podrá enviar el
+código todavía.
+
+------------------------------------------------------------
+2) VERIFICACIÓN POR TELÉFONO — con Firebase Phone Auth
+------------------------------------------------------------
+Esto usa el mismo proyecto de Firebase que ya tienes (el de
+firebase-config.js), así que no necesitas crear nada nuevo,
+solo activarlo:
+
+1. Entra a https://console.firebase.google.com y abre tu
+   proyecto (maquina-tienda).
+2. Ve a "Authentication" -> pestaña "Sign-in method".
+3. Activa el proveedor "Phone" (Teléfono).
+4. Firebase te va a pedir pasar tu proyecto al plan "Blaze"
+   (pago por uso) para poder enviar SMS. El plan Blaze tiene
+   una cuota gratis de verificaciones cada mes; si no la pasas
+   de ese límite no te cobra nada. Es obligatorio tener Blaze
+   activado aunque tu uso sea gratis.
+5. En "Authentication" -> "Settings" -> "Authorized domains",
+   asegúrate de que esté el dominio donde vas a publicar la
+   tienda (ej: tuusuario.github.io) además de localhost.
+
+No necesitas tocar más código: registro.html ya usa
+reCAPTCHA invisible + signInWithPhoneNumber automáticamente
+cuando el usuario elige "Teléfono".
+
+------------------------------------------------------------
+NOTAS
+------------------------------------------------------------
+- El correo (con contraseña) sigue siendo obligatorio siempre,
+  porque es lo que usa Firebase para iniciar sesión después.
+  El teléfono es solo un método extra de verificación, y si lo
+  usas queda guardado (ya verificado) en el perfil del usuario.
+- El código por correo vence a los 10 minutos.
+- El botón "Reenviar código" se activa a los 60 segundos.

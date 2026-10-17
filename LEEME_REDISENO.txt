@@ -1,0 +1,124 @@
+==========================================================
+MAQUINA — REDISEÑO STREETWEAR (qué cambió y cómo tocarlo)
+==========================================================
+
+ARCHIVOS NUEVOS
+---------------
+css/maquina-ui.css   Todo el diseño nuevo (banner, beneficios,
+                     tarjetas, vista rápida, filtros, ficha de
+                     producto, carrito lateral). Se carga
+                     DESPUÉS de estilos.css en cada página.
+js/maquina-ui.js     La lógica de lo nuevo. No toca el carrito,
+                     favoritos, login ni el panel: los usa a
+                     través de las funciones que ya existían.
+producto.html        Página individual de cada producto
+                     (producto.html?id=3).
+
+ARCHIVOS MODIFICADOS
+--------------------
+css/estilos.css      Paleta oscura: negro, gris, blanco y verde
+                     neón. Se conservaron los mismos nombres de
+                     variables, así que ninguna regla vieja se
+                     rompió.
+css/carrito.css      El amarillo pasó a verde neón.
+index.html           Portada nueva (banner, beneficios,
+                     destacados, categorías, promo, más pedido).
+productos.html       Tienda con filtros reales en barra lateral.
+js/layout.js         Menú: Inicio · Tienda · Categorías ·
+                     Contacto. Los géneros y las categorías
+                     siguen todos dentro de "Categorías".
+js/catalog-render.js Las tarjetas ahora traen calificación,
+                     botón de vista rápida y el nombre enlaza a
+                     la ficha del producto.
+
+==========================================================
+1. PONER TUS PROPIAS FOTOS EN EL BANNER
+==========================================================
+Hoy el banner usa una ilustración de marca: una persona de
+espaldas con MAQUINA estampado en el buso. El texto va recortado
+dentro de la tela, con los pliegues encima, para que se vea
+impreso en la prenda.
+
+Para usar fotos reales:
+  1. Sube la foto a la carpeta img/ (ej: img/banner-1.jpg).
+     Horizontal, mínimo 1800px de ancho.
+  2. Abre js/maquina-ui.js y busca YD_HERO_SLIDES (arriba del
+     todo).
+  3. Cambia   imagen: null
+     por      imagen: "img/banner-1.jpg"
+Puedes poner una, dos o tres. Las que dejes en null siguen
+usando la ilustración.
+
+==========================================================
+2. LAS ESTRELLAS DE LAS TARJETAS
+==========================================================
+Tus productos todavía no tienen reseñas reales. Para que la
+tarjeta no quedara coja, se calcula una calificación estable a
+partir del id del producto (siempre da el mismo número).
+
+OJO: son números de relleno. Cuando tengas reseñas de verdad:
+  · Opción A — apagarlas: en js/maquina-ui.js cambia
+      const YD_MOSTRAR_CALIFICACIONES = true;
+    por false.
+  · Opción B — poner las reales: agrégale al producto los
+    campos "rating" y "resenas" (por ejemplo rating: 4.8 y
+    resenas: 124). Si existen, se muestran esos.
+
+==========================================================
+3. COSAS QUE NO SE TOCARON
+==========================================================
+Carrito, checkout, pagos, favoritos, login, registro,
+recuperación, inventario, pedidos, buscador, Voltage Club,
+cuenta regresiva del drop, avisos a Telegram/Sheets y el panel
+admin siguen funcionando exactamente igual.
+
+
+==========================================================
+AJUSTE VISUAL DE LA PORTADA (css/inicio.css)
+==========================================================
+index.html carga ahora css/inicio.css al final. Solo cambia la
+presentacion (espacios, tamanos, tarjetas mas livianas, franja de
+beneficios bajo el banner, 6 categorias en una fila, promo con una
+sola imagen). No toca productos, carrito, login ni Firebase.
+Para volver al diseno anterior: quita ese <link> y el class
+"pg-inicio" del <body> en index.html.
+
+
+==========================================================
+CARRITO Y CHECKOUT (css/carrito-pro.css + carrito.html)
+==========================================================
+Solo presentacion + honestidad de los metodos de pago.
+Interruptores al inicio del <script> de carrito.html:
+  PAGO_TARJETA_ACTIVO = false  (el formulario de tarjeta era una
+                               simulacion sin pasarela; no se muestra)
+  PAGO_PAYPAL_ACTIVO  = false  (no hay integracion)
+  NEQUI_NUMERO / NEQUI_TITULAR (vacios: Nequi se oculta hasta que
+                               pongas los datos REALES de tu cuenta;
+                               antes decia "300 000 0000")
+Contraentrega funciona siempre. Para volver al diseno anterior quita
+los <link> maquina-ui.css, inicio.css y carrito-pro.css de carrito.html.
+Si necesitas el carrito anterior, esta en el historial de git (carrito.original.html, antes de borrarse).
+
+
+==========================================================
+FOTOS DE LAS TARJETAS DE PRODUCTO (css/tarjetas.css + js/catalog-render.js)
+==========================================================
+- Las fotos NO estan en el repositorio: se guardan en Firestore (foto,
+  fotos[color], fotosTrasera[color]) y se suben desde admin.html.
+- Antes: si el primer color no tenia foto se mostraba el icono, y al
+  elegir un color con foto nunca aparecia. Ahora siempre se usa la
+  foto del color, o la general, o la de cualquier otro color.
+- Todas las tarjetas: zona de foto 4:5, fondo oscuro, foto entera
+  (object-fit: contain) sin deformar ni cortar. Fotos con escena de
+  fondo y proporcion ~4:5 (editorial/modelo) usan cover.
+- Opcional por producto: ajusteFoto ('contain'|'cover') y posicionFoto.
+- FONDO_CLARO_ADAPTATIVO (inicio de catalog-render.js): false = fondo
+  siempre oscuro; true = fotos con fondo blanco liso funden la tarjeta.
+- Espalda: al pasar el mouse sobre la foto (escritorio) o tocarla
+  (celular); los puntitos avisan que hay segunda foto.
+- Foto que no carga / producto sin foto: dibujo + "Foto proximamente".
+- Limpieza: se quitaron de estilos.css, maquina-ui.css e inicio.css las
+  reglas duplicadas o inutiles de tarjeta (inclinaciones, sombras duras,
+  colores por tarjeta, tinte de fondo). Ahora todo vive en tarjetas.css.
+- Error corregido: la espalda se activaba con :focus-within, o sea, al
+  tocar una talla se volteaba la foto.

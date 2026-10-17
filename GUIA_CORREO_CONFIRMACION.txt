@@ -1,0 +1,199 @@
+============================================================
+ GUÍA: Correo de confirmación de pedido al cliente
+============================================================
+
+Esto NO se configura en el código de la tienda (eso ya está
+listo) — se agrega en tu Google Apps Script, el mismo que ya
+usas para mandar el aviso a la Hoja de cálculo y a Telegram
+cuando entra un pedido nuevo (la URL que pegaste en
+APPS_SCRIPT_URL, dentro de js/store.js).
+
+------------------------------------------------------------
+QUÉ CAMBIÓ DE PARTE DE LA TIENDA
+------------------------------------------------------------
+Cada vez que un cliente completa una compra, la tienda le
+manda a tu Apps Script (con fetch, tipo "no-cors") un aviso
+así:
+
+  {
+    "tipo": "pedido_nuevo",
+    "pedido": {
+      "id": "aB3xY9k9...",              <- id largo de Firestore
+      "codigo_pedido": "9K9ABC",         <- código corto, NUEVO
+      "nombre_cliente": "Laura Gómez",
+      "email_cliente": "laura@correo.com",
+      "telefono_cliente": "3001234567",
+      "metodo_pago": "contraentrega",
+      "envio_municipio": "Medellín (zona urbana)",
+      "envio_barrio": "Laureles",
+      "envio_direccion": "Calle 33 #70-12",
+      "envio_edificio": "Apto 302",
+      "envio_referencia": "Portería azul",
+      "costo_envio": 8000,
+      "items": [
+        { "nombre": "Buso Volt", "talla": "M", "color": "#151512", "precio": 189900, "foto": "https://.../buso-volt.jpg" }
+      ],
+      "detalle": "Buso Volt (M) | Camiseta Bolt (L)",
+      "subtotal": 269800,
+      "total": 277800,
+      "fecha": "2026-08-30T15:00:00.000Z"
+    }
+  }
+
+Lo único nuevo respecto a lo que ya recibías es
+"codigo_pedido" — un código corto (últimos 6 caracteres del id
+de Firestore, en mayúsculas) pensado para que se vea bien en
+el asunto y el cuerpo del correo — y "foto" dentro de cada item,
+con la URL de la imagen exacta que el cliente compró (mismo
+color que eligió), lista para usarse en un correo con fotos.
+Todo lo demás (nombre, correo, dirección, items, total) ya te
+estaba llegando desde antes — así que si ya tienes el aviso a
+Sheets/Telegram funcionando, esto se conecta al mismo lugar.
+
+------------------------------------------------------------
+QUÉ AGREGAR A TU APPS SCRIPT
+------------------------------------------------------------
+1. Entra a https://script.google.com y abre el proyecto que ya
+   tienes conectado a APPS_SCRIPT_URL.
+
+2. Busca la función doPost(e) — ahí es donde ya lees "datos" y
+   revisas datos.tipo para decidir si escribes en la Hoja o
+   mandas el Telegram. Va a verse más o menos así:
+
+     function doPost(e) {
+       const datos = JSON.parse(e.postData.contents);
+       if (datos.tipo === 'pedido_nuevo') {
+         // ... aquí ya tienes el código que escribe en Sheets
+         // ... y el que manda el Telegram
+       }
+       // ...
+     }
+
+3. Agrega esta función nueva en cualquier parte del archivo
+   (fuera de doPost, al mismo nivel que las demás funciones):
+
+     /** Manda el correo de confirmación al CLIENTE (no a ti) con
+         el resumen de su compra, en HTML, con foto de cada producto
+         y un mensaje bien claro de que el pago sí se confirmó. Usa
+         MailApp, que envía desde tu cuenta de Gmail — no necesita
+         configurar nada aparte. */
+     function enviarCorreoConfirmacion(pedido) {
+       if (!pedido || !pedido.email_cliente) return; // sin correo, no hay a quién mandarle
+
+       const codigo = pedido.codigo_pedido || pedido.id;
+       const items = pedido.items || [];
+
+       // Fila de texto plano (por si el cliente de correo no soporta HTML)
+       const filasItemsTexto = items.map(function (it) {
+         return it.nombre + ' — talla ' + it.talla +
+           ' — $' + Number(it.precio).toLocaleString('es-CO');
+       }).join('\n');
+
+       // Fila en HTML, con foto de cada producto
+       const filasItemsHtml = items.map(function (it) {
+         const foto = it.foto
+           ? '<img src="' + it.foto + '" width="64" height="64" style="border-radius:10px;object-fit:cover;border:1px solid #ddd;" alt="' + it.nombre + '">'
+           : '';
+         return '<tr>' +
+           '<td style="padding:8px 0;">' + foto + '</td>' +
+           '<td style="padding:8px 0 8px 12px;font-family:Arial,sans-serif;font-size:14px;color:#151512;">' +
+             '<strong>' + it.nombre + '</strong><br>' +
+             '<span style="color:#666;">Talla ' + it.talla + ' — $' + Number(it.precio).toLocaleString('es-CO') + '</span>' +
+           '</td>' +
+         '</tr>';
+       }).join('');
+
+       const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio, pedido.envio_municipio]
+         .filter(Boolean).join(', ');
+
+       const cuerpoTexto =
+         '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
+         '✅ Tu pago se confirmó correctamente. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.\n\n' +
+         filasItemsTexto + '\n\n' +
+         'Subtotal: $' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '\n' +
+         'Envío: $' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '\n' +
+         'Total: $' + Number(pedido.total || 0).toLocaleString('es-CO') + '\n\n' +
+         'Dirección de entrega: ' + direccion + '\n' +
+         'Método de pago: ' + (pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega') + '\n\n' +
+         '¿Dudas sobre tu pedido? Escríbenos por WhatsApp: https://wa.me/573239523623\n\n' +
+         'Gracias por tu compra ⚡\n— MAQUINA';
+
+       const cuerpoHtml =
+         '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
+           '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
+             '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">✅ Pago confirmado</div>' +
+           '</div>' +
+           '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
+             '<p style="font-size:15px;color:#151512;">¡Hola <strong>' + (pedido.nombre_cliente || '') + '</strong>! ⚡</p>' +
+             '<p style="font-size:14px;color:#333;">Tu pago se realizó <strong>correctamente</strong> y ya recibimos tu pedido ' +
+             '<strong>#' + codigo + '</strong> en MAQUINA. Esto fue lo que compraste:</p>' +
+             '<table style="width:100%;border-collapse:collapse;margin:14px 0;">' + filasItemsHtml + '</table>' +
+             '<table style="width:100%;font-size:14px;color:#151512;border-top:1px solid #eee;padding-top:10px;">' +
+               '<tr><td>Subtotal</td><td style="text-align:right;">$' + Number(pedido.subtotal || 0).toLocaleString('es-CO') + '</td></tr>' +
+               '<tr><td>Envío</td><td style="text-align:right;">$' + Number(pedido.costo_envio || 0).toLocaleString('es-CO') + '</td></tr>' +
+               '<tr><td style="font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;font-weight:700;padding-top:6px;">$' + Number(pedido.total || 0).toLocaleString('es-CO') + '</td></tr>' +
+             '</table>' +
+             '<p style="font-size:13px;color:#666;margin-top:14px;">📍 Dirección de entrega: ' + direccion + '<br>' +
+             '💳 Método de pago: ' + (pedido.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Contraentrega') + '</p>' +
+             '<p style="font-size:13px;color:#666;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp: ' +
+             '<a href="https://wa.me/573239523623">https://wa.me/573239523623</a></p>' +
+             '<p style="font-size:14px;color:#151512;margin-top:16px;">Gracias por tu compra ⚡<br>— MAQUINA</p>' +
+           '</div>' +
+         '</div>';
+
+       MailApp.sendEmail({
+         to: pedido.email_cliente,
+         subject: 'MAQUINA — ✅ Pago confirmado, pedido #' + codigo,
+         body: cuerpoTexto,       // se usa si el cliente de correo no soporta HTML
+         htmlBody: cuerpoHtml,    // versión con fotos y colores de la marca
+         name: 'MAQUINA', // nombre que ve el cliente como remitente
+       });
+     }
+
+4. Dentro de doPost(e), en el bloque "if (datos.tipo ===
+   'pedido_nuevo') { ... }" que ya tienes, agrega UNA línea
+   más, junto a las que ya escriben en Sheets/Telegram:
+
+     enviarCorreoConfirmacion(datos.pedido);
+
+5. Guarda (el ícono de disquete) y vuelve a publicar el script:
+   "Implementar" -> "Administrar implementaciones" -> ícono de
+   lápiz sobre la implementación activa -> en "Versión" elige
+   "Nueva versión" -> "Implementar".
+   (Si solo guardas sin publicar una nueva versión, el cambio
+   NO se ve reflejado — este paso es el que casi siempre se le
+   olvida a todo el mundo.)
+
+6. La PRIMERA vez que MailApp intenta mandar un correo, Google
+   te va a pedir autorizar el script para enviar correos en tu
+   nombre (aparece un permiso nuevo la próxima vez que entres a
+   "Ejecuciones" o hagas una prueba manual). Acepta el permiso
+   con la MISMA cuenta de Gmail que quieres que aparezca como
+   remitente.
+
+------------------------------------------------------------
+CÓMO PROBARLO
+------------------------------------------------------------
+Haz una compra de prueba en tu tienda (con tu propio correo) y
+revisa tu bandeja de entrada (y la de Spam, por si acaso, sobre
+todo las primeras veces). Si no llega nada, entra a tu proyecto
+de Apps Script -> pestaña "Ejecuciones" (ícono de reloj a la
+izquierda) y revisa si la última ejecución de doPost tuvo algún
+error en rojo.
+
+------------------------------------------------------------
+LÍMITES A TENER EN CUENTA
+------------------------------------------------------------
+- MailApp.sendEmail usa tu cuota diaria de Gmail: 100 correos
+  al día en una cuenta de Gmail normal y gratis, o 1.500 al día
+  si usas una cuenta de Google Workspace. Para una tienda que
+  está empezando es más que suficiente; si algún día vendes
+  más de eso en un solo día, hay que pasar a un servicio de
+  correo transaccional (como Brevo o SendGrid, que también
+  tienen plan gratis con más cupo).
+- El correo sale como texto plano (sin logo ni colores) para
+  mantenerlo simple y que llegue siempre bien. Si más adelante
+  quieres un correo con el diseño de la marca (HTML, con el
+  logo y los colores de MAQUINA), se puede hacer cambiando
+  "body" por "htmlBody" en el MailApp.sendEmail — avísame y te
+  armo la plantilla en HTML.

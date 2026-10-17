@@ -1,0 +1,49 @@
+============================================================
+ CONTACTOS EN GOOGLE SHEETS (pestaña "Contactos")
+============================================================
+Cada mensaje del formulario de Contacto queda (1) en Firestore, que sigue
+siendo el almacenamiento principal y lo que ves en el panel, y (2) como una
+fila en la pestaña "Contactos" del MISMO archivo de Sheets de los pedidos.
+La pestaña "Pedidos" no se toca.
+
+COLUMNAS: ID del contacto | Fecha y hora | Nombre completo | Correo electrónico
+          | Teléfono | Asunto | Mensaje | Estado del contacto
+
+CÓMO FUNCIONA
+- Misma integración de los pedidos: Apps Script (web app) con la URL /exec.
+  No hay claves nuevas en el navegador.
+- La pestaña se crea sola con encabezados la primera vez.
+- Siempre se agrega al final; nunca se sobrescribe.
+- Sin duplicados: si el ID ya está en la columna A, no se vuelve a insertar
+  (ni se repite el correo). El ID es el mismo código de 6 caracteres que ve el
+  cliente y el panel.
+- Si cambias el estado en el panel (Nuevo / En revisión / Respondido), se
+  actualiza la columna H.
+- Si la hoja falla: el mensaje ya está en Firestore. El error queda en la
+  pestaña "Errores_Contactos" (o en Apps Script -> Ejecuciones). Luego entra al
+  panel -> Mensajes -> "📤 Sincronizar con la hoja": reenvía todo y el script
+  solo agrega los que faltan.
+- Los textos que empiezan con = + - @ se guardan con un apóstrofo delante para
+  que la hoja no los ejecute como fórmula.
+
+ARCHIVOS QUE CAMBIARON (mismas rutas en GitHub)
+  js/store.js, js/admin-mensajes.js, admin.html, servicios.html
+  APPS_SCRIPT_pegar_en_script.google.com.txt  <- NO va a GitHub: va a Apps Script
+  (firestore.rules NO cambió)
+
+PASOS
+1) Apps Script: reemplaza TODO por el contenido de APPS_SCRIPT_...txt.
+   Si pide permisos, acéptalos (ya usa tu hoja y correo; ahora puede crear pestañas).
+2) Implementar -> Administrar implementaciones -> lápiz -> Nueva versión.
+   Abre la URL /exec: debe decir "versión 2026-10-10 contactos-en-sheet".
+3) Sube los 4 archivos del sitio a GitHub y recarga con Ctrl+Shift+R.
+4) (Opcional) En el editor ejecuta probarContactoEnHoja DOS veces: la 1.ª crea
+   la fila TEST01 y la 2.ª no debe crear otra. Borra esa fila después.
+5) Prueba real: envía el formulario en servicios.html. Debe aparecer en
+   panel -> Mensajes y en la pestaña Contactos con el mismo código.
+6) Para pasar los mensajes que ya tenías: panel -> Mensajes -> Sincronizar con la hoja.
+
+LÍMITE CONOCIDO
+La tienda llama al script en modo "no-cors", así que el navegador no recibe
+confirmación de si la hoja escribió o no. Por eso el respaldo es el botón de
+sincronizar (seguro de repetir) y la pestaña de errores.

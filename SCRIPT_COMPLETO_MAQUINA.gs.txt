@@ -1,0 +1,1269 @@
+/* ============================================================
+   SCRIPT COMPLETO - MAQUINA (versión final)
+   Reemplaza TODO el contenido de tu archivo .gs por esto.
+
+   Qué hace según el aviso que mande la tienda:
+     pedido_nuevo               -> escribe la fila en Sheets + correo (SOLO usa el id del aviso:
+                                   todos los datos se leen del pedido real en Firestore)
+     pedido_estado              -> refleja el estado del pedido en la columna "Estado del pedido"
+                                   (lee el estado REAL en Firestore; solo escribe esa celda)
+     pedido_pago                -> refleja el estado de pago en la columna M "Estado de pago"
+                                   (lee el pago REAL en Firestore; solo escribe esa celda)
+     pedidos_sincronizar        -> (botón del panel, SOLO con token de admin) agrega a la hoja los pedidos
+                                   que faltan SIN mandar correo y deja al día estado/pago; responde en JSON
+     pedido_eliminado           -> borra esa fila de la hoja (SOLO si trae token de admin
+                                   y el pedido ya no existe en Firestore)
+     codigo_panel_recuperacion  -> manda el código del panel por correo (el código y el
+                                   destinatario salen de Firestore, no del aviso)
+     aviso_drop_nuevo           -> correo del drop al Voltage Club (SOLO con token de admin;
+                                   los destinatarios se leen de Firestore, no del aviso)
+     voltage_club_bienvenida    -> correo de bienvenida al suscribirse
+     contacto_nuevo             -> escribe la fila en la pestaña "Contactos" + correo
+     contactos_sincronizar      -> reenvía contactos que faltaron (sin duplicar)
+     contacto_estado            -> actualiza el estado en la pestaña "Contactos"
+
+   Protección de cuota: los correos tienen límites por dirección y globales, y una
+   reserva de cuota diaria que solo usan las confirmaciones de pedidos (ver 1b y 4c).
+
+   Esta versión une las dos anteriores:
+     - Conserva el borrado robusto de pedidos (código como texto, candado).
+     - RECUPERA "contacto_nuevo", que la versión 2 había perdido.
+     - Usa getEffectiveUser() para el correo propio (getActiveUser puede
+       salir vacío en una web app y hacía fallar el aviso del drop).
+     - Escapa el HTML de nombres/productos en los correos.
+   ============================================================ */
+
+/* ---------- 1) CONFIGURACIÓN ---------- */
+const VERSION_SCRIPT = "2026-10-17 aviso-estado-pedido-por-correo + correo-contraentrega-vs-pago-exitoso + correo-maquina-oscuro + borrado-con-respuesta + pedidos-pago + sincronizar-pedidos + pedidos-estado-sync + avisos-protegidos + limite-correos + pedido-desde-firestore";
+
+const SHEET_ID = "1-HvcfVP_bcXept9k0woAyAKvx9sXzjJ8Z2gYvamuC3Y";
+const SHEET_TAB = "Pedidos";
+
+// Pestaña NUEVA e independiente para los mensajes del formulario de Contacto.
+// Se crea sola la primera vez (con sus encabezados). No toca "Pedidos".
+const SHEET_TAB_CONTACTOS = "Contactos";
+// Aquí se anotan los contactos que NO se pudieron escribir (si esta pestaña
+// también falla, el error queda en "Ejecuciones" del editor de Apps Script).
+const SHEET_TAB_ERRORES = "Errores_Contactos";
+
+// Pestaña donde se anotan los avisos de PEDIDOS que fallaron (sin datos personales).
+// Se crea sola la primera vez. Si está vacía (o no existe), no ha fallado nada.
+const SHEET_TAB_ERRORES_PEDIDOS = "Errores_Pedidos";
+
+// Estado del pedido en la hoja: se escribe en UNA columna extra al final de "Pedidos"
+// (después de la última columna que ya uses). Nunca toca las columnas A-M existentes.
+const TITULO_COLUMNA_ESTADO_PEDIDO = "Estado del pedido";
+// Columna M de "Pedidos" = "Estado de pago" (la que se escribe al crear la fila).
+const COLUMNA_ESTADO_PAGO = 13;
+const ESTADOS_PEDIDO_TXT = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
+
+// Proyecto de Firestore de la tienda. El estado se LEE de ahí (fuente de verdad):
+// lo que el navegador diga en el aviso se ignora, así nadie puede falsearlo.
+const FIRESTORE_PROJECT_ID = "maquina-dea83";
+
+// Tu tienda en vivo, sin barra al final.
+const TIENDA_URL = "https://maquina-super.github.io/TIENDA-MAQUINA";
+
+// Correo donde te llegan los mensajes de Contacto.
+// Vacío = el correo de la cuenta dueña del script.
+const DESTINO_CONTACTO = '';
+
+/* ---------- 1b) LÍMITES DE CORREO (protegen la cuota diaria de Gmail) ----------
+   Gmail gratis permite ~100 destinatarios al día (cada copia oculta cuenta como uno).
+   - RESERVA_CUOTA_PEDIDOS: cuota que SOLO pueden usar los correos de confirmación de
+     pedidos. Los demás tipos (bienvenida, contacto, drop, código del panel) no
+     envían si al hacerlo la cuota restante quedaría por debajo de esta reserva.
+   - LIMITES_ENVIO: máximo de correos por ventana (en segundos; tope de Google: 21600)
+       porCorreo = por dirección (destinatario o remitente del formulario)
+       global    = en total para ese tipo de aviso. */
+const RESERVA_CUOTA_PEDIDOS = 30;
+const LIMITES_ENVIO = {
+  pedido_nuevo:              { porCorreo: 5,    global: 100, ventana: 3600,  prioritario: true },
+  pedido_estado:             { porCorreo: 10,   global: 150, ventana: 3600  },
+  voltage_club_bienvenida:   { porCorreo: 1,    global: 30,  ventana: 21600 },
+  contacto_nuevo:            { porCorreo: 5,    global: 30,  ventana: 3600  },
+  codigo_panel_recuperacion: { porCorreo: 1,    global: 10,  ventana: 600   },
+  aviso_drop_nuevo:          { porCorreo: null, global: 5,   ventana: 3600  },
+};
+
+/* ---------- 2) doPost: recibe los avisos de la tienda ---------- */
+function doPost(e) {
+  let datos = null;
+  let respuesta = 'ok';
+  try {
+    datos = JSON.parse(e.postData.contents);
+
+    if (datos.tipo === 'pedido_nuevo') {
+      // Del aviso solo se usa el ID. Fila y correo se arman con el pedido REAL de Firestore:
+      // lo que el navegador diga (pago, total, correo, código...) se ignora.
+      const pedidoReal = leerPedidoRealParaAviso(datos.pedido);
+      // Si el pedido ya estaba en la hoja (reintento del cliente), no se duplica ni se reenvía el correo.
+      if (pedidoReal && guardarPedidoEnSheet(pedidoReal)) enviarCorreoConfirmacion(pedidoReal);
+    }
+    if (datos.tipo === 'pedido_estado') {
+      // Aviso al cliente por correo (si el estado cambió de verdad), aunque la hoja falle.
+      try { actualizarEstadoPedidoEnSheet(datos.id); }
+      finally { try { avisarCambioEstadoPedido(datos.id); } catch (errAviso) { console.warn('pedido_estado: no se pudo avisar al cliente: ' + errAviso); } }
+    }
+    if (datos.tipo === 'pedido_pago') {
+      actualizarPagoPedidoEnSheet(datos.id);
+    }
+    if (datos.tipo === 'pedidos_sincronizar') {
+      // Responde con JSON para que el panel sepa qué pasó de verdad (agregados, errores...).
+      respuesta = JSON.stringify(sincronizarPedidos(datos.ids, datos.idToken));
+    }
+    if (datos.tipo === 'pedido_eliminado') {
+      // Responde con JSON para que el panel sepa si la fila se borró de verdad.
+      respuesta = JSON.stringify(eliminarPedidoDeSheet(datos.id, datos.idToken));
+    }
+    if (datos.tipo === 'codigo_panel_recuperacion') {
+      enviarCorreoCodigoPanel(datos.correo); // el código NO se acepta del aviso: se lee de Firestore
+    }
+    if (datos.tipo === 'aviso_drop_nuevo') {
+      enviarAvisoDropVoltageClub(datos.idToken, datos.asunto, datos.mensaje); // los correos NO se aceptan del aviso
+    }
+    if (datos.tipo === 'voltage_club_bienvenida') {
+      enviarBienvenidaVoltageClub(datos.correo);
+    }
+    if (datos.tipo === 'contacto_nuevo') {
+      procesarContactoNuevo(datos);
+    }
+    if (datos.tipo === 'contactos_sincronizar') {
+      sincronizarContactos(datos.contactos);
+    }
+    if (datos.tipo === 'contacto_estado') {
+      actualizarEstadoContactoEnSheet(datos.codigo, datos.estado);
+    }
+    // 'problema' no hace nada aquí (no rompe nada).
+
+    return ContentService.createTextOutput(respuesta);
+  } catch (err) {
+    // La tienda usa "no-cors": el error solo se ve en "Ejecuciones".
+    console.error(err);
+    // Los avisos de pedidos que fallan quedan anotados en la pestaña "Errores_Pedidos".
+    if (datos && typeof datos.tipo === 'string' && datos.tipo.indexOf('pedido_') === 0) {
+      registrarErrorPedido(datos.tipo, datos.id || (datos.pedido && (datos.pedido.codigo_pedido || datos.pedido.id)), err);
+    }
+    if (datos && datos.tipo === 'pedidos_sincronizar') {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Falló la sincronización: ' + err.message }));
+    }
+    return ContentService.createTextOutput('error: ' + err.message);
+  }
+}
+
+/* ---------- 3) doGet: comprobar la versión publicada ---------- */
+function doGet() {
+  return ContentService.createTextOutput('MAQUINA script activo - versión ' + VERSION_SCRIPT);
+}
+
+/* ---------- 4) HELPERS ---------- */
+function nombreMetodoPago(metodo, pedido) {
+  if (metodo === 'tarjeta') return 'Tarjeta';
+  if (metodo === 'nequi') return 'Nequi';
+  if (metodo === 'pse') return 'PSE' + (pedido && pedido.pse_banco ? ' (' + pedido.pse_banco + ')' : '');
+  return 'Contraentrega';
+}
+
+/* Un pedido NUNCA se marca como pagado solo porque el cliente eligió un método:
+   el pago se da por confirmado únicamente si el pedido trae estado_pago = 'pagado'
+   (algo que solo cambia el equipo desde el panel). Al crearse, siempre está pendiente. */
+function pagoConfirmado(pedido) {
+  return !!pedido && pedido.estado_pago === 'pagado';
+}
+
+/* Texto del estado de pago para la hoja y los correos. */
+function textoEstadoPago(pedido) {
+  if (pagoConfirmado(pedido)) return 'Pagado';
+  const m = pedido && pedido.metodo_pago;
+  if (m === 'pse') return 'Pendiente (PSE por confirmar)';
+  if (m === 'nequi') return 'Por verificar (transferencia Nequi)';
+  if (m === 'tarjeta') return 'Por verificar (tarjeta)';
+  return 'Pendiente (contraentrega)';
+}
+
+function normalizarCodigo(valor) {
+  return String(valor === null || valor === undefined ? '' : valor).trim().toUpperCase();
+}
+
+function sinCerosIniciales(codigo) {
+  return /^\d+$/.test(codigo) ? codigo.replace(/^0+(?=\d)/, '') : codigo;
+}
+
+/* Escapa texto para meterlo seguro en HTML. */
+function esc(t) {
+  return String(t === null || t === undefined ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* Formato de dinero: 125000 -> "125.000" (no depende del idioma del servidor). */
+function dinero(n) {
+  return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/* Correo de la cuenta dueña del script (siempre disponible). */
+function correoPropio() {
+  return Session.getEffectiveUser().getEmail();
+}
+
+/* ---------- 4b) SEGURIDAD DE LOS AVISOS ----------
+   Este script es una web app pública: cualquiera que tenga la URL puede mandarle
+   un POST con lo que quiera. Por eso los avisos peligrosos NO confían en lo que
+   trae la petición:
+     - Acciones de admin (borrar fila, avisar drop): la petición trae el "idToken"
+       de Firebase del admin. El script lo reenvía a Firestore; las reglas
+       (isAdmin) deciden. Si Firestore dice 401/403, no es admin y no se hace nada.
+     - Recuperar código: destinatario y código se leen de Firestore (panel_codigos),
+       nunca del aviso, y hay un límite de 1 correo cada 10 min por dirección. */
+
+function firestoreUrl(ruta) {
+  return 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
+    '/databases/(default)/documents/' + ruta;
+}
+
+/* GET a Firestore; con idToken actúa como ese usuario (las reglas aplican). */
+function firestoreLeer(ruta, idToken) {
+  const opciones = { muteHttpExceptions: true };
+  if (idToken) opciones.headers = { Authorization: 'Bearer ' + idToken };
+  return UrlFetchApp.fetch(firestoreUrl(ruta), opciones);
+}
+
+/* ¿Es un JWT con pinta válida? (filtro barato; la validación real la hace Firestore) */
+function tokenPlausible(t) {
+  return typeof t === 'string' && t.length <= 4096 && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(t);
+}
+
+/* true solo si Firestore deja a ese token LISTAR "pedidos" (regla: solo admin). */
+function esAdminConToken(idToken) {
+  if (!tokenPlausible(idToken)) return false;
+  const resp = firestoreLeer('pedidos?pageSize=1', idToken);
+  return resp.getResponseCode() === 200;
+}
+
+const REGEX_CORREO = /^[^@\s,;<>\/]+@[^@\s,;<>\/]+\.[^@\s,;<>\/]+$/;
+
+/* ---------- 4c) LÍMITES DE ENVÍO Y CUOTA DE CORREO ---------- */
+
+/* ¿Queda cuota para mandar "cantidad" destinatarios? Los que no son pedidos dejan
+   siempre RESERVA_CUOTA_PEDIDOS libres para las confirmaciones de pedidos. */
+function hayCuotaCorreo(cantidad, prioritario) {
+  const restante = MailApp.getRemainingDailyQuota();
+  return restante - cantidad >= (prioritario ? 0 : RESERVA_CUOTA_PEDIDOS);
+}
+
+/* Cuenta un envío en una ventana fija. Devuelve false si ya se llegó al máximo. */
+function consumirCupo(cache, clave, max, ventanaSeg) {
+  const ahora = Date.now();
+  let r = null;
+  try { r = JSON.parse(cache.get(clave)); } catch (e) { r = null; }
+  if (!r || typeof r.t0 !== 'number' || ahora - r.t0 >= ventanaSeg * 1000) r = { n: 0, t0: ahora };
+  if (r.n >= max) return false;
+  r.n++;
+  const ttl = Math.max(1, Math.min(21600, Math.ceil(ventanaSeg - (ahora - r.t0) / 1000)));
+  cache.put(clave, JSON.stringify(r), ttl);
+  return true;
+}
+
+/* Llamar JUSTO ANTES de cada MailApp.sendEmail de un aviso de la tienda.
+   true = se puede enviar (y queda contado); false = hay que omitir el correo.
+   Orden: 1) cuota diaria  2) tope por dirección  3) tope global del tipo. */
+function puedoEnviar(tipo, clave, cantidad) {
+  const cfg = LIMITES_ENVIO[tipo];
+  if (!cfg) return true;
+  if (!hayCuotaCorreo(cantidad || 1, !!cfg.prioritario)) {
+    console.warn(tipo + ': no se envía, la cuota diaria de correos está baja (queda ' + MailApp.getRemainingDailyQuota() + ').');
+    return false;
+  }
+  const cache = CacheService.getScriptCache();
+  const candado = LockService.getScriptLock();
+  let tengoCandado = false;
+  try { candado.waitLock(5000); tengoCandado = true; } catch (e) { /* límite "mejor esfuerzo": sin candado se sigue */ }
+  try {
+    const k = String(clave === null || clave === undefined ? '' : clave).trim().toLowerCase();
+    if (cfg.porCorreo && k) {
+      const kc = 'lim_' + tipo + '_' + Utilities.base64EncodeWebSafe(k).slice(0, 150);
+      if (!consumirCupo(cache, kc, cfg.porCorreo, cfg.ventana)) { console.warn(tipo + ': límite por dirección alcanzado, se omite el correo.'); return false; }
+    }
+    if (!consumirCupo(cache, 'lim_' + tipo + '_*', cfg.global, cfg.ventana)) { console.warn(tipo + ': límite global alcanzado, se omite el correo.'); return false; }
+    return true;
+  } finally {
+    if (tengoCandado) candado.releaseLock();
+  }
+}
+
+/* ---------- 4d) PEDIDO REAL DESDE FIRESTORE ----------
+   La API REST de Firestore devuelve cada valor con su tipo ({stringValue: ...},
+   {integerValue: "5"}, {mapValue: ...}). Estas funciones lo vuelven a objeto normal. */
+function firestoreValor(v) {
+  if (v === null || typeof v !== 'object') return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return Number(v.doubleValue);
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(firestoreValor);
+  if ('mapValue' in v) return firestoreAObjeto(v.mapValue.fields || {});
+  return null; // nullValue y tipos que la tienda no usa
+}
+
+function firestoreAObjeto(campos) {
+  const o = {};
+  Object.keys(campos || {}).forEach(function (k) { o[k] = firestoreValor(campos[k]); });
+  return o;
+}
+
+/* Lee el pedido completo de Firestore (lectura pública del documento, como seguimiento.html).
+   Devuelve null si no existe. Agrega "id" y "codigo_pedido" (los últimos 6 del id, en
+   mayúsculas: así lo calcula la tienda, no se guarda en Firestore). */
+function leerPedidoFirestore(id) {
+  const resp = firestoreLeer('pedidos/' + encodeURIComponent(id));
+  const code = resp.getResponseCode();
+  if (code === 404) return null;
+  if (code !== 200) throw new Error('Firestore respondió ' + code + ' al leer el pedido.');
+  const pedido = firestoreAObjeto(JSON.parse(resp.getContentText()).fields);
+  pedido.id = id;
+  pedido.codigo_pedido = id.slice(-6).toUpperCase();
+  return pedido;
+}
+
+/* De lo que manda el navegador solo se toma el ID; el resto lo pone Firestore.
+   Devuelve null (y no se hace nada) si el id no es válido o el pedido no existe. */
+function leerPedidoRealParaAviso(pedidoDelAviso) {
+  const id = String(pedidoDelAviso && pedidoDelAviso.id !== undefined && pedidoDelAviso.id !== null ? pedidoDelAviso.id : '').trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(id)) { console.warn('pedido_nuevo: id ausente o inválido, se ignora.'); return null; }
+  const pedido = leerPedidoFirestore(id);
+  if (!pedido) { console.warn('pedido_nuevo: el pedido ' + id + ' no existe en Firestore, se ignora.'); return null; }
+  return pedido;
+}
+
+/* ---------- 5) PEDIDOS EN LA HOJA ---------- */
+function guardarPedidoEnSheet(pedido) {
+  if (!pedido) return;
+
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+
+    // Anti-duplicados: si el N° de pedido ya está en la columna A, no se inserta otra fila.
+    const codigoPedido = normalizarCodigo(pedido.codigo_pedido || pedido.id);
+    const ultima = hoja.getLastRow();
+    if (codigoPedido && ultima >= 2) {
+      const existentes = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+      for (let i = 0; i < existentes.length; i++) {
+        if (normalizarCodigo(existentes[i][0]) === codigoPedido) return false;
+      }
+    }
+
+    const detalle = pedido.detalle ||
+      (pedido.items || []).map(function (it) { return it.nombre + ' (' + it.talla + ')'; }).join(' | ');
+
+    const direccion = [pedido.envio_direccion, pedido.envio_edificio, pedido.envio_barrio,
+      pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : '', pedido.envio_referencia]
+      .filter(Boolean).join(', ');
+    const municipio = [pedido.envio_municipio, pedido.envio_departamento].filter(Boolean).join(', ');
+
+    // Los textos vienen de lo que escribió el cliente: textoSeguroHoja evita que una celda
+    // que empiece con = + - @ se ejecute como fórmula en la hoja.
+    const fechaPedido = new Date(pedido.fecha || Date.now());
+    const fila = [
+      String(pedido.codigo_pedido || pedido.id || ''),                 // A - N° Pedido (texto)
+      isNaN(fechaPedido.getTime()) ? new Date() : fechaPedido,         // B - Fecha
+      textoSeguroHoja(pedido.nombre_cliente),                          // C - Cliente
+      textoSeguroHoja(pedido.email_cliente),                           // D - Correo
+      textoSeguroHoja(pedido.telefono_cliente),                        // E - Teléfono
+      textoSeguroHoja(detalle),                                        // F - Productos
+      textoSeguroHoja(municipio),                                      // G - Municipio y departamento
+      textoSeguroHoja(direccion),                                      // H - Dirección
+      nombreMetodoPago(pedido.metodo_pago, pedido),                    // I - Método de pago
+      pedido.subtotal || 0,                                            // J - Subtotal
+      pedido.costo_envio || 0,                                         // K - Envío
+      pedido.total || 0,                                               // L - Total
+      textoEstadoPago(pedido),                                         // M - Estado de pago (nunca 'Pagado' al crear)
+    ];
+
+    const numeroFila = hoja.getLastRow() + 1;
+    hoja.getRange(numeroFila, 1).setNumberFormat('@'); // columna A como texto
+    hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
+
+    // Estado inicial en la columna "Estado del pedido". Si esto falla, el pedido YA quedó
+    // registrado: solo se anota el error y se sigue (nunca bloquea el pedido ni el correo).
+    try {
+      escribirEstadoEnFila(hoja, numeroFila, ESTADOS_PEDIDO_TXT.pendiente);
+    } catch (errEstado) {
+      registrarErrorPedido('pedido_nuevo', codigoPedido, errEstado);
+    }
+    return true;
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* ---------- 5a) ESTADO DEL PEDIDO EN LA HOJA ----------
+   - Solo escribe UNA celda: la columna "Estado del pedido" de la fila de ese pedido.
+   - No inserta filas, no borra, no toca A-M ni totales (J, K, L).
+   - Lee el estado real en Firestore, así que repetir el aviso o que lleguen
+     desordenados no cambia nada: siempre queda el estado actual de verdad.
+   - Si el pedido no está en la hoja (o el código sale en 2 filas) NO adivina:
+     lo anota en "Errores_Pedidos". */
+
+/* Devuelve el número de columna de "Estado del pedido"; si no existe, la crea
+   justo después de la última columna usada (nunca pisa datos existentes). */
+function columnaEstadoPedido(hoja) {
+  const ultimaCol = Math.max(hoja.getLastColumn(), 1);
+  const encabezados = hoja.getRange(1, 1, 1, ultimaCol).getDisplayValues()[0];
+  for (let c = 0; c < encabezados.length; c++) {
+    if (String(encabezados[c]).trim().toLowerCase() === TITULO_COLUMNA_ESTADO_PEDIDO.toLowerCase()) return c + 1;
+  }
+  const nueva = ultimaCol + 1;
+  if (nueva > hoja.getMaxColumns()) hoja.insertColumnAfter(hoja.getMaxColumns());
+  const celda = hoja.getRange(1, nueva);
+  celda.setValue(TITULO_COLUMNA_ESTADO_PEDIDO);
+  celda.setFontWeight(hoja.getRange(1, ultimaCol).getFontWeight());
+  return nueva;
+}
+
+function escribirEstadoEnFila(hoja, fila, etiqueta) {
+  hoja.getRange(fila, columnaEstadoPedido(hoja)).setValue(etiqueta);
+}
+
+/* Estado real del pedido en Firestore (lectura pública del documento, igual que
+   seguimiento.html). Devuelve null si el pedido no existe. */
+function leerEstadoPedidoFirestore(id) {
+  const url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
+    '/databases/(default)/documents/pedidos/' + encodeURIComponent(id);
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  const code = resp.getResponseCode();
+  if (code === 404) return null;
+  if (code !== 200) throw new Error('Firestore respondió ' + code + ' al leer el pedido.');
+  const campos = (JSON.parse(resp.getContentText()).fields) || {};
+  const estado = campos.estado && campos.estado.stringValue;
+  return ESTADOS_PEDIDO_TXT[estado] ? estado : 'pendiente'; // sin campo = pendiente (pedidos antiguos)
+}
+
+/* ---------- 5b) AVISO AL CLIENTE CUANDO CAMBIA EL ESTADO DEL PEDIDO ----------
+   - El estado y el correo se LEEN de Firestore (pedido real); del aviso solo se usa el ID.
+   - Solo avisa: confirmado, enviado, entregado y cancelado (pendiente no).
+   - No repite: guarda el último estado avisado de cada pedido, así que reenviar el
+     mismo aviso (o un cambio de ida y vuelta al mismo estado) no manda otro correo.
+   - Respeta los límites de correo (LIMITES_ENVIO.pedido_estado) y la cuota diaria. */
+const MENSAJES_ESTADO_PEDIDO = {
+  confirmado: { emoji: '✅', titulo: 'Pedido confirmado',  texto: 'Confirmamos tu pedido y lo estamos preparando.' },
+  enviado:    { emoji: '🚚', titulo: 'Tu pedido va en camino', texto: 'Tu pedido ya salió de nuestras manos y va rumbo a tu dirección.' },
+  entregado:  { emoji: '🎉', titulo: 'Pedido entregado',   texto: 'Tu pedido fue entregado. ¡Esperamos que lo disfrutes!' },
+  cancelado:  { emoji: '⚠️', titulo: 'Pedido cancelado',   texto: 'Tu pedido fue cancelado. Si no lo esperabas, escríbenos y lo revisamos contigo.' },
+};
+
+function avisarCambioEstadoPedido(id) {
+  const idCompleto = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(idCompleto)) return;
+  const pedido = leerPedidoFirestore(idCompleto);
+  if (!pedido || !pedido.email_cliente) return;
+  const estado = pedido.estado || 'pendiente';
+  const msg = MENSAJES_ESTADO_PEDIDO[estado];
+  if (!msg) return;
+
+  const props = PropertiesService.getScriptProperties();
+  const clave = 'estado_avisado_' + idCompleto;
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    if (props.getProperty(clave) === estado) return;                 // ya se avisó este estado
+    if (!puedoEnviar('pedido_estado', pedido.email_cliente, 1)) return;
+    const codigo = pedido.codigo_pedido || idCompleto.slice(-6).toUpperCase();
+    const link = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(idCompleto);
+    const asunto = msg.emoji + ' ' + msg.titulo + ' — Pedido #' + codigo + ' | MAQUINA';
+    const cuerpoTexto = 'Hola ' + (pedido.nombre_cliente || '') + ',\n\n' + msg.texto + '\n\nPedido #' + codigo +
+      '\nSigue tu pedido: ' + link + '\n\n¿Dudas? WhatsApp: https://wa.me/573239523623\n\n— MAQUINA';
+    const cuerpoHtml =
+      '<div style="background:#0b0b0d;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">' +
+      '<div style="max-width:520px;margin:0 auto;background:#121216;border:1px solid #2c2c33;border-radius:14px;padding:24px 20px;">' +
+        '<div style="text-align:center;font-size:15px;letter-spacing:4px;font-weight:700;color:#b4e614;">MAQUINA</div>' +
+        '<p style="font-size:30px;text-align:center;margin:14px 0 4px;">' + msg.emoji + '</p>' +
+        '<p style="font-size:18px;font-weight:700;color:#ffffff;text-align:center;margin:0 0 14px;">' + esc(msg.titulo) + '</p>' +
+        '<p style="font-size:15px;color:#ffffff;margin:0 0 8px;">¡Hola <strong>' + esc(pedido.nombre_cliente || '') + '</strong>!</p>' +
+        '<p style="font-size:14px;color:#d6d6dc;line-height:1.5;margin:0 0 6px;">' + esc(msg.texto) + '</p>' +
+        '<p style="font-size:13px;color:#9a9aa3;margin:0 0 4px;">Pedido <strong style="color:#b4e614;">#' + esc(codigo) + '</strong> · Total $' + dinero(pedido.total) + '</p>' +
+        '<a href="' + esc(link) + '" style="display:block;text-align:center;margin:18px 0 14px;padding:13px;border-radius:10px;background:#b4e614;color:#151512;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:.5px;">📦 SEGUIR MI PEDIDO</a>' +
+        '<p style="font-size:13px;color:#9a9aa3;margin:0;">¿Dudas? Escríbenos por WhatsApp:<br><a href="https://wa.me/573239523623" style="color:#8ab4ff;">https://wa.me/573239523623</a></p>' +
+        '<p style="font-size:13px;color:#6b6b75;margin:16px 0 0;">— MAQUINA</p>' +
+      '</div></div>';
+    MailApp.sendEmail({ to: pedido.email_cliente, subject: asunto, body: cuerpoTexto, htmlBody: cuerpoHtml, name: 'MAQUINA' });
+    props.setProperty(clave, estado);
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+function actualizarEstadoPedidoEnSheet(id) {
+  const idCompleto = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(idCompleto)) { console.warn('pedido_estado: id inválido, se ignora.'); return; }
+
+  const estado = leerEstadoPedidoFirestore(idCompleto);
+  if (estado === null) { console.warn('pedido_estado: el pedido ' + idCompleto + ' no existe en Firestore.'); return; }
+
+  const codigo = normalizarCodigo(idCompleto.slice(-6));
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+    const ultima = hoja.getLastRow();
+    const filas = [];
+    if (ultima >= 2) {
+      const colA = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+      for (let i = 0; i < colA.length; i++) {
+        if (normalizarCodigo(colA[i][0]) === codigo) filas.push(i + 2);
+      }
+    }
+    if (filas.length === 0) throw new Error('El pedido ' + codigo + ' no está en la hoja; no se creó ninguna fila.');
+    if (filas.length > 1) throw new Error('El código ' + codigo + ' aparece en ' + filas.length + ' filas; no se cambió ninguna para no equivocarse de pedido.');
+    escribirEstadoEnFila(hoja, filas[0], ESTADOS_PEDIDO_TXT[estado]);
+    console.log('Pedido ' + codigo + ': estado "' + ESTADOS_PEDIDO_TXT[estado] + '" escrito en la fila ' + filas[0] + '.');
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* ---------- 5b) ESTADO DE PAGO EN LA HOJA + SINCRONIZAR PEDIDOS ----------
+   - pedido_pago: el admin cambió el pago en el panel. Se lee el pago REAL de Firestore y se
+     escribe UNA celda: la columna M ("Estado de pago") de la fila de ese pedido.
+   - pedidos_sincronizar: botón "Sincronizar pedidos con la hoja" del panel. Para cada pedido:
+       * si NO está en la hoja, se agrega la fila (SIN mandar correo al cliente);
+       * se deja al día la columna "Estado del pedido";
+       * la columna M solo se toca si el pago se gestionó desde el panel (historial_pagos): así
+         no se pisa lo que hayas escrito a mano en pedidos viejos.
+     Solo la puede pedir un admin (token), se puede repetir sin duplicar y responde en JSON. */
+
+/* Filas de la hoja cuyo N° de pedido (columna A) coincide con el código. */
+function filasDelPedido(hoja, codigo) {
+  const ultima = hoja.getLastRow();
+  const filas = [];
+  if (ultima >= 2) {
+    const colA = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+    for (let i = 0; i < colA.length; i++) {
+      if (normalizarCodigo(colA[i][0]) === codigo) filas.push(i + 2);
+    }
+  }
+  return filas;
+}
+
+/* Escribe en la hoja el estado y/o el pago REALES (los del pedido leído de Firestore).
+   Si el pedido no está en la hoja (o sale en 2 filas) NO adivina: lanza error. */
+function escribirEstadoYPagoDePedido(pedido, escribirEstado, escribirPago) {
+  const codigo = normalizarCodigo(String(pedido.id).slice(-6));
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) throw new Error('No se encontró la pestaña "' + SHEET_TAB + '"');
+    const filas = filasDelPedido(hoja, codigo);
+    if (filas.length === 0) throw new Error('El pedido ' + codigo + ' no está en la hoja; no se creó ninguna fila.');
+    if (filas.length > 1) throw new Error('El código ' + codigo + ' aparece en ' + filas.length + ' filas; no se cambió ninguna para no equivocarse de pedido.');
+    if (escribirEstado) {
+      const estado = ESTADOS_PEDIDO_TXT[pedido.estado] ? pedido.estado : 'pendiente'; // sin campo = pendiente
+      escribirEstadoEnFila(hoja, filas[0], ESTADOS_PEDIDO_TXT[estado]);
+    }
+    if (escribirPago) hoja.getRange(filas[0], COLUMNA_ESTADO_PAGO).setValue(textoEstadoPago(pedido));
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+function actualizarPagoPedidoEnSheet(id) {
+  const idCompleto = String(id === null || id === undefined ? '' : id).trim();
+  if (!/^[A-Za-z0-9]{20}$/.test(idCompleto)) { console.warn('pedido_pago: id inválido, se ignora.'); return; }
+  const pedido = leerPedidoFirestore(idCompleto); // el pago sale de Firestore, no del aviso
+  if (!pedido) { console.warn('pedido_pago: el pedido ' + idCompleto + ' no existe en Firestore.'); return; }
+  escribirEstadoYPagoDePedido(pedido, false, true);
+  console.log('Pedido ' + pedido.codigo_pedido + ': pago "' + textoEstadoPago(pedido) + '" escrito en la hoja.');
+}
+
+function sincronizarPedidos(ids, idToken) {
+  if (!esAdminConToken(idToken)) return { ok: false, error: 'Sin permiso: entra de nuevo al panel e inténtalo otra vez.' };
+  const lista = (Array.isArray(ids) ? ids : []).map(String).filter(function (id) { return /^[A-Za-z0-9]{20}$/.test(id); }).slice(0, 15);
+  const r = { ok: true, agregados: 0, actualizados: 0, inexistentes: 0, errores: 0 };
+  lista.forEach(function (id) {
+    try {
+      const pedido = leerPedidoFirestore(id);
+      if (!pedido) { r.inexistentes++; return; }
+      const agregado = guardarPedidoEnSheet(pedido) === true; // inserta la fila si falta; NO manda correo
+      const pagoDelPanel = Array.isArray(pedido.historial_pagos) && pedido.historial_pagos.length > 0;
+      escribirEstadoYPagoDePedido(pedido, true, pagoDelPanel);
+      if (agregado) r.agregados++; else r.actualizados++;
+    } catch (err) {
+      r.errores++;
+      registrarErrorPedido('pedidos_sincronizar', String(id).slice(-6).toUpperCase(), err);
+    }
+  });
+  return r;
+}
+
+/* Anota el fallo de un aviso de pedido (sin datos personales). */
+function registrarErrorPedido(tipo, id, err) {
+  const ref = String(id === null || id === undefined ? '(sin id)' : id);
+  console.error('Aviso ' + tipo + ' del pedido ' + ref + ' falló: ' + (err && err.message));
+  try {
+    const libro = SpreadsheetApp.openById(SHEET_ID);
+    let hoja = libro.getSheetByName(SHEET_TAB_ERRORES_PEDIDOS);
+    if (!hoja) {
+      hoja = libro.insertSheet(SHEET_TAB_ERRORES_PEDIDOS);
+      hoja.getRange(1, 1, 1, 4).setValues([['Fecha', 'Tipo de aviso', 'Pedido (código o id)', 'Error']]).setFontWeight('bold');
+      hoja.setFrozenRows(1);
+    }
+    hoja.appendRow([new Date(), textoSeguroHoja(tipo), textoSeguroHoja(ref), textoSeguroHoja(err && err.message)]);
+  } catch (e2) {
+    console.error('Tampoco se pudo anotar el error del pedido en la hoja: ' + e2.message);
+  }
+}
+
+function eliminarPedidoDeSheet(id, idToken) {
+  const idTxt = String(id === null || id === undefined ? '' : id).trim();
+  const rechazo = function (motivo) {
+    console.warn('pedido_eliminado: ' + motivo);
+    registrarErrorPedido('pedido_eliminado', idTxt.slice(-6).toUpperCase() || '(sin id)', new Error(motivo));
+    return { ok: false, borradas: 0, error: motivo };
+  };
+  if (!/^[A-Za-z0-9_-]{6,60}$/.test(idTxt)) return rechazo('id ausente o inválido.');
+
+  // 1) Solo un admin puede pedir esto (Firestore valida el token con las reglas).
+  if (!esAdminConToken(idToken)) return rechazo('no trae un token de admin válido (vuelve a entrar al panel e inténtalo otra vez).');
+
+  // 2) El pedido tiene que haber sido borrado ya de Firestore (404). Si todavía existe,
+  //    no se toca la hoja. (Si Firestore falla con otro código, lanza error y queda anotado.)
+  if (leerEstadoPedidoFirestore(idTxt) !== null) return rechazo('el pedido todavía existe en Firestore; no se tocó la hoja.');
+
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+    if (!hoja) return rechazo('no se encontró la pestaña "' + SHEET_TAB + '".');
+
+    const idCompleto = normalizarCodigo(idTxt);
+    const codigo = idCompleto.slice(-6);
+    const codigoSinCeros = sinCerosIniciales(codigo);
+
+    const ultimaFila = hoja.getLastRow();
+    if (ultimaFila < 2) return { ok: true, borradas: 0 }; // la hoja ya está vacía: nada que borrar
+
+    const columnaA = hoja.getRange(2, 1, ultimaFila - 1, 1).getDisplayValues();
+
+    let borradas = 0;
+    for (let i = columnaA.length - 1; i >= 0; i--) {
+      const celda = normalizarCodigo(columnaA[i][0]);
+      if (!celda) continue;
+      if (celda === codigo || celda === idCompleto || sinCerosIniciales(celda) === codigoSinCeros) {
+        hoja.deleteRow(i + 2);
+        borradas++;
+      }
+    }
+
+    console.log('Pedido ' + codigo + ': ' + borradas + ' fila(s) borrada(s) de la hoja.');
+    return { ok: true, borradas: borradas };
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* ---------- 5b) CONTACTOS EN LA HOJA (pestaña "Contactos") ----------
+   Columnas: A ID · B Fecha y hora · C Nombre completo · D Correo ·
+             E Teléfono · F Asunto · G Mensaje · H Estado del contacto
+   - Siempre agrega al final (nunca sobrescribe filas anteriores).
+   - Anti-duplicados: si el ID (columna A) ya existe, no inserta otra fila.
+   - Si la hoja falla, el contacto NO se pierde: ya está en Firestore (la
+     tienda lo guarda primero allí). El error se anota y, desde el panel
+     (Mensajes -> "Sincronizar con la hoja"), se reenvía sin duplicar. */
+const ENCABEZADOS_CONTACTOS = [
+  'ID del contacto', 'Fecha y hora', 'Nombre completo', 'Correo electrónico',
+  'Teléfono', 'Asunto', 'Mensaje', 'Estado del contacto'
+];
+const ESTADOS_CONTACTO_TXT = { nuevo: 'Nuevo', en_revision: 'En revisión', respondido: 'Respondido' };
+
+function etiquetaEstadoContacto(estado) {
+  return ESTADOS_CONTACTO_TXT[estado] || 'Nuevo';
+}
+
+/* Evita que una celda se interprete como fórmula (=, +, -, @). */
+function textoSeguroHoja(v) {
+  let t = String(v === null || v === undefined ? '' : v);
+  if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+  return t;
+}
+
+/* Devuelve la pestaña "Contactos"; la crea (con encabezados) si no existe. */
+function obtenerHojaContactos() {
+  const libro = SpreadsheetApp.openById(SHEET_ID);
+  let hoja = libro.getSheetByName(SHEET_TAB_CONTACTOS);
+  if (!hoja) hoja = libro.insertSheet(SHEET_TAB_CONTACTOS);
+  if (hoja.getLastRow() === 0) {
+    hoja.getRange(1, 1, 1, ENCABEZADOS_CONTACTOS.length)
+      .setValues([ENCABEZADOS_CONTACTOS]).setFontWeight('bold');
+    hoja.setFrozenRows(1);
+  }
+  return hoja;
+}
+
+function idsContactosExistentes(hoja) {
+  const ids = {};
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) return ids;
+  hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues().forEach(function (f) {
+    const id = normalizarCodigo(f[0]);
+    if (id) ids[id] = true;
+  });
+  return ids;
+}
+
+/* Escribe UN contacto. Devuelve 'nuevo' si insertó o 'duplicado' si ya estaba. */
+function guardarContactoEnSheet(c) {
+  const id = normalizarCodigo(c && (c.codigo || c.id));
+  if (!id) throw new Error('El contacto llegó sin ID.');
+
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = obtenerHojaContactos();
+    if (idsContactosExistentes(hoja)[id]) return 'duplicado';
+    insertarFilaContacto(hoja, c, id);
+    return 'nuevo';
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+function insertarFilaContacto(hoja, c, id) {
+  const fechaMs = Number(c.fecha);
+  const fecha = Number.isFinite(fechaMs) && fechaMs > 0 ? new Date(fechaMs) : new Date();
+  const fila = [
+    id,
+    fecha,
+    textoSeguroHoja(c.nombre),
+    textoSeguroHoja(c.correo),
+    textoSeguroHoja(c.telefono),
+    textoSeguroHoja(c.asunto),
+    textoSeguroHoja(c.mensaje),
+    etiquetaEstadoContacto(c.estado),
+  ];
+  const numeroFila = hoja.getLastRow() + 1;
+  // Todo como texto (ID y teléfono sin perder ceros), salvo la fecha.
+  hoja.getRange(numeroFila, 1, 1, fila.length).setNumberFormat('@');
+  hoja.getRange(numeroFila, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+  hoja.getRange(numeroFila, 1, 1, fila.length).setValues([fila]);
+}
+
+/* contacto_nuevo: hoja primero (sin que su fallo frene el correo) y luego correo. */
+function procesarContactoNuevo(d) {
+  let resultado = 'error';
+  try {
+    resultado = guardarContactoEnSheet(d);
+  } catch (err) {
+    registrarErrorContacto(d, err);
+  }
+  // Si ya estaba en la hoja es un reintento: no se vuelve a mandar el correo.
+  if (resultado !== 'duplicado') enviarCorreoContacto(d);
+}
+
+/* contactos_sincronizar: reenvío masivo desde el panel. Solo agrega los que
+   faltan; los que ya están se omiten. No manda correos. */
+function sincronizarContactos(lista) {
+  if (!lista || !lista.length) return;
+  const candado = LockService.getScriptLock();
+  candado.waitLock(30000);
+  try {
+    const hoja = obtenerHojaContactos();
+    const existentes = idsContactosExistentes(hoja);
+    let nuevos = 0, omitidos = 0, fallidos = 0;
+    lista.forEach(function (c) {
+      try {
+        const id = normalizarCodigo(c && (c.codigo || c.id));
+        if (!id) throw new Error('El contacto llegó sin ID.');
+        if (existentes[id]) { omitidos++; return; }
+        insertarFilaContacto(hoja, c, id);
+        existentes[id] = true;
+        nuevos++;
+      } catch (err) {
+        fallidos++;
+        registrarErrorContacto(c, err);
+      }
+    });
+    console.log('Sincronización de contactos: ' + nuevos + ' nuevos, ' + omitidos + ' ya estaban, ' + fallidos + ' con error.');
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* contacto_estado: el panel cambió el estado; se refleja en la columna H. */
+function actualizarEstadoContactoEnSheet(codigo, estado) {
+  const id = normalizarCodigo(codigo);
+  if (!id) return;
+  const candado = LockService.getScriptLock();
+  candado.waitLock(20000);
+  try {
+    const hoja = obtenerHojaContactos();
+    const ultima = hoja.getLastRow();
+    if (ultima < 2) return;
+    const ids = hoja.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (normalizarCodigo(ids[i][0]) === id) {
+        hoja.getRange(i + 2, 8).setValue(etiquetaEstadoContacto(estado));
+        return;
+      }
+    }
+    console.warn('contacto_estado: el contacto ' + id + ' aún no está en la hoja (se agregará al sincronizar).');
+  } catch (err) {
+    console.error('No se pudo actualizar el estado del contacto ' + id + ': ' + err.message);
+  } finally {
+    candado.releaseLock();
+  }
+}
+
+/* Anota el fallo (sin datos personales) para poder sincronizar después. */
+function registrarErrorContacto(c, err) {
+  const id = normalizarCodigo(c && (c.codigo || c.id)) || '(sin id)';
+  console.error('Contacto ' + id + ' NO se escribió en la hoja: ' + (err && err.message));
+  try {
+    const libro = SpreadsheetApp.openById(SHEET_ID);
+    let hoja = libro.getSheetByName(SHEET_TAB_ERRORES);
+    if (!hoja) {
+      hoja = libro.insertSheet(SHEET_TAB_ERRORES);
+      hoja.getRange(1, 1, 1, 3).setValues([['Fecha', 'ID del contacto', 'Error']]).setFontWeight('bold');
+      hoja.setFrozenRows(1);
+    }
+    hoja.appendRow([new Date(), id, textoSeguroHoja(err && err.message)]);
+  } catch (e2) {
+    console.error('Tampoco se pudo anotar el error en la hoja: ' + e2.message);
+  }
+}
+
+/* ---------- 6) CORREOS ---------- */
+
+/* Nombre aproximado del color a partir de su HEX (el pedido solo guarda el código). */
+const PALETA_COLORES = [
+  ['Negro', '#151512'], ['Gris oscuro', '#3a3a36'], ['Gris', '#83807a'], ['Blanco', '#faf9f5'],
+  ['Hueso', '#eceae3'], ['Crema', '#f5ecd6'], ['Beige', '#d8c3a5'], ['Café', '#6b4423'],
+  ['Verde menta', '#dfe8da'], ['Verde', '#2f6b4a'], ['Verde oscuro', '#1b4332'], ['Lila', '#e7d9ee'],
+  ['Morado', '#6a3d9a'], ['Rosado', '#f3e0da'], ['Fucsia', '#d63384'], ['Rojo', '#c0392b'],
+  ['Naranja', '#e67e22'], ['Amarillo', '#ffd600'], ['Azul claro', '#9ec5e8'], ['Azul', '#2d4a8a'],
+];
+function nombreColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return String(hex || '');
+  const rgb = function (h) { return [0, 2, 4].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); };
+  const c = rgb(m[1]);
+  let mejor = '', dMin = Infinity;
+  PALETA_COLORES.forEach(function (par) {
+    const c2 = rgb(par[1].slice(1));
+    const d = Math.pow(c[0] - c2[0], 2) + Math.pow(c[1] - c2[1], 2) + Math.pow(c[2] - c2[2], 2);
+    if (d < dMin) { dMin = d; mejor = par[0]; }
+  });
+  return mejor;
+}
+
+/* Convierte la foto del producto (ruta de la tienda, URL o data:) en imagen para ir
+   ADJUNTA dentro del correo. Gmail no muestra rutas relativas ni data:, por eso se veía rota. */
+function fotoParaCorreo(src, nombre) {
+  try {
+    src = String(src || '').trim();
+    if (!src) return null;
+    const dm = /^data:(image\/(?:png|jpe?g|gif|webp));base64,(.+)$/i.exec(src);
+    if (dm) return Utilities.newBlob(Utilities.base64Decode(dm[2]), dm[1], nombre);
+    const url = /^https?:\/\//i.test(src) ? src : TIENDA_URL + '/' + encodeURI(src.replace(/^\.?\//, ''));
+    const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    if (r.getResponseCode() !== 200) return null;
+    const b = r.getBlob();
+    if (!/^image\/(png|jpe?g|gif|webp)/i.test(b.getContentType() || '')) return null;
+    return b.setName(nombre);
+  } catch (err) {
+    console.warn('Foto del correo no disponible: ' + err.message);
+    return null;
+  }
+}
+
+/* Confirmación de pedido al cliente (pagado o pendiente). */
+function enviarCorreoConfirmacion(pedido) {
+  if (!pedido || !pedido.email_cliente) return;
+  // Si se pasa del límite o no hay cuota, la fila YA quedó en la hoja; el fallo se anota
+  // en "Errores_Pedidos" para que sepas a quién falta confirmarle el pedido.
+  if (!puedoEnviar('pedido_nuevo', pedido.email_cliente, 1)) {
+    throw new Error('El correo de confirmación NO se envió (límite de envíos o cuota diaria agotada). La fila sí quedó en la hoja.');
+  }
+
+  const codigo = pedido.codigo_pedido || pedido.id;
+  const items = pedido.items || [];
+  const yaPago = pagoConfirmado(pedido);
+  const metodoTexto = nombreMetodoPago(pedido.metodo_pago, pedido);
+  const esContraentrega = !pedido.metodo_pago || pedido.metodo_pago === 'contraentrega';
+  const textoPendiente = esContraentrega
+    ? 'pagas $' + dinero(pedido.total) + ' contraentrega, cuando te llegue.'
+    : (pedido.metodo_pago === 'pse'
+        ? 'te contactaremos con el enlace de pago PSE (por correo o WhatsApp) para completar el pago de $' + dinero(pedido.total) + '.'
+        : 'confirmaremos tu pago de $' + dinero(pedido.total) + ' (' + metodoTexto + ') y te avisamos.');
+
+  /* Agrupa unidades iguales (mismo producto + color + talla). */
+  const grupos = [];
+  items.forEach(function (it) {
+    const k = [it.id, it.color, it.talla].join('|');
+    const g = grupos.filter(function (x) { return x.k === k; })[0];
+    if (g) g.cantidad++; else grupos.push({ k: k, it: it, cantidad: 1 });
+  });
+
+  const fotosInline = {};
+  const filasItemsTexto = grupos.map(function (g) {
+    const it = g.it, col = nombreColor(it.color);
+    return it.nombre + (col ? ' — ' + col : '') + ' — talla ' + it.talla +
+      (g.cantidad > 1 ? ' — x' + g.cantidad : '') + ' — $' + dinero(Number(it.precio) * g.cantidad);
+  }).join('\n');
+
+  const filasItemsHtml = grupos.map(function (g, n) {
+    const it = g.it, col = nombreColor(it.color), cid = 'foto' + n;
+    const blob = fotoParaCorreo(it.foto, cid + '.jpg');
+    if (blob) fotosInline[cid] = blob;
+    const foto = blob
+      ? '<img src="cid:' + cid + '" width="72" height="72" style="border-radius:10px;object-fit:cover;border:1px solid #2c2c33;display:block;" alt="' + esc(it.nombre) + '">'
+      : '<div style="width:72px;height:72px;border-radius:10px;background:#1c1c22;border:1px solid #2c2c33;text-align:center;line-height:72px;font-size:24px;">⚡</div>';
+    const puntoColor = /^#[0-9a-f]{6}$/i.test(String(it.color || ''))
+      ? '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + esc(it.color) + ';border:1px solid #6b6b75;vertical-align:middle;margin-right:4px;"></span>'
+      : '';
+    const totalLinea = Number(it.precio) * g.cantidad;
+    return '<tr>' +
+      '<td style="padding:10px 0;width:72px;vertical-align:top;">' + foto + '</td>' +
+      '<td style="padding:10px 0 10px 12px;vertical-align:top;font-family:Arial,sans-serif;font-size:14px;color:#f5f5f0;">' +
+        '<strong style="color:#ffffff;">' + esc(it.nombre) + '</strong><br>' +
+        '<span style="color:#9a9aa3;font-size:13px;">' + (col ? puntoColor + 'Color ' + esc(col) + ' · ' : '') + 'Talla ' + esc(it.talla) +
+          (g.cantidad > 1 ? ' · x' + g.cantidad : '') + '</span>' +
+      '</td>' +
+      '<td style="padding:10px 0;vertical-align:top;text-align:right;font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;white-space:nowrap;">$' + dinero(totalLinea) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  // Logo de MAQUINA arriba del correo (si no se puede bajar, sale el nombre en texto).
+  const logoBlob = fotoParaCorreo('img/logo-crown.png', 'logo.png');
+  if (logoBlob) fotosInline['logo'] = logoBlob;
+  const logoHtml = logoBlob
+    ? '<img src="cid:logo" height="38" style="height:38px;display:inline-block;" alt="MAQUINA">'
+    : '';
+
+  const textoEnvio = Number(pedido.costo_envio) > 0 ? '$' + dinero(pedido.costo_envio) : 'Gratis';
+
+  const direccion = [pedido.envio_direccion, pedido.envio_edificio,
+    pedido.envio_vereda ? 'Vereda ' + pedido.envio_vereda : pedido.envio_barrio, pedido.envio_municipio, pedido.envio_departamento]
+    .filter(Boolean).join(', ');
+
+  const linkSeguimiento = TIENDA_URL + '/seguimiento.html?pedido=' + encodeURIComponent(pedido.id || '');
+
+  // Contraentrega NUNCA dice "pago exitoso". "Pago exitoso" solo si el pedido figura como pagado
+  // (lo confirma el equipo desde el panel o una pasarela real); si no, queda "por verificar".
+  const encabezado = yaPago ? '✅ Pago exitoso' : (esContraentrega ? '📦 Contraentrega' : '🕒 Pago por verificar');
+  const asunto = yaPago
+    ? 'MAQUINA — ✅ Pago exitoso, pedido #' + codigo
+    : (esContraentrega
+        ? 'MAQUINA — 📦 Contraentrega, pedido #' + codigo
+        : 'MAQUINA — 🕒 Pedido recibido (pago por verificar), #' + codigo);
+  const lineaEstadoTexto = yaPago
+    ? 'Tu pago por ' + metodoTexto + ' fue exitoso. Ya recibimos tu pedido #' + codigo + ' en MAQUINA.'
+    : (esContraentrega
+        ? 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Es CONTRAENTREGA: ' + textoPendiente
+        : 'Ya recibimos tu pedido #' + codigo + ' en MAQUINA. Tu pago está por verificar: ' + textoPendiente);
+  const lineaEstadoHtml = yaPago
+    ? 'Tu pago por <strong>' + esc(metodoTexto) + '</strong> fue <strong>exitoso</strong> y ya recibimos tu pedido ' +
+      '<strong>#' + esc(codigo) + '</strong> en MAQUINA. Esto fue lo que compraste:'
+    : (esContraentrega
+        ? 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Es <strong>contraentrega</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:'
+        : 'Ya recibimos tu pedido <strong>#' + esc(codigo) + '</strong> en MAQUINA. Tu pago está <strong>por verificar</strong>: ' + esc(textoPendiente) + ' Esto fue lo que pediste:');
+  // Línea de estado de pago que se ve en el correo (texto y HTML).
+  const estadoPagoCorreo = yaPago ? 'Pago exitoso (' + metodoTexto + ')'
+    : (esContraentrega ? 'Contraentrega · pagas al recibir' : 'Pago por verificar (' + metodoTexto + ')');
+
+  const cuerpoTexto =
+    '¡Hola ' + (pedido.nombre_cliente || '') + '! ⚡\n\n' +
+    lineaEstadoTexto + '\n\n' +
+    filasItemsTexto + '\n\n' +
+    'Subtotal: $' + dinero(pedido.subtotal) + '\n' +
+    'Envío: ' + textoEnvio + '\n' +
+    'Total: $' + dinero(pedido.total) + '\n' +
+    'Estado del pago: ' + estadoPagoCorreo + '\n\n' +
+    'Dirección de entrega: ' + direccion + '\n' +
+    'Método de pago: ' + metodoTexto + '\n\n' +
+    'Rastrea tu pedido cuando quieras: ' + linkSeguimiento + '\n\n' +
+    '¿Dudas sobre tu pedido? Escríbenos por WhatsApp: https://wa.me/573239523623\n\n' +
+    'Gracias por tu compra ⚡\n— MAQUINA';
+
+  const cuerpoHtml =
+    '<div style="background:#0b0b0d;padding:16px 10px;">' +
+    '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
+      '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
+        '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">' + encabezado + '</div>' +
+      '</div>' +
+      '<div style="background:#121216;border:1px solid #2c2c33;border-top:none;border-radius:0 0 14px 14px;padding:22px 20px;">' +
+        '<div style="text-align:center;margin-bottom:14px;">' + logoHtml +
+          '<div style="font-size:15px;letter-spacing:4px;font-weight:700;color:#b4e614;margin-top:' + (logoHtml ? '6' : '0') + 'px;">MAQUINA</div>' +
+        '</div>' +
+        '<p style="font-size:15px;color:#ffffff;margin:0 0 10px;">¡Hola <strong>' + esc(pedido.nombre_cliente) + '</strong>! ⚡</p>' +
+        '<p style="font-size:14px;color:#d6d6dc;line-height:1.5;margin:0 0 6px;">' + lineaEstadoHtml + '</p>' +
+        '<table style="width:100%;border-collapse:collapse;margin:12px 0;">' + filasItemsHtml + '</table>' +
+        '<table style="width:100%;font-size:14px;color:#d6d6dc;border-top:1px solid #2c2c33;border-collapse:collapse;">' +
+          '<tr><td style="padding-top:10px;">Subtotal</td><td style="padding-top:10px;text-align:right;">$' + dinero(pedido.subtotal) + '</td></tr>' +
+          '<tr><td style="padding-top:4px;">Envío</td><td style="padding-top:4px;text-align:right;">' + textoEnvio + '</td></tr>' +
+          '<tr><td style="font-weight:700;color:#ffffff;padding-top:8px;font-size:15px;">Total</td><td style="text-align:right;font-weight:700;color:#b4e614;padding-top:8px;font-size:16px;">$' + dinero(pedido.total) + '</td></tr>' +
+        '</table>' +
+        '<p style="font-size:13px;font-weight:700;color:' + (yaPago ? '#7bd34a' : '#ffd23f') + ';margin:10px 0 0;">' +
+          (yaPago ? '✅ ' : (esContraentrega ? '📦 ' : '🕒 ')) + esc(estadoPagoCorreo) +
+        '</p>' +
+        '<p style="font-size:13px;color:#9a9aa3;line-height:1.6;margin:14px 0 0;">📍 Dirección de entrega: ' + esc(direccion) + '<br>' +
+        '💳 Método de pago: ' + esc(metodoTexto) + '</p>' +
+        '<a href="' + esc(linkSeguimiento) + '" style="display:block;text-align:center;margin:18px 0 14px;padding:13px;border-radius:10px;background:#b4e614;color:#151512;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:.5px;">📦 RASTREA TU PEDIDO AQUÍ</a>' +
+        '<p style="font-size:13px;color:#9a9aa3;margin:0;">¿Dudas sobre tu pedido? Escríbenos por WhatsApp:<br>' +
+        '<a href="https://wa.me/573239523623" style="color:#8ab4ff;">https://wa.me/573239523623</a></p>' +
+        '<p style="font-size:14px;color:#ffffff;margin:18px 0 0;">Gracias por tu compra ⚡</p>' +
+        '<p style="font-size:13px;color:#6b6b75;margin:4px 0 0;">— MAQUINA</p>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: pedido.email_cliente,
+    subject: asunto,
+    body: cuerpoTexto,
+    htmlBody: cuerpoHtml,
+    inlineImages: fotosInline,
+    name: 'MAQUINA',
+  });
+}
+
+/* Código de acceso al panel.
+   Solo recibe el CORREO. El código y la confirmación de que ese correo es de un
+   usuario del panel se leen de Firestore (panel_codigos/<correo>); lo que mande el
+   navegador como "código" se ignora. Así nadie puede usar este endpoint para
+   mandar un texto cualquiera a una dirección cualquiera. Límite: 1 correo cada
+   10 minutos por dirección (evita usarlo para llenarle el buzón a alguien). */
+function enviarCorreoCodigoPanel(correoEntrada) {
+  const correo = String(correoEntrada === null || correoEntrada === undefined ? '' : correoEntrada).trim().toLowerCase();
+  if (!correo || correo.length > 160 || !REGEX_CORREO.test(correo)) return;
+
+  const resp = firestoreLeer('panel_codigos/' + encodeURIComponent(correo));
+  const estadoHttp = resp.getResponseCode();
+  if (estadoHttp === 404) { console.warn('codigo_panel_recuperacion: ese correo no está en el panel.'); return; }
+  if (estadoHttp !== 200) throw new Error('Firestore respondió ' + estadoHttp + ' al leer el código del panel.');
+  const campo = (JSON.parse(resp.getContentText()).fields || {}).codigo || {};
+  const codigo = String(campo.stringValue !== undefined ? campo.stringValue : (campo.integerValue !== undefined ? campo.integerValue : '')).trim();
+  if (!/^\d{6}$/.test(codigo)) { console.warn('codigo_panel_recuperacion: el código guardado no tiene el formato esperado.'); return; }
+
+  if (!puedoEnviar('codigo_panel_recuperacion', correo, 1)) return; // 1 cada 10 min por dirección
+
+  MailApp.sendEmail({
+    to: correo,
+    subject: 'MAQUINA — Tu código de acceso al panel',
+    body:
+      'Hola,\n\n' +
+      'Pediste recuperar tu código de acceso al panel de MAQUINA.\n\n' +
+      'Tu código es: ' + codigo + '\n\n' +
+      'Si tú no pediste esto, ignora este correo (nadie puede\n' +
+      'entrar al panel solo con este código: también hace falta\n' +
+      'tu contraseña de siempre).\n\n' +
+      '— MAQUINA',
+    name: 'MAQUINA',
+  });
+}
+
+/* Lista de correos del Voltage Club leída de Firestore COMO el admin (con su token).
+   Devuelve null si Firestore rechaza el token (no es admin). Descarta cualquier
+   valor que no sea un correo simple (así un "a@b.com,otro@x.com" guardado en la
+   colección no puede colar destinatarios extra en el bcc). */
+function leerCorreosVoltageClub(idToken) {
+  const correos = {};
+  let pagina = '';
+  do {
+    const resp = firestoreLeer('voltage_club?pageSize=300' + (pagina ? '&pageToken=' + encodeURIComponent(pagina) : ''), idToken);
+    const estadoHttp = resp.getResponseCode();
+    if (estadoHttp === 401 || estadoHttp === 403) return null;
+    if (estadoHttp !== 200) throw new Error('Firestore respondió ' + estadoHttp + ' al leer el Voltage Club.');
+    const cuerpo = JSON.parse(resp.getContentText());
+    (cuerpo.documents || []).forEach(function (d) {
+      const c = d.fields && d.fields.correo && d.fields.correo.stringValue;
+      const limpio = String(c || '').trim().toLowerCase();
+      if (limpio && limpio.length <= 160 && REGEX_CORREO.test(limpio)) correos[limpio] = true;
+    });
+    pagina = cuerpo.nextPageToken || '';
+  } while (pagina);
+  return Object.keys(correos);
+}
+
+/* Aviso de drop al Voltage Club, en tandas (por la cuota diaria de Gmail).
+   Solo con token de admin; los destinatarios se leen de Firestore. El asunto y el
+   mensaje sí vienen del panel (es lo que escribe el admin), con tope de tamaño. */
+function enviarAvisoDropVoltageClub(idToken, asuntoEntrada, mensajeEntrada) {
+  const asunto = String(asuntoEntrada === null || asuntoEntrada === undefined ? '' : asuntoEntrada).trim();
+  const mensaje = String(mensajeEntrada === null || mensajeEntrada === undefined ? '' : mensajeEntrada).trim();
+  if (!asunto || !mensaje) return;
+  if (asunto.length > 150 || mensaje.length > 5000) { console.warn('aviso_drop_nuevo: asunto o mensaje demasiado largo, se ignora.'); return; }
+  if (!tokenPlausible(idToken)) { console.warn('aviso_drop_nuevo rechazado: no trae token de admin.'); return; }
+
+  const correos = leerCorreosVoltageClub(idToken);
+  if (correos === null) { console.warn('aviso_drop_nuevo rechazado: Firestore no reconoce al token como admin.'); return; }
+  if (!correos.length) return;
+
+  if (!puedoEnviar('aviso_drop_nuevo', '*', 1)) return; // máx. 5 avisos de drop por hora
+
+  const MAX_POR_TANDA = 45;
+  const propio = correoPropio();
+  let enviados = 0;
+  for (let i = 0; i < correos.length; i += MAX_POR_TANDA) {
+    const tanda = correos.slice(i, i + MAX_POR_TANDA);
+    // Cada tanda gasta (tanda + 1) de la cuota diaria. Se corta antes de tocar la
+    // reserva de los correos de pedidos.
+    if (!hayCuotaCorreo(tanda.length + 1, false)) {
+      console.warn('Aviso de drop: cuota diaria insuficiente; faltan ' + (correos.length - enviados) + ' correos por enviar.');
+      break;
+    }
+    try {
+      MailApp.sendEmail({
+        to: propio,
+        bcc: tanda.join(','),
+        subject: 'MAQUINA — ' + asunto,
+        body: mensaje,
+        name: 'MAQUINA',
+      });
+      enviados += tanda.length;
+    } catch (err) {
+      console.error('Tanda de aviso de drop falló (' + tanda.length + ' correos): ' + err.message);
+    }
+  }
+  console.log('Aviso de drop: ' + enviados + ' de ' + correos.length + ' correos enviados.');
+
+  // La tienda no ve la respuesta del script (no-cors): si quedó incompleto, te lo dice por correo.
+  if (enviados < correos.length && MailApp.getRemainingDailyQuota() >= 1) {
+    try {
+      MailApp.sendEmail({
+        to: propio,
+        subject: 'MAQUINA — ⚠️ El aviso del drop quedó incompleto',
+        body: 'El aviso "' + asunto + '" se envió a ' + enviados + ' de ' + correos.length + ' suscriptores del Voltage Club.\n\n' +
+              'Se detuvo para no gastar la cuota diaria de Gmail que se reserva para confirmar pedidos.\n' +
+              'Cuota que queda hoy: ' + MailApp.getRemainingDailyQuota() + '. La cuota se renueva cada 24 horas.\n' +
+              'No lo vuelvas a mandar completo: los primeros ya lo recibieron.',
+        name: 'MAQUINA',
+      });
+    } catch (e3) { console.error('No se pudo avisar que el drop quedó incompleto: ' + e3.message); }
+  }
+}
+
+/* Bienvenida al Voltage Club. */
+function enviarBienvenidaVoltageClub(correoEntrada) {
+  const correo = String(correoEntrada === null || correoEntrada === undefined ? '' : correoEntrada).trim().toLowerCase();
+  if (!correo || correo.length > 160 || !REGEX_CORREO.test(correo)) return;
+  if (!puedoEnviar('voltage_club_bienvenida', correo, 1)) return;
+
+  const cuerpoTexto =
+    '¡Hola! ⚡\n\n' +
+    'Ya quedaste anotado(a) en el Voltage Club de MAQUINA.\n\n' +
+    'Apenas saquemos una prenda o colección nueva, te vamos a avisar ' +
+    'primero a este correo, antes que a nadie más.\n\n' +
+    '¿No pediste esto tú? Ignora este correo, no pasa nada — no te ' +
+    'vuelve a llegar nada más si no vuelves a escribir tu correo en la tienda.\n\n' +
+    '— MAQUINA';
+
+  const cuerpoHtml =
+    '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">' +
+      '<div style="background:#b4e614;color:#151512;padding:16px 20px;border-radius:14px 14px 0 0;text-align:center;">' +
+        '<div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">⚡ Bienvenido al Voltage Club</div>' +
+      '</div>' +
+      '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;">' +
+        '<p style="font-size:15px;color:#151512;">¡Hola! ⚡</p>' +
+        '<p style="font-size:14px;color:#333;">Ya quedaste anotado(a) en el <strong>Voltage Club</strong> de MAQUINA.</p>' +
+        '<p style="font-size:14px;color:#333;">Apenas saquemos una prenda o colección nueva, te vamos a avisar <strong>primero a este correo</strong>, antes que a nadie más.</p>' +
+        '<p style="font-size:12px;color:#999;margin-top:16px;">¿No pediste esto tú? Ignora este correo, no pasa nada.</p>' +
+        '<p style="font-size:14px;color:#151512;margin-top:16px;">— MAQUINA ⚡</p>' +
+      '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: correo,
+    subject: 'MAQUINA — ⚡ Ya estás en el Voltage Club',
+    body: cuerpoTexto,
+    htmlBody: cuerpoHtml,
+    name: 'MAQUINA',
+  });
+}
+
+/* Aviso de mensaje nuevo del formulario de Contacto.
+   Al darle "Responder" le contestas directo al cliente. */
+function enviarCorreoContacto(d) {
+  if (!d || !d.correo || !d.mensaje) return;
+  if (!puedoEnviar('contacto_nuevo', d.correo, 1)) return; // el mensaje ya quedó en Firestore y en la hoja
+  const destino = DESTINO_CONTACTO || correoPropio();
+
+  const texto =
+    'Nuevo mensaje desde el formulario de Contacto\n\n' +
+    'Código:   ' + (d.codigo || '') + '\n' +
+    'Nombre:   ' + (d.nombre || '') + '\n' +
+    'Correo:   ' + d.correo + '\n' +
+    'Teléfono: ' + (d.telefono || '') + '\n' +
+    'Asunto:   ' + (d.asunto || '') + '\n\n' +
+    d.mensaje;
+
+  const html =
+    '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">' +
+      '<div style="background:#b4e614;color:#151512;padding:14px 20px;border-radius:14px 14px 0 0;font-weight:700;">' +
+        '✉️ Nuevo mensaje de contacto' +
+        (d.codigo ? ' · <span style="font-family:monospace;">' + esc(d.codigo) + '</span>' : '') +
+      '</div>' +
+      '<div style="border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:20px;font-size:14px;color:#222;">' +
+        '<p style="margin:0 0 6px;"><strong>Nombre:</strong> ' + esc(d.nombre) + '</p>' +
+        '<p style="margin:0 0 6px;"><strong>Correo:</strong> ' + esc(d.correo) + '</p>' +
+        '<p style="margin:0 0 6px;"><strong>Teléfono:</strong> ' + esc(d.telefono) + '</p>' +
+        '<p style="margin:0 0 14px;"><strong>Asunto:</strong> ' + esc(d.asunto) + '</p>' +
+        '<div style="background:#f6f6f4;border-radius:10px;padding:14px;white-space:pre-wrap;">' + esc(d.mensaje) + '</div>' +
+      '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: destino,
+    replyTo: d.correo,
+    subject: 'MAQUINA — Contacto: ' + (d.asunto || '') + ' (' + (d.nombre || '') + ')',
+    body: texto,
+    htmlBody: html,
+    name: 'MAQUINA',
+  });
+}
+
+/* ---------- 7) DIAGNÓSTICO (se ejecuta a mano en el editor) ---------- */
+function diagnosticoColumnaA() {
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) { console.log('La hoja no tiene pedidos.'); return; }
+  const valores = hoja.getRange(2, 1, ultima - 1, 1).getValues();
+  let numeros = 0;
+  valores.forEach(function (f, i) {
+    if (typeof f[0] === 'number') {
+      numeros++;
+      console.log('Fila ' + (i + 2) + ': el código se guardó como NÚMERO (' + f[0] + ').');
+    }
+  });
+  console.log('Filas revisadas: ' + valores.length + ' | códigos guardados como número: ' + numeros);
+}
+
+/* Ejecútala UNA vez: marca toda la columna A como texto. */
+function formatearColumnaAComoTexto() {
+  const hoja = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!hoja) { console.error('No se encontró la pestaña "' + SHEET_TAB + '"'); return; }
+  hoja.getRange(2, 1, Math.max(hoja.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+  console.log('Columna A marcada como texto.');
+}
+
+/* Prueba rápida del correo de contacto (ejecútala a mano). */
+function probarContacto() {
+  enviarCorreoContacto({
+    codigo: 'TEST01', nombre: 'Prueba', correo: correoPropio(),
+    telefono: '3000000000', asunto: 'Prueba', mensaje: 'Hola, esto es una prueba.'
+  });
+}
+
+/* Prueba de la hoja de Contactos (ejecútala a mano; ejecútala 2 veces:
+   la segunda NO debe crear otra fila). */
+function probarContactoEnHoja() {
+  const r = guardarContactoEnSheet({
+    codigo: 'TEST01', fecha: Date.now(), nombre: 'Prueba Hoja', correo: correoPropio(),
+    telefono: '3000000000', asunto: 'Prueba', mensaje: 'Hola, esto es una prueba de la hoja.', estado: 'nuevo'
+  });
+  console.log('Resultado: ' + r + ' (nuevo = insertó, duplicado = ya estaba)');
+}

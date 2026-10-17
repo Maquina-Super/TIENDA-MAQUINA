@@ -1,0 +1,26 @@
+MAQUINA — REDISEÑO DEL CARRITO
+==============================
+
+ARCHIVOS NUEVOS
+  js/carrito-core.js   Lógica del carrito (stock, descuentos, validación de precios). Sin DOM.
+  css/carrito-v2.css   Estilos nuevos del carrito. Para volver al diseño anterior, quita su <link> en carrito.html.
+
+ARCHIVOS MODIFICADOS
+  carrito.html         Lista de productos, estado vacío, resumen y avisos. El formulario de datos/envío/pago
+                       y el registro del pedido NO se tocaron (solo se les antepuso una guarda: no se puede
+                       pagar con productos agotados o sin verificar).
+  js/store.js          +4 líneas: catalogoDesdeNube() indica si el catálogo vino de Firestore.
+  js/maquina-ui.js     Carrito lateral: botones de cantidad (+/-) con tope de stock.
+  css/maquina-ui.css   Estilos de esos botones.
+
+COMO FUNCIONA LA VALIDACION
+  Al abrir el carrito (al volver a la pestaña tras 1 min, y justo antes de pagar si pasaron 45 s)
+  se lee el catalogo de Firestore y se compara con cada linea:
+   - precio cambio        -> se corrige el precio guardado y se avisa
+   - agotado / retirado   -> se marca en rojo, no se suma al total y se bloquea el pago
+   - stock insuficiente   -> boton "Ajustar a N"
+  Sin conexion a Firestore no se toca nada: solo se avisa con boton "Reintentar".
+
+PENDIENTE (a proposito, no se toco el registro de pedidos)
+  crearPedido() valida stock en transaccion, pero suma los precios que vienen del navegador.
+  Conviene recalcularlos dentro de esa misma transaccion desde el catalogo.

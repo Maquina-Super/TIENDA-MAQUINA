@@ -1,0 +1,25 @@
+REGLAS DE FIRESTORE PARA LAS RESEÑAS (pegar solo si las reseñas no funcionan)
+=============================================================================
+El archivo firestore.rules del proyecto NO tiene ninguna regla para la colección
+"resenas" ni una regla general, así que Firestore bloquea leerla y escribirla.
+Si en la consola de Firebase (Firestore > Reglas) tampoco existe, las reseñas del
+producto no se muestran ni se guardan, y la sección de reseñas del Inicio queda oculta.
+
+Para activarlas, agrega este bloque dentro de "match /databases/{database}/documents { ... }",
+junto a los otros "match", y pulsa Publicar:
+
+    match /resenas/{resenaId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['productoId','nombre','estrellas','comentario','fecha'])
+        && request.resource.data.productoId is string && request.resource.data.productoId.size() <= 40
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 60
+        && request.resource.data.estrellas is int && request.resource.data.estrellas >= 1 && request.resource.data.estrellas <= 5
+        && request.resource.data.comentario is string && request.resource.data.comentario.size() <= 500
+        && request.resource.data.fecha is string;
+      allow update, delete: if isAdmin();
+    }
+
+Notas:
+- Cualquier visitante podría publicar una reseña. Las malas se borran desde la consola de Firebase.
+- El promedio de estrellas del producto (campos rating/resenas) lo actualiza el navegador del cliente,
+  y las reglas actuales de "productos" no lo permiten. Las reseñas se verían, pero el promedio no cambiaría solo.
